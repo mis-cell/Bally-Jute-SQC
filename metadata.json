@@ -1,0 +1,6 @@
+{
+  "name": "Bally Jute SQC - Quality Control System",
+  "description": "Comprehensive Statistical Quality Control (S.Q.C.) and Industrial Inspection Management System for Bally Jute Company Limited.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

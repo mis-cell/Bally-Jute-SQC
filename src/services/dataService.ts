@@ -1,0 +1,471 @@
+// Data Store & Offline Persistence Service
+import {
+  Department,
+  Section,
+  Machine,
+  Loom,
+  QualityMaster,
+  ProductSpecification,
+  StandardDefinition,
+  InspectionRecord,
+  AuditLogItem,
+  AppNotification,
+  ApplicationSettings,
+  UserProfile,
+} from '../types';
+import {
+  INITIAL_DEPARTMENTS,
+  INITIAL_SECTIONS,
+  INITIAL_MACHINES,
+  INITIAL_LOOMS,
+  INITIAL_QUALITIES,
+  INITIAL_PRODUCT_SPECS,
+  INITIAL_STANDARDS,
+  INITIAL_USERS,
+  SEED_INSPECTIONS,
+  INITIAL_AUDIT_LOGS,
+  INITIAL_NOTIFICATIONS,
+  INITIAL_SETTINGS,
+} from '../constants/initialData';
+
+const STORAGE_KEYS = {
+  SETTINGS: 'bj_sqc_settings',
+  DEPARTMENTS: 'bj_sqc_departments',
+  SECTIONS: 'bj_sqc_sections',
+  MACHINES: 'bj_sqc_machines',
+  LOOMS: 'bj_sqc_looms',
+  QUALITIES: 'bj_sqc_qualities',
+  SPECS: 'bj_sqc_specs',
+  STANDARDS: 'bj_sqc_standards',
+  USERS: 'bj_sqc_users',
+  INSPECTIONS: 'bj_sqc_inspections',
+  AUDIT_LOGS: 'bj_sqc_audit_logs',
+  NOTIFICATIONS: 'bj_sqc_notifications',
+  CURRENT_USER: 'bj_sqc_active_user',
+};
+
+function getFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn(`Error loading key ${key} from storage:`, e);
+    return fallback;
+  }
+}
+
+function saveToStorage<T>(key: string, data: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error(`Error saving key ${key} to storage:`, e);
+  }
+}
+
+class DataService {
+  // Settings
+  getSettings(): ApplicationSettings {
+    return getFromStorage(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS);
+  }
+
+  updateSettings(settings: Partial<ApplicationSettings>, user: UserProfile): ApplicationSettings {
+    const current = this.getSettings();
+    const updated = { ...current, ...settings };
+    saveToStorage(STORAGE_KEYS.SETTINGS, updated);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'SETTINGS',
+      module: 'System Settings',
+      details: 'Updated application settings configuration.',
+      previousState: current,
+      newState: updated,
+    });
+    return updated;
+  }
+
+  // Active User / Auth simulation with real multi-role switching
+  getCurrentUser(): UserProfile {
+    return getFromStorage(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]);
+  }
+
+  setCurrentUser(user: UserProfile): void {
+    saveToStorage(STORAGE_KEYS.CURRENT_USER, user);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'LOGIN',
+      module: 'Authentication',
+      details: `User logged in / switched session to ${user.displayName} (${user.role}).`,
+    });
+  }
+
+  // Inspections
+  getInspections(): InspectionRecord[] {
+    return getFromStorage(STORAGE_KEYS.INSPECTIONS, SEED_INSPECTIONS);
+  }
+
+  getInspectionById(id: string): InspectionRecord | undefined {
+    return this.getInspections().find(i => i.id === id);
+  }
+
+  saveInspection(record: InspectionRecord, user: UserProfile): InspectionRecord {
+    const records = this.getInspections();
+    const idx = records.findIndex(r => r.id === record.id);
+    let updatedRecord = { ...record };
+
+    if (idx >= 0) {
+      updatedRecord.updatedAt = new Date().toISOString();
+      updatedRecord.updatedBy = user.displayName;
+      records[idx] = updatedRecord;
+      this.addAuditLog({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'UPDATE',
+        module: 'Inspection',
+        recordId: record.id,
+        details: `Updated inspection ${record.inspectionNo} (${record.formCode}). Status: ${record.status}.`,
+      });
+    } else {
+      updatedRecord.createdAt = new Date().toISOString();
+      updatedRecord.createdBy = user.displayName;
+      updatedRecord.version = 1;
+      records.unshift(updatedRecord);
+      this.addAuditLog({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'CREATE',
+        module: 'Inspection',
+        recordId: record.id,
+        details: `Created new inspection ${record.inspectionNo} (${record.formCode}). Result: ${record.result}.`,
+      });
+    }
+
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+    return updatedRecord;
+  }
+
+  submitInspection(id: string, user: UserProfile): InspectionRecord | null {
+    const records = this.getInspections();
+    const record = records.find(r => r.id === id);
+    if (!record) return null;
+
+    record.status = 'Submitted';
+    record.submittedBy = user.displayName;
+    record.submittedAt = new Date().toISOString();
+    record.updatedAt = new Date().toISOString();
+    record.updatedBy = user.displayName;
+
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'SUBMIT',
+      module: 'Inspection Workflow',
+      recordId: record.id,
+      details: `Submitted inspection ${record.inspectionNo} for HOD Approval.`,
+    });
+
+    this.addNotification({
+      title: 'Inspection Submitted for Approval',
+      message: `${record.inspectionNo} (${record.formCode}) submitted by ${user.displayName}.`,
+      type: 'info',
+      linkUrl: `/inspection/${record.id}`,
+      recipientRole: 'HOD / Approver',
+    });
+
+    return record;
+  }
+
+  approveInspection(id: string, remarks: string, user: UserProfile): InspectionRecord | null {
+    const records = this.getInspections();
+    const record = records.find(r => r.id === id);
+    if (!record) return null;
+
+    record.status = 'Approved';
+    record.approvedBy = user.displayName;
+    record.approvedAt = new Date().toISOString();
+    record.approvalRemarks = remarks;
+    record.updatedAt = new Date().toISOString();
+    record.updatedBy = user.displayName;
+
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'APPROVE',
+      module: 'Inspection Approval',
+      recordId: record.id,
+      details: `Approved inspection ${record.inspectionNo}. Remarks: ${remarks || 'None'}.`,
+    });
+
+    this.addNotification({
+      title: 'Inspection Approved',
+      message: `${record.inspectionNo} approved by ${user.displayName}.`,
+      type: 'success',
+      linkUrl: `/inspection/${record.id}`,
+      recipientRole: 'SQC Inspector / User',
+    });
+
+    return record;
+  }
+
+  rejectInspection(id: string, remarks: string, user: UserProfile): InspectionRecord | null {
+    const records = this.getInspections();
+    const record = records.find(r => r.id === id);
+    if (!record) return null;
+
+    record.status = 'Rejected';
+    record.rejectedBy = user.displayName;
+    record.rejectedAt = new Date().toISOString();
+    record.approvalRemarks = remarks;
+    record.updatedAt = new Date().toISOString();
+    record.updatedBy = user.displayName;
+
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'REJECT',
+      module: 'Inspection Approval',
+      recordId: record.id,
+      details: `Rejected inspection ${record.inspectionNo}. Reason: ${remarks}.`,
+    });
+
+    this.addNotification({
+      title: 'Inspection Rejected',
+      message: `${record.inspectionNo} rejected by ${user.displayName}. Reason: ${remarks}`,
+      type: 'error',
+      linkUrl: `/inspection/${record.id}`,
+      recipientRole: 'SQC Inspector / User',
+    });
+
+    return record;
+  }
+
+  returnInspectionForCorrection(id: string, remarks: string, user: UserProfile): InspectionRecord | null {
+    const records = this.getInspections();
+    const record = records.find(r => r.id === id);
+    if (!record) return null;
+
+    record.status = 'Returned';
+    record.correctionRemarks = remarks;
+    record.updatedAt = new Date().toISOString();
+    record.updatedBy = user.displayName;
+
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'RETURN',
+      module: 'Inspection Approval',
+      recordId: record.id,
+      details: `Returned inspection ${record.inspectionNo} for correction. Note: ${remarks}.`,
+    });
+
+    this.addNotification({
+      title: 'Inspection Returned for Correction',
+      message: `${record.inspectionNo} returned by ${user.displayName}. Remarks: ${remarks}`,
+      type: 'warning',
+      linkUrl: `/inspection/${record.id}`,
+      recipientRole: 'SQC Inspector / User',
+    });
+
+    return record;
+  }
+
+  // Masters
+  getDepartments(): Department[] {
+    return getFromStorage(STORAGE_KEYS.DEPARTMENTS, INITIAL_DEPARTMENTS);
+  }
+
+  saveDepartment(dept: Department, user: UserProfile): Department[] {
+    const list = this.getDepartments();
+    const idx = list.findIndex(d => d.id === dept.id);
+    if (idx >= 0) {
+      list[idx] = { ...dept, updatedAt: new Date().toISOString(), updatedBy: user.displayName };
+    } else {
+      list.push({ ...dept, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
+    }
+    saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
+    return list;
+  }
+
+  getSections(): Section[] {
+    return getFromStorage(STORAGE_KEYS.SECTIONS, INITIAL_SECTIONS);
+  }
+
+  getMachines(): Machine[] {
+    return getFromStorage(STORAGE_KEYS.MACHINES, INITIAL_MACHINES);
+  }
+
+  saveMachine(machine: Machine, user: UserProfile): Machine[] {
+    const list = this.getMachines();
+    const idx = list.findIndex(m => m.id === machine.id);
+    if (idx >= 0) {
+      list[idx] = { ...machine, updatedAt: new Date().toISOString(), updatedBy: user.displayName };
+    } else {
+      list.push({ ...machine, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
+    }
+    saveToStorage(STORAGE_KEYS.MACHINES, list);
+    return list;
+  }
+
+  getLooms(): Loom[] {
+    return getFromStorage(STORAGE_KEYS.LOOMS, INITIAL_LOOMS);
+  }
+
+  saveLoom(loom: Loom, user: UserProfile): Loom[] {
+    const list = this.getLooms();
+    const idx = list.findIndex(l => l.id === loom.id);
+    if (idx >= 0) {
+      list[idx] = { ...loom, updatedAt: new Date().toISOString(), updatedBy: user.displayName };
+    } else {
+      list.push({ ...loom, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
+    }
+    saveToStorage(STORAGE_KEYS.LOOMS, list);
+    return list;
+  }
+
+  getQualities(): QualityMaster[] {
+    return getFromStorage(STORAGE_KEYS.QUALITIES, INITIAL_QUALITIES);
+  }
+
+  saveQuality(quality: QualityMaster, user: UserProfile): QualityMaster[] {
+    const list = this.getQualities();
+    const idx = list.findIndex(q => q.id === quality.id);
+    if (idx >= 0) {
+      list[idx] = { ...quality, updatedAt: new Date().toISOString(), updatedBy: user.displayName };
+    } else {
+      list.push({ ...quality, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
+    }
+    saveToStorage(STORAGE_KEYS.QUALITIES, list);
+    return list;
+  }
+
+  getProductSpecs(): ProductSpecification[] {
+    return getFromStorage(STORAGE_KEYS.SPECS, INITIAL_PRODUCT_SPECS);
+  }
+
+  getStandards(): StandardDefinition[] {
+    return getFromStorage(STORAGE_KEYS.STANDARDS, INITIAL_STANDARDS);
+  }
+
+  saveStandard(std: StandardDefinition, user: UserProfile): StandardDefinition[] {
+    const list = this.getStandards();
+    const idx = list.findIndex(s => s.id === std.id);
+    if (idx >= 0) {
+      list[idx] = { ...std, updatedAt: new Date().toISOString(), updatedBy: user.displayName };
+    } else {
+      list.push({ ...std, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
+    }
+    saveToStorage(STORAGE_KEYS.STANDARDS, list);
+    return list;
+  }
+
+  getUsers(): UserProfile[] {
+    return getFromStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
+  }
+
+  saveUser(userData: UserProfile): UserProfile[] {
+    const list = this.getUsers();
+    const idx = list.findIndex(u => u.id === userData.id);
+    if (idx >= 0) {
+      list[idx] = { ...userData };
+    } else {
+      list.push(userData);
+    }
+    saveToStorage(STORAGE_KEYS.USERS, list);
+    return list;
+  }
+
+  // Audit Logs
+  getAuditLogs(): AuditLogItem[] {
+    return getFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
+  }
+
+  addAuditLog(item: Omit<AuditLogItem, 'id' | 'timestamp'>): void {
+    const logs = this.getAuditLogs();
+    const newLog: AuditLogItem = {
+      ...item,
+      id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+    };
+    logs.unshift(newLog);
+    if (logs.length > 500) logs.pop();
+    saveToStorage(STORAGE_KEYS.AUDIT_LOGS, logs);
+  }
+
+  // Notifications
+  getNotifications(): AppNotification[] {
+    return getFromStorage(STORAGE_KEYS.NOTIFICATIONS, INITIAL_NOTIFICATIONS);
+  }
+
+  addNotification(notif: Omit<AppNotification, 'id' | 'timestamp' | 'read'>): void {
+    const list = this.getNotifications();
+    const newNotif: AppNotification = {
+      ...notif,
+      id: `notif-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      read: false,
+    };
+    list.unshift(newNotif);
+    saveToStorage(STORAGE_KEYS.NOTIFICATIONS, list);
+  }
+
+  markNotificationRead(id: string): void {
+    const list = this.getNotifications();
+    const item = list.find(n => n.id === id);
+    if (item) {
+      item.read = true;
+      saveToStorage(STORAGE_KEYS.NOTIFICATIONS, list);
+    }
+  }
+
+  // Sequence generator
+  generateInspectionNumber(formCode: string): string {
+    const settings = this.getSettings();
+    const prefix = settings.inspectionPrefix || 'SQC/2026-27/';
+    const records = this.getInspections();
+    const count = records.length + 1;
+    const pad = String(count).padStart(6, '0');
+    return `${prefix}${formCode}/${pad}`;
+  }
+
+  // Reset to sample state
+  resetToFactoryDefaults(user: UserProfile): void {
+    saveToStorage(STORAGE_KEYS.DEPARTMENTS, INITIAL_DEPARTMENTS);
+    saveToStorage(STORAGE_KEYS.SECTIONS, INITIAL_SECTIONS);
+    saveToStorage(STORAGE_KEYS.MACHINES, INITIAL_MACHINES);
+    saveToStorage(STORAGE_KEYS.LOOMS, INITIAL_LOOMS);
+    saveToStorage(STORAGE_KEYS.QUALITIES, INITIAL_QUALITIES);
+    saveToStorage(STORAGE_KEYS.SPECS, INITIAL_PRODUCT_SPECS);
+    saveToStorage(STORAGE_KEYS.STANDARDS, INITIAL_STANDARDS);
+    saveToStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, SEED_INSPECTIONS);
+    saveToStorage(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'SETTINGS',
+      module: 'System Administration',
+      details: 'Reset application database to initial factory standards.',
+    });
+  }
+}
+
+export const dataService = new DataService();
