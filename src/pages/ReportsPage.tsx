@@ -11,6 +11,7 @@ import {
 import { dataService } from '../services/dataService';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
 import { ResultBadge, StatusBadge } from '../components/common/Badges';
+import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 export const ReportsPage: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState('ALL');
@@ -19,9 +20,9 @@ export const ReportsPage: React.FC = () => {
   const [startDate, setStartDate] = useState('2026-09-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const inspections = dataService.getInspections();
-  const departments = dataService.getDepartments();
-  const qualities = dataService.getQualities();
+  const inspections = useRealtimeData(() => dataService.getInspections());
+  const departments = useRealtimeData(() => dataService.getDepartments());
+  const qualities = useRealtimeData(() => dataService.getQualities());
 
   const filtered = inspections.filter(item => {
     const matchDept = selectedDept === 'ALL' || item.departmentName === selectedDept;

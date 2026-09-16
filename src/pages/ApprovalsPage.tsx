@@ -14,11 +14,12 @@ import { dataService } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import { InspectionRecord } from '../types';
 import { StatusBadge, ResultBadge } from '../components/common/Badges';
+import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 export const ApprovalsPage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, hasPermission } = useAuth();
-  const [inspections, setInspections] = useState<InspectionRecord[]>(() => dataService.getInspections());
+  const inspections = useRealtimeData(() => dataService.getInspections());
   const [selectedRecord, setSelectedRecord] = useState<InspectionRecord | null>(null);
   const [remarks, setRemarks] = useState('');
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'return' | null>(null);
@@ -43,11 +44,9 @@ export const ApprovalsPage: React.FC = () => {
     }
 
     if (updated) {
-      setInspections(dataService.getInspections());
       setSelectedRecord(null);
       setActionType(null);
       setRemarks('');
-      alert(`Action successfully recorded for ${updated.inspectionNo}`);
     }
   };
 

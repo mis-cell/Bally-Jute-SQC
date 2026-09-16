@@ -36,6 +36,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
 
   const [testing, setTesting] = useState(false);
   const [pushing, setPushing] = useState(false);
+  const [pulling, setPulling] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'sync' | 'config' | 'sql' | 'server'>('sync');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -92,6 +93,30 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
       setSyncResult({ success: false, message: err.message || 'Error pushing to PostgreSQL' });
     } finally {
       setPushing(false);
+    }
+  };
+
+  const handlePullAllData = async () => {
+    setPulling(true);
+    setSyncResult(null);
+    try {
+      const res = await postgresService.pullAndSyncAllData(true);
+      if (res.success) {
+        setSyncResult({
+          success: true,
+          message: `✅ Successfully pulled all live data from PostgreSQL! Synced ${res.totalItems || 0} records across users, master data, and inspections.`,
+        });
+        handleTest();
+      } else {
+        setSyncResult({
+          success: false,
+          message: res.error || 'Failed to pull live data from PostgreSQL. Check backend connection.',
+        });
+      }
+    } catch (err: any) {
+      setSyncResult({ success: false, message: err.message || 'Error pulling from PostgreSQL' });
+    } finally {
+      setPulling(false);
     }
   };
 
@@ -309,21 +334,53 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                 </div>
               </div>
 
+              {/* Real-time Auto Sync Status Card */}
+              <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                    <h3 className="text-sm font-bold text-emerald-900 flex items-center gap-1.5">
+                      ⚡ Automatic Real-Time Synchronization Active
+                    </h3>
+                  </div>
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    POLLING: EVERY 7s
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  Every time you create, edit, approve, or delete an inspection or master record, it is immediately synchronized with your PostgreSQL database and broadcasted across all tabs. The system also polls every 7 seconds to pull any changes made externally in PostgreSQL (pgAdmin, DBeaver, or scripts).
+                </p>
+              </div>
+
               {/* Sync Action Buttons */}
               <div className="p-4 bg-slate-900 rounded-xl text-white space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                       <UploadCloud size={18} className="text-emerald-400" />
-                      Push All Data to Local Machine PostgreSQL
+                      Bi-Directional Database Sync Controls
                     </h3>
                     <p className="text-xs text-slate-300">
-                      Writes all users, master records, and inspections directly into PostgreSQL tables (`users`, `departments`, `inspections`, etc.).
+                      Sync users, master records, and inspections between PostgreSQL tables (`users`, `departments`, `inspections`, etc.) and the web application.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    id="pg-pull-all-btn"
+                    onClick={handlePullAllData}
+                    disabled={pulling || !status?.isConnected}
+                    className={`px-4 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 transition-all ${
+                      status?.isConnected
+                        ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    }`}
+                  >
+                    <RefreshCw size={15} className={pulling ? 'animate-spin' : ''} />
+                    {pulling ? 'Pulling from PostgreSQL...' : '⬇️ Pull Latest from PostgreSQL'}
+                  </button>
+
                   <button
                     id="pg-push-all-btn"
                     onClick={handlePushAllData}
@@ -335,7 +392,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                     }`}
                   >
                     <UploadCloud size={16} className={pushing ? 'animate-bounce' : ''} />
-                    {pushing ? 'Synchronizing with PostgreSQL...' : '⚡ Push All Data to PostgreSQL Now'}
+                    {pushing ? 'Synchronizing with PostgreSQL...' : '⬆️ Push All Data to PostgreSQL'}
                   </button>
 
                   <button
@@ -344,7 +401,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                     className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-bold text-xs flex items-center gap-2 transition-colors"
                   >
                     <Download size={16} />
-                    Download SQL File (Direct Import)
+                    Download SQL File
                   </button>
                 </div>
 

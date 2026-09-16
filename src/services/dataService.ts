@@ -27,7 +27,7 @@ import {
   INITIAL_NOTIFICATIONS,
   INITIAL_SETTINGS,
 } from '../constants/initialData';
-import { postgresService } from './postgresService';
+import { postgresService, broadcastDataChange } from './postgresService';
 
 // Auto-purge all legacy test & dummy keys on module load
 try {
@@ -158,6 +158,7 @@ class DataService {
 
     const remaining = records.filter(r => r.id !== id);
     saveToStorage(STORAGE_KEYS.INSPECTIONS, remaining);
+    broadcastDataChange('local_delete');
 
     // Also attempt deletion in local PostgreSQL
     postgresService.deleteInspectionFromPostgres(target.inspectionNo).catch(() => {});
@@ -227,6 +228,7 @@ class DataService {
     }
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+    broadcastDataChange('local_save');
 
     // Asynchronously replicate to local PostgreSQL via Cloudflare Tunnel
     postgresService.syncInspectionToPostgres(updatedRecord).catch(() => {});
@@ -246,6 +248,7 @@ class DataService {
     record.updatedBy = user.displayName;
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+    broadcastDataChange('local_submit');
 
     // Asynchronously replicate status change to local PostgreSQL
     postgresService.syncInspectionToPostgres(record).catch(() => {});
@@ -284,6 +287,7 @@ class DataService {
     record.updatedBy = user.displayName;
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+    broadcastDataChange('local_approve');
 
     // Asynchronously replicate approval status to local PostgreSQL
     postgresService.syncInspectionToPostgres(record).catch(() => {});
@@ -322,6 +326,7 @@ class DataService {
     record.updatedBy = user.displayName;
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+    broadcastDataChange('local_reject');
 
     // Asynchronously replicate rejection status to local PostgreSQL
     postgresService.syncInspectionToPostgres(record).catch(() => {});
@@ -358,6 +363,8 @@ class DataService {
     record.updatedBy = user.displayName;
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+    broadcastDataChange('local_return');
+    postgresService.syncInspectionToPostgres(record).catch(() => {});
 
     this.addAuditLog({
       userId: user.id,
@@ -394,6 +401,7 @@ class DataService {
       list.push({ ...dept, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
+    broadcastDataChange('dept_save');
     postgresService.syncDepartmentToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -410,6 +418,7 @@ class DataService {
   deleteDepartment(id: string, user: UserProfile): Department[] {
     const list = this.getDepartments().filter(d => d.id !== id);
     saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
+    broadcastDataChange('dept_delete');
     postgresService.deleteDepartmentFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -436,6 +445,7 @@ class DataService {
       list.push(section);
     }
     saveToStorage(STORAGE_KEYS.SECTIONS, list);
+    broadcastDataChange('sec_save');
     postgresService.syncSectionToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -452,6 +462,7 @@ class DataService {
   deleteSection(id: string, user: UserProfile): Section[] {
     const list = this.getSections().filter(s => s.id !== id);
     saveToStorage(STORAGE_KEYS.SECTIONS, list);
+    broadcastDataChange('sec_delete');
     postgresService.deleteSectionFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -478,6 +489,7 @@ class DataService {
       list.push({ ...machine, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.MACHINES, list);
+    broadcastDataChange('mch_save');
     postgresService.syncMachineToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -494,6 +506,7 @@ class DataService {
   deleteMachine(id: string, user: UserProfile): Machine[] {
     const list = this.getMachines().filter(m => m.id !== id);
     saveToStorage(STORAGE_KEYS.MACHINES, list);
+    broadcastDataChange('mch_delete');
     postgresService.deleteMachineFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -520,6 +533,7 @@ class DataService {
       list.push({ ...loom, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.LOOMS, list);
+    broadcastDataChange('loom_save');
     postgresService.syncLoomToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -536,6 +550,7 @@ class DataService {
   deleteLoom(id: string, user: UserProfile): Loom[] {
     const list = this.getLooms().filter(l => l.id !== id);
     saveToStorage(STORAGE_KEYS.LOOMS, list);
+    broadcastDataChange('loom_delete');
     postgresService.deleteLoomFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -562,6 +577,7 @@ class DataService {
       list.push({ ...quality, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.QUALITIES, list);
+    broadcastDataChange('qual_save');
     postgresService.syncQualityToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -578,6 +594,7 @@ class DataService {
   deleteQuality(id: string, user: UserProfile): QualityMaster[] {
     const list = this.getQualities().filter(q => q.id !== id);
     saveToStorage(STORAGE_KEYS.QUALITIES, list);
+    broadcastDataChange('qual_delete');
     postgresService.deleteQualityFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -608,6 +625,7 @@ class DataService {
       list.push({ ...std, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.STANDARDS, list);
+    broadcastDataChange('std_save');
     postgresService.syncStandardToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -624,6 +642,7 @@ class DataService {
   deleteStandard(id: string, user: UserProfile): StandardDefinition[] {
     const list = this.getStandards().filter(s => s.id !== id);
     saveToStorage(STORAGE_KEYS.STANDARDS, list);
+    broadcastDataChange('std_delete');
     postgresService.deleteStandardFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -650,6 +669,7 @@ class DataService {
       list.push(userData);
     }
     saveToStorage(STORAGE_KEYS.USERS, list);
+    broadcastDataChange('user_save');
     postgresService.syncUserToPostgres(userData).catch(() => {});
     if (actorUser) {
       this.addAuditLog({
@@ -668,6 +688,7 @@ class DataService {
   deleteUser(id: string, actorUser?: UserProfile): UserProfile[] {
     const list = this.getUsers().filter(u => u.id !== id);
     saveToStorage(STORAGE_KEYS.USERS, list);
+    broadcastDataChange('user_delete');
     postgresService.deleteUserFromPostgres(id).catch(() => {});
     if (actorUser) {
       this.addAuditLog({

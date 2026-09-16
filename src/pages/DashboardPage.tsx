@@ -19,12 +19,13 @@ import { dataService } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
 import { StatCard, StatusBadge, ResultBadge } from '../components/common/Badges';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
+import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 export const DashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const inspections = dataService.getInspections();
-  const settings = dataService.getSettings();
+  const inspections = useRealtimeData(() => dataService.getInspections());
+  const settings = useRealtimeData(() => dataService.getSettings());
 
   // Metric aggregates
   const total = inspections.length;

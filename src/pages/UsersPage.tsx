@@ -21,10 +21,12 @@ import { postgresService } from '../services/postgresService';
 import { PostgresSyncModal } from '../components/PostgresSyncModal';
 import { useAuth } from '../context/AuthContext';
 import { UserProfile, UserRole } from '../types';
+import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 export const UsersPage: React.FC = () => {
   const { currentUser, switchUser } = useAuth();
-  const [users, setUsers] = useState<UserProfile[]>(() => dataService.getUsers());
+  const users = useRealtimeData(() => dataService.getUsers());
+  const departments = useRealtimeData(() => dataService.getDepartments());
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
 
@@ -47,8 +49,6 @@ export const UsersPage: React.FC = () => {
   });
 
   const [formError, setFormError] = useState('');
-
-  const departments = dataService.getDepartments();
 
   const roles: UserRole[] = [
     'Super Admin',
@@ -96,8 +96,7 @@ export const UsersPage: React.FC = () => {
     }
 
     // Save user in dataService
-    const updatedList = dataService.saveUser(formData, currentUser);
-    setUsers([...updatedList]);
+    dataService.saveUser(formData, currentUser);
     setIsModalOpen(false);
 
     // Provide immediate sync feedback
@@ -119,8 +118,7 @@ export const UsersPage: React.FC = () => {
       setDeleteCandidate(null);
       return;
     }
-    const updatedList = dataService.deleteUser(deleteCandidate.id, currentUser);
-    setUsers([...updatedList]);
+    dataService.deleteUser(deleteCandidate.id, currentUser);
     setDeleteCandidate(null);
   };
 

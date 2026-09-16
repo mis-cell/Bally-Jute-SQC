@@ -322,14 +322,22 @@ app.get('/', async (req, res) => {
     const dbResult = await pool.query('SELECT current_database() as database, current_user as user, version() as version, NOW() as server_time');
     const inspectionsCount = await pool.query('SELECT COUNT(*) as count FROM inspections');
     const usersCount = await pool.query('SELECT COUNT(*) as count FROM users');
+    const deptsCount = await pool.query('SELECT COUNT(*) as count FROM departments');
     res.json({
       status: 'online',
-      message: 'Bally Jute SQC Quality Control PostgreSQL API is running!',
+      message: 'Bally Jute SQC Quality Control PostgreSQL API is running with Real-Time Two-Way Synchronization!',
       database: dbResult.rows[0].database,
       user: dbResult.rows[0].user,
+      postgresVersion: dbResult.rows[0].version,
+      stats: {
+        users_count: parseInt(usersCount.rows[0].count, 10),
+        inspections_count: parseInt(inspectionsCount.rows[0].count, 10),
+        departments_count: parseInt(deptsCount.rows[0].count, 10),
+      },
       totalUsers: parseInt(usersCount.rows[0].count, 10),
       totalInspections: parseInt(inspectionsCount.rows[0].count, 10),
       serverTime: dbResult.rows[0].server_time,
+      realtimeSyncEnabled: true,
     });
   } catch (err) {
     res.status(500).json({
@@ -340,7 +348,157 @@ app.get('/', async (req, res) => {
   }
 });
 
-// 5. USERS API
+// 5. GET ALL DATA IN ONE FAST QUERY (Real-Time Bi-Directional Fetch)
+app.get('/api/all-data', checkApiKey, async (req, res) => {
+  try {
+    const [usersRes, deptsRes, secsRes, mchsRes, loomsRes, qualsRes, stdsRes, inspsRes] = await Promise.all([
+      pool.query('SELECT * FROM users ORDER BY created_at ASC'),
+      pool.query('SELECT * FROM departments ORDER BY order_index ASC, name ASC'),
+      pool.query('SELECT * FROM sections ORDER BY name ASC'),
+      pool.query('SELECT * FROM machines ORDER BY name ASC'),
+      pool.query('SELECT * FROM looms ORDER BY loom_no ASC'),
+      pool.query('SELECT * FROM qualities ORDER BY name ASC'),
+      pool.query('SELECT * FROM quality_standards ORDER BY form_code ASC, parameter_name ASC'),
+      pool.query('SELECT * FROM inspections ORDER BY id DESC'),
+    ]);
+
+    // Map quality_standards to client StandardDefinition format
+    const standards = stdsRes.rows.map(st => ({
+      id: st.id,
+      code: st.standard_code || st.id,
+      standardCode: st.standard_code || st.id,
+      formCode: st.form_code,
+      name: st.parameter_name || st.parameter || '',
+      parameter: st.parameter || st.parameter_name || '',
+      nominalValue: Number(st.nominal_value || st.standard_value || 0),
+      lowerLimit: Number(st.lower_limit || st.min_value || 0),
+      upperLimit: Number(st.upper_limit || st.max_value || 0),
+      unit: st.unit || '',
+      tolerance: st.tolerance || '',
+      isActive: st.is_active,
+    }));
+
+    // Map inspections to client InspectionRecord format
+    const inspections = inspsRes.rows.map(r => ({
+      id: r.inspection_no || String(r.id),
+      inspectionNo: r.inspection_no,
+      formId: r.form_id,
+      formCode: r.form_code,
+      formTitle: r.form_title,
+      departmentId: r.department_id,
+      departmentName: r.department_name,
+      sectionId: r.section_id,
+      shiftId: r.shift_id,
+      shiftName: r.shift_name,
+      qualityId: r.quality_id,
+      qualityName: r.quality_name,
+      productSpecId: r.product_spec_id,
+      productSpecName: r.product_spec_name,
+      machineId: r.machine_id,
+      machineNo: r.machine_no,
+      loomId: r.loom_id,
+      loomNo: r.loom_no,
+      godownId: r.godown_id,
+      godownName: r.godown_name,
+      inspectorId: r.inspector_id,
+      inspectorName: r.inspector_name,
+      inspectionDate: r.inspection_date,
+      inspectionTime: r.inspection_time,
+      status: r.status,
+      result: r.result,
+      formData: typeof r.form_data === 'string' ? JSON.parse(r.form_data) : (r.form_data || {}),
+      readingRows: typeof r.reading_rows === 'string' ? JSON.parse(r.reading_rows) : (r.reading_rows || []),
+      summaryMetrics: typeof r.summary_metrics === 'string' ? JSON.parse(r.summary_metrics) : (r.summary_metrics || {}),
+      remarks: r.remarks || '',
+      correctionRemarks: r.correction_remarks || '',
+      approvalRemarks: r.approval_remarks || '',
+      version: r.version || 1,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        users: usersRes.rows.map(u => ({
+          id: u.id,
+          employeeCode: u.employee_code,
+          displayName: u.display_name,
+          email: u.email,
+          role: u.role,
+          departmentId: u.department_id,
+          departmentName: u.department_name,
+          isActive: u.is_active,
+        })),
+        departments: deptsRes.rows.map(d => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          hodName: d.hod_name,
+          description: d.description,
+          orderIndex: d.order_index,
+          status: d.status,
+          isActive: d.is_active,
+        })),
+        sections: secsRes.rows.map(s => ({
+          id: s.id,
+          code: s.code,
+          name: s.name,
+          departmentId: s.department_id,
+          departmentCode: s.department_code,
+          description: s.description,
+          isActive: s.is_active,
+        })),
+        machines: mchsRes.rows.map(m => ({
+          id: m.id,
+          code: m.code,
+          name: m.name,
+          departmentId: m.department_id,
+          departmentCode: m.department_code,
+          sectionId: m.section_id,
+          machineType: m.machine_type || m.type,
+          type: m.type || m.machine_type,
+          capacity: m.capacity,
+          speedStandard: Number(m.speed_standard || 0),
+          speedUnit: m.speed_unit || 'rpm',
+          isActive: m.is_active,
+        })),
+        looms: loomsRes.rows.map(l => ({
+          id: l.id,
+          code: l.code,
+          loomNo: l.loom_no || l.code,
+          name: l.name,
+          shed: l.shed,
+          shedType: l.shed_type,
+          loomType: l.loom_type,
+          reedSpace: l.reed_space,
+          rpm: Number(l.rpm || 140),
+          standardRpm: Number(l.standard_rpm || l.rpm || 140),
+          isActive: l.is_active,
+        })),
+        qualities: qualsRes.rows.map(q => ({
+          id: q.id,
+          code: q.code,
+          name: q.name,
+          category: q.category,
+          nominalCount: Number(q.nominal_count || 0),
+          standardMR: Number(q.standard_mr || 0),
+          warpCount: Number(q.warp_count || 0),
+          weftCount: Number(q.weft_count || 0),
+          description: q.description,
+          isActive: q.is_active,
+        })),
+        standards,
+        inspections,
+      },
+    });
+  } catch (err) {
+    console.error('Error in /api/all-data:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6. USERS API (GET / POST / DELETE)
 app.get('/api/users', checkApiKey, async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM users ORDER BY created_at ASC');
@@ -350,7 +508,408 @@ app.get('/api/users', checkApiKey, async (req, res) => {
   }
 });
 
-// 6. INSPECTIONS API
+app.post('/api/users', checkApiKey, async (req, res) => {
+  const u = req.body;
+  if (!u.email) return res.status(400).json({ success: false, message: 'email is required' });
+  try {
+    const result = await pool.query(`
+      INSERT INTO users (
+        id, employee_code, display_name, email, role,
+        department_id, department_name, phone, is_active, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      ON CONFLICT (email) DO UPDATE SET
+        id = EXCLUDED.id,
+        employee_code = EXCLUDED.employee_code,
+        display_name = EXCLUDED.display_name,
+        role = EXCLUDED.role,
+        department_id = EXCLUDED.department_id,
+        department_name = EXCLUDED.department_name,
+        phone = EXCLUDED.phone,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *;
+    `, [
+      u.id || `u-${Date.now()}`,
+      u.employeeCode || u.employee_code || '',
+      u.displayName || u.display_name || '',
+      u.email,
+      u.role || 'SQC Inspector / User',
+      u.departmentId || u.department_id || '',
+      u.departmentName || u.department_name || '',
+      u.phone || '',
+      u.isActive !== undefined ? u.isActive : true,
+    ]);
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/users/:id', checkApiKey, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM users WHERE id = $1 OR email = $1', [id]);
+    res.json({ success: true, message: `Deleted user ${id}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7. DEPARTMENTS API (GET / POST / DELETE)
+app.get('/api/departments', checkApiKey, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM departments ORDER BY order_index ASC, name ASC');
+    res.json(r.rows);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/departments', checkApiKey, async (req, res) => {
+  const d = req.body;
+  if (!d.code || !d.name) return res.status(400).json({ success: false, message: 'code and name required' });
+  try {
+    const result = await pool.query(`
+      INSERT INTO departments (id, code, name, description, hod_name, order_index, status, is_active, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      ON CONFLICT (code) DO UPDATE SET
+        name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        hod_name = EXCLUDED.hod_name,
+        order_index = EXCLUDED.order_index,
+        status = EXCLUDED.status,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *;
+    `, [
+      d.id || `dept-${Date.now()}`,
+      d.code,
+      d.name,
+      d.description || '',
+      d.hodName || d.hod_name || '',
+      Number(d.orderIndex || d.order_index || 0),
+      d.status || 'Active',
+      d.isActive !== undefined ? d.isActive : true,
+    ]);
+    res.json({ success: true, department: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/departments/:id', checkApiKey, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM departments WHERE id = $1 OR code = $1', [id]);
+    res.json({ success: true, message: `Deleted department ${id}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8. SECTIONS API (GET / POST / DELETE)
+app.get('/api/sections', checkApiKey, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM sections ORDER BY name ASC');
+    res.json(r.rows);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/sections', checkApiKey, async (req, res) => {
+  const s = req.body;
+  if (!s.code || !s.name) return res.status(400).json({ success: false, message: 'code and name required' });
+  try {
+    const result = await pool.query(`
+      INSERT INTO sections (id, department_id, department_code, code, name, description, is_active, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      ON CONFLICT (code) DO UPDATE SET
+        department_id = EXCLUDED.department_id,
+        department_code = EXCLUDED.department_code,
+        name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *;
+    `, [
+      s.id || `sec-${Date.now()}`,
+      s.departmentId || s.department_id || '',
+      s.departmentCode || s.department_code || '',
+      s.code,
+      s.name,
+      s.description || '',
+      s.isActive !== undefined ? s.isActive : true,
+    ]);
+    res.json({ success: true, section: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/sections/:id', checkApiKey, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM sections WHERE id = $1 OR code = $1', [id]);
+    res.json({ success: true, message: `Deleted section ${id}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 9. MACHINES API (GET / POST / DELETE)
+app.get('/api/machines', checkApiKey, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM machines ORDER BY name ASC');
+    res.json(r.rows);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/machines', checkApiKey, async (req, res) => {
+  const m = req.body;
+  if (!m.code || !m.name) return res.status(400).json({ success: false, message: 'code and name required' });
+  try {
+    const result = await pool.query(`
+      INSERT INTO machines (
+        id, department_id, department_code, section_id, code, name,
+        type, machine_type, capacity, speed_standard, speed_unit, is_active, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+      ON CONFLICT (code) DO UPDATE SET
+        department_id = EXCLUDED.department_id,
+        department_code = EXCLUDED.department_code,
+        section_id = EXCLUDED.section_id,
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        machine_type = EXCLUDED.machine_type,
+        capacity = EXCLUDED.capacity,
+        speed_standard = EXCLUDED.speed_standard,
+        speed_unit = EXCLUDED.speed_unit,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *;
+    `, [
+      m.id || `mch-${Date.now()}`,
+      m.departmentId || m.department_id || '',
+      m.departmentCode || m.department_code || '',
+      m.sectionId || m.section_id || '',
+      m.code,
+      m.name,
+      m.type || m.machineType || '',
+      m.machineType || m.type || '',
+      m.capacity || '',
+      Number(m.speedStandard || m.speed_standard || 0),
+      m.speedUnit || m.speed_unit || 'rpm',
+      m.isActive !== undefined ? m.isActive : true,
+    ]);
+    res.json({ success: true, machine: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/machines/:id', checkApiKey, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM machines WHERE id = $1 OR code = $1', [id]);
+    res.json({ success: true, message: `Deleted machine ${id}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 10. LOOMS API (GET / POST / DELETE)
+app.get('/api/looms', checkApiKey, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM looms ORDER BY loom_no ASC, code ASC');
+    res.json(r.rows);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/looms', checkApiKey, async (req, res) => {
+  const l = req.body;
+  if (!l.code || !l.name) return res.status(400).json({ success: false, message: 'code and name required' });
+  try {
+    const result = await pool.query(`
+      INSERT INTO looms (
+        id, loom_no, code, name, shed, shed_type, loom_type,
+        reed_space, rpm, standard_rpm, is_active, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+      ON CONFLICT (code) DO UPDATE SET
+        loom_no = EXCLUDED.loom_no,
+        name = EXCLUDED.name,
+        shed = EXCLUDED.shed,
+        shed_type = EXCLUDED.shed_type,
+        loom_type = EXCLUDED.loom_type,
+        reed_space = EXCLUDED.reed_space,
+        rpm = EXCLUDED.rpm,
+        standard_rpm = EXCLUDED.standard_rpm,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *;
+    `, [
+      l.id || `loom-${Date.now()}`,
+      l.loomNo || l.loom_no || l.code,
+      l.code,
+      l.name,
+      l.shed || '',
+      l.shedType || l.shed_type || '',
+      l.loomType || l.loom_type || 'Ordinary',
+      l.reedSpace || l.reed_space || '',
+      Number(l.rpm || l.standardRpm || 140),
+      Number(l.standardRpm || l.rpm || 140),
+      l.isActive !== undefined ? l.isActive : true,
+    ]);
+    res.json({ success: true, loom: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/looms/:id', checkApiKey, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM looms WHERE id = $1 OR code = $1', [id]);
+    res.json({ success: true, message: `Deleted loom ${id}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 11. QUALITIES API (GET / POST / DELETE)
+app.get('/api/qualities', checkApiKey, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM qualities ORDER BY name ASC');
+    res.json(r.rows);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/qualities', checkApiKey, async (req, res) => {
+  const q = req.body;
+  if (!q.code || !q.name) return res.status(400).json({ success: false, message: 'code and name required' });
+  try {
+    const result = await pool.query(`
+      INSERT INTO qualities (
+        id, code, name, category, nominal_count, standard_mr,
+        warp_count, weft_count, description, is_active, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+      ON CONFLICT (code) DO UPDATE SET
+        name = EXCLUDED.name,
+        category = EXCLUDED.category,
+        nominal_count = EXCLUDED.nominal_count,
+        standard_mr = EXCLUDED.standard_mr,
+        warp_count = EXCLUDED.warp_count,
+        weft_count = EXCLUDED.weft_count,
+        description = EXCLUDED.description,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *;
+    `, [
+      q.id || `qual-${Date.now()}`,
+      q.code,
+      q.name,
+      q.category || '',
+      Number(q.nominalCount || q.nominal_count || 0),
+      Number(q.standardMR || q.standard_mr || 0),
+      Number(q.warpCount || q.warp_count || 0),
+      Number(q.weftCount || q.weft_count || 0),
+      q.description || '',
+      q.isActive !== undefined ? q.isActive : true,
+    ]);
+    res.json({ success: true, quality: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/qualities/:id', checkApiKey, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM qualities WHERE id = $1 OR code = $1', [id]);
+    res.json({ success: true, message: `Deleted quality ${id}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 12. STANDARDS API (GET / POST / DELETE)
+app.get('/api/standards', checkApiKey, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM quality_standards ORDER BY form_code ASC');
+    res.json(r.rows);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/standards', checkApiKey, async (req, res) => {
+  const st = req.body;
+  const id = st.id || `std-${Date.now()}`;
+  try {
+    const result = await pool.query(`
+      INSERT INTO quality_standards (
+        id, standard_code, form_code, department_id, quality_id,
+        parameter_name, parameter, nominal_value, lower_limit, upper_limit,
+        standard_value, min_value, max_value, tolerance, unit, is_active, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        standard_code = EXCLUDED.standard_code,
+        form_code = EXCLUDED.form_code,
+        department_id = EXCLUDED.department_id,
+        quality_id = EXCLUDED.quality_id,
+        parameter_name = EXCLUDED.parameter_name,
+        parameter = EXCLUDED.parameter,
+        nominal_value = EXCLUDED.nominal_value,
+        lower_limit = EXCLUDED.lower_limit,
+        upper_limit = EXCLUDED.upper_limit,
+        standard_value = EXCLUDED.standard_value,
+        min_value = EXCLUDED.min_value,
+        max_value = EXCLUDED.max_value,
+        tolerance = EXCLUDED.tolerance,
+        unit = EXCLUDED.unit,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *;
+    `, [
+      id,
+      st.standardCode || st.code || st.standard_code || '',
+      st.formCode || st.form_code || '',
+      st.departmentId || st.department_id || '',
+      st.qualityId || st.quality_id || '',
+      st.parameter || st.parameterName || st.parameter_name || st.name || '',
+      st.parameter || st.parameterName || st.parameter_name || st.name || '',
+      Number(st.nominalValue || st.nominal_value || st.standardValue || 0),
+      Number(st.lowerLimit || st.lower_limit || st.minValue || 0),
+      Number(st.upperLimit || st.upper_limit || st.maxValue || 0),
+      Number(st.standardValue || st.standard_value || st.nominalValue || 0),
+      Number(st.minValue || st.min_value || st.lowerLimit || 0),
+      Number(st.maxValue || st.max_value || st.upperLimit || 0),
+      String(st.tolerance || ''),
+      st.unit || '',
+      st.isActive !== undefined ? st.isActive : true,
+    ]);
+    res.json({ success: true, standard: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/standards/:id', checkApiKey, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM quality_standards WHERE id = $1', [id]);
+    res.json({ success: true, message: `Deleted standard ${id}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 13. INSPECTIONS API
 app.get('/api/inspections', checkApiKey, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM inspections ORDER BY id DESC');

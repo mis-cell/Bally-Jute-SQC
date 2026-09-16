@@ -25,17 +25,18 @@ import {
   QualityMaster,
   StandardDefinition,
 } from '../types';
+import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' }) => {
   const [activeTab, setActiveTab] = useState(tab);
   const { currentUser, hasPermission } = useAuth();
 
-  const [departments, setDepartments] = useState<Department[]>(() => dataService.getDepartments());
-  const [sections, setSections] = useState<Section[]>(() => dataService.getSections());
-  const [machines, setMachines] = useState<Machine[]>(() => dataService.getMachines());
-  const [looms, setLooms] = useState<Loom[]>(() => dataService.getLooms());
-  const [qualities, setQualities] = useState<QualityMaster[]>(() => dataService.getQualities());
-  const [standards, setStandards] = useState<StandardDefinition[]>(() => dataService.getStandards());
+  const departments = useRealtimeData(() => dataService.getDepartments());
+  const sections = useRealtimeData(() => dataService.getSections());
+  const machines = useRealtimeData(() => dataService.getMachines());
+  const looms = useRealtimeData(() => dataService.getLooms());
+  const qualities = useRealtimeData(() => dataService.getQualities());
+  const standards = useRealtimeData(() => dataService.getStandards());
 
   // Editing / Creation Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -128,23 +129,17 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
   const handleSaveModal = (e: React.FormEvent) => {
     e.preventDefault();
     if (activeTab === 'departments') {
-      const res = dataService.saveDepartment(activeFormData, currentUser);
-      setDepartments([...res]);
+      dataService.saveDepartment(activeFormData, currentUser);
     } else if (activeTab === 'sections') {
-      const res = dataService.saveSection(activeFormData, currentUser);
-      setSections([...res]);
+      dataService.saveSection(activeFormData, currentUser);
     } else if (activeTab === 'machines') {
-      const res = dataService.saveMachine(activeFormData, currentUser);
-      setMachines([...res]);
+      dataService.saveMachine(activeFormData, currentUser);
     } else if (activeTab === 'looms') {
-      const res = dataService.saveLoom(activeFormData, currentUser);
-      setLooms([...res]);
+      dataService.saveLoom(activeFormData, currentUser);
     } else if (activeTab === 'qualities') {
-      const res = dataService.saveQuality(activeFormData, currentUser);
-      setQualities([...res]);
+      dataService.saveQuality(activeFormData, currentUser);
     } else if (activeTab === 'standards') {
-      const res = dataService.saveStandard(activeFormData, currentUser);
-      setStandards([...res]);
+      dataService.saveStandard(activeFormData, currentUser);
     }
     setIsModalOpen(false);
   };
@@ -152,23 +147,17 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
   const handleConfirmDelete = () => {
     if (!deleteCandidate) return;
     if (deleteCandidate.type === 'departments') {
-      const res = dataService.deleteDepartment(deleteCandidate.id, currentUser);
-      setDepartments([...res]);
+      dataService.deleteDepartment(deleteCandidate.id, currentUser);
     } else if (deleteCandidate.type === 'sections') {
-      const res = dataService.deleteSection(deleteCandidate.id, currentUser);
-      setSections([...res]);
+      dataService.deleteSection(deleteCandidate.id, currentUser);
     } else if (deleteCandidate.type === 'machines') {
-      const res = dataService.deleteMachine(deleteCandidate.id, currentUser);
-      setMachines([...res]);
+      dataService.deleteMachine(deleteCandidate.id, currentUser);
     } else if (deleteCandidate.type === 'looms') {
-      const res = dataService.deleteLoom(deleteCandidate.id, currentUser);
-      setLooms([...res]);
+      dataService.deleteLoom(deleteCandidate.id, currentUser);
     } else if (deleteCandidate.type === 'qualities') {
-      const res = dataService.deleteQuality(deleteCandidate.id, currentUser);
-      setQualities([...res]);
+      dataService.deleteQuality(deleteCandidate.id, currentUser);
     } else if (deleteCandidate.type === 'standards') {
-      const res = dataService.deleteStandard(deleteCandidate.id, currentUser);
-      setStandards([...res]);
+      dataService.deleteStandard(deleteCandidate.id, currentUser);
     }
     setDeleteCandidate(null);
   };

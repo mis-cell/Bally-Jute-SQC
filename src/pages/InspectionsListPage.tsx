@@ -23,12 +23,13 @@ import { useAuth } from '../context/AuthContext';
 import { InspectionRecord, InspectionStatus, InspectionResult } from '../types';
 import { StatusBadge, ResultBadge } from '../components/common/Badges';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
+import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 export const InspectionsListPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [inspections, setInspections] = useState<InspectionRecord[]>(() => dataService.getInspections());
+  const inspections = useRealtimeData(() => dataService.getInspections());
   const [deleteTarget, setDeleteTarget] = useState<InspectionRecord | null>(null);
 
   // Filters
@@ -311,7 +312,6 @@ export const InspectionsListPage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   dataService.deleteInspection(deleteTarget.id, currentUser);
-                  setInspections(dataService.getInspections());
                   setDeleteTarget(null);
                 }}
                 className="px-3.5 py-1.5 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-lg shadow-xs"

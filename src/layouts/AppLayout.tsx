@@ -23,12 +23,14 @@ import {
   FileSpreadsheet,
   AlertTriangle,
   History,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dataService } from '../services/dataService';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
 import { postgresService, PostgresConnectionStatus } from '../services/postgresService';
 import { PostgresSyncModal } from '../components/PostgresSyncModal';
+import { usePostgresSyncState } from '../hooks/useRealtimeSync';
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, allUsers, switchUser } = useAuth();
@@ -39,6 +41,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [searchQuery, setSearchQuery] = useState('');
   const [pgModalOpen, setPgModalOpen] = useState(false);
   const [pgStatus, setPgStatus] = useState<PostgresConnectionStatus | null>(() => postgresService.getCachedStatus());
+  const syncState = usePostgresSyncState();
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -123,24 +127,56 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </div>
 
           {/* Right Action Menu & Multi-Role Persona Switcher */}
-          <div className="flex items-center gap-3">
-            {/* Local PostgreSQL Status Indicator */}
-            <button
-              id="topbar-pg-status-btn"
-              onClick={() => setPgModalOpen(true)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all shadow-2xs ${
-                pgStatus?.isConnected
-                  ? 'bg-emerald-950/90 border-emerald-400 text-emerald-200 hover:bg-emerald-900'
-                  : 'bg-amber-950/80 border-amber-400/80 text-amber-200 hover:bg-amber-900'
-              }`}
-              title="PostgreSQL Local Database Connection & Sync Status"
-            >
-              <Database size={13} className={pgStatus?.isConnected ? 'text-emerald-300' : 'text-amber-300'} />
-              <span className="hidden sm:inline">
-                {pgStatus?.isConnected ? `PG: ${pgStatus.database || 'SQC'}` : 'PostgreSQL Sync'}
-              </span>
-              <span className={`w-2 h-2 rounded-full ${pgStatus?.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            </button>
+          <div className="flex items-center gap-2.5">
+            {/* Real-time Sync Hub & Live Indicator */}
+            <div className="flex items-center bg-emerald-950/90 rounded-lg p-0.5 border border-emerald-700/70 shadow-2xs">
+              <button
+                id="topbar-pg-status-btn"
+                onClick={() => setPgModalOpen(true)}
+                className={`px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  pgStatus?.isConnected
+                    ? 'text-emerald-200 hover:bg-emerald-900/80'
+                    : 'text-amber-300 hover:bg-amber-900/60'
+                }`}
+                title="Open PostgreSQL Real-Time Sync Hub"
+              >
+                <Database size={13} className={pgStatus?.isConnected ? 'text-emerald-400' : 'text-amber-400'} />
+                <span className="hidden sm:inline">
+                  {pgStatus?.isConnected ? `PG: ${pgStatus.database || 'SQC'}` : 'Local PG'}
+                </span>
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    syncState.isSyncing
+                      ? 'bg-blue-400 animate-ping'
+                      : pgStatus?.isConnected
+                      ? 'bg-emerald-400 animate-pulse'
+                      : 'bg-amber-400'
+                  }`}
+                  title={syncState.isSyncing ? 'Syncing...' : pgStatus?.isConnected ? 'Live Connected' : 'Offline'}
+                />
+              </button>
+
+              {/* Instant Manual Sync Pull Button */}
+              {postgresService.isSyncEnabled() && (
+                <button
+                  id="topbar-quick-sync-btn"
+                  onClick={async () => {
+                    setIsManualSyncing(true);
+                    await postgresService.pullAndSyncAllData(true);
+                    setTimeout(() => setIsManualSyncing(false), 600);
+                  }}
+                  disabled={isManualSyncing || syncState.isSyncing}
+                  className="p-1 text-emerald-300 hover:text-white hover:bg-emerald-800 rounded transition-all"
+                  title={`Live Sync Active. Last synced: ${syncState.lastSyncTime || 'Just now'}. Click to sync now.`}
+                  aria-label="Synchronize Realtime Database"
+                >
+                  <RefreshCw
+                    size={13}
+                    className={isManualSyncing || syncState.isSyncing ? 'animate-spin text-emerald-200' : ''}
+                  />
+                </button>
+              )}
+            </div>
 
             {/* Quick Multi-Role Switcher */}
             <div className="flex items-center bg-emerald-950/70 rounded-lg p-1 border border-emerald-700/60">

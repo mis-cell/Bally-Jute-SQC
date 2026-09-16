@@ -47,12 +47,57 @@ export interface PostgresSyncResult {
   data?: any;
 }
 
+export interface RealtimeSyncState {
+  isAutoSyncEnabled: boolean;
+  isSyncing: boolean;
+  lastSyncTime: string | null;
+  lastSyncStatus: 'idle' | 'syncing' | 'success' | 'error';
+  lastSyncMessage: string;
+  itemsCount: {
+    inspections: number;
+    users: number;
+    departments: number;
+    sections: number;
+    machines: number;
+    looms: number;
+    qualities: number;
+    standards: number;
+  };
+}
+
+export function broadcastDataChange(source: string = 'postgres') {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bj_sqc_data_synced', { detail: { source, timestamp: Date.now() } }));
+  }
+}
+
 class PostgresService {
   private apiUrl: string;
   private apiKey: string;
   private syncEnabled: boolean;
   private cachedStatus: PostgresConnectionStatus | null = null;
   private listeners: Array<(status: PostgresConnectionStatus) => void> = [];
+  
+  // Real-Time Polling & Bi-Directional Synchronization
+  private syncIntervalTimer: any = null;
+  private syncStateListeners: Array<(state: RealtimeSyncState) => void> = [];
+  private syncState: RealtimeSyncState = {
+    isAutoSyncEnabled: true,
+    isSyncing: false,
+    lastSyncTime: null,
+    lastSyncStatus: 'idle',
+    lastSyncMessage: 'Waiting for connection...',
+    itemsCount: {
+      inspections: 0,
+      users: 0,
+      departments: 0,
+      sections: 0,
+      machines: 0,
+      looms: 0,
+      qualities: 0,
+      standards: 0,
+    },
+  };
 
   constructor() {
     this.apiUrl = localStorage.getItem(STORAGE_KEYS.API_URL) || DEFAULT_API_URL;
@@ -67,6 +112,197 @@ class PostgresService {
       }
     } catch {
       // Ignore
+    }
+
+    // Initialize Auto-Sync loop on startup if in browser
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        this.startAutoSync(7000); // Poll every 7 seconds
+      }, 1500);
+
+      // Trigger instant sync when user returns to this browser tab
+      window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.isSyncEnabled()) {
+          this.pullAndSyncAllData(false);
+        }
+      });
+      window.addEventListener('focus', () => {
+        if (this.isSyncEnabled()) {
+          this.pullAndSyncAllData(false);
+        }
+      });
+    }
+  }
+
+  public subscribeRealtimeSync(callback: (state: RealtimeSyncState) => void) {
+    this.syncStateListeners.push(callback);
+    callback(this.syncState);
+    return () => {
+      this.syncStateListeners = this.syncStateListeners.filter(l => l !== callback);
+    };
+  }
+
+  private notifySyncState(partial: Partial<RealtimeSyncState>) {
+    this.syncState = { ...this.syncState, ...partial };
+    this.syncStateListeners.forEach(cb => cb(this.syncState));
+  }
+
+  public getSyncState(): RealtimeSyncState {
+    return this.syncState;
+  }
+
+  public startAutoSync(intervalMs: number = 7000) {
+    if (this.syncIntervalTimer) {
+      clearInterval(this.syncIntervalTimer);
+    }
+    this.notifySyncState({ isAutoSyncEnabled: true });
+    this.syncIntervalTimer = setInterval(() => {
+      if (this.isSyncEnabled() && !this.syncState.isSyncing) {
+        this.pullAndSyncAllData(false);
+      }
+    }, intervalMs);
+  }
+
+  public stopAutoSync() {
+    if (this.syncIntervalTimer) {
+      clearInterval(this.syncIntervalTimer);
+      this.syncIntervalTimer = null;
+    }
+    this.notifySyncState({ isAutoSyncEnabled: false });
+  }
+
+  public async pullAndSyncAllData(isUserInitiated: boolean = false): Promise<{
+    success: boolean;
+    totalItems?: number;
+    error?: string;
+  }> {
+    if (!this.isSyncEnabled()) return { success: false, error: 'Sync is disabled or not configured.' };
+    if (this.syncState.isSyncing && !isUserInitiated) return { success: false, error: 'Sync already in progress.' };
+
+    this.notifySyncState({ isSyncing: true, lastSyncStatus: 'syncing' });
+
+    try {
+      const data = await this.fetchAllDataFromPostgres();
+      if (!data) {
+        this.notifySyncState({
+          isSyncing: false,
+          lastSyncStatus: 'error',
+          lastSyncMessage: 'Failed to retrieve data from PostgreSQL',
+        });
+        return { success: false, error: 'Failed to retrieve data from PostgreSQL backend.' };
+      }
+
+      // Merge / overwrite local storage with database truths
+      const STORAGE_KEYS_LOCAL = {
+        DEPARTMENTS: 'bj_sqc_departments_prod_v1',
+        SECTIONS: 'bj_sqc_sections_prod_v1',
+        MACHINES: 'bj_sqc_machines_prod_v1',
+        LOOMS: 'bj_sqc_looms_prod_v1',
+        QUALITIES: 'bj_sqc_qualities_prod_v1',
+        STANDARDS: 'bj_sqc_standards_prod_v1',
+        USERS: 'bj_sqc_users_prod_v1',
+        INSPECTIONS: 'bj_sqc_inspections_prod_clean',
+      };
+
+      if (data.users && data.users.length > 0) {
+        localStorage.setItem(STORAGE_KEYS_LOCAL.USERS, JSON.stringify(data.users));
+      }
+      if (data.departments && data.departments.length > 0) {
+        localStorage.setItem(STORAGE_KEYS_LOCAL.DEPARTMENTS, JSON.stringify(data.departments));
+      }
+      if (data.sections && data.sections.length > 0) {
+        localStorage.setItem(STORAGE_KEYS_LOCAL.SECTIONS, JSON.stringify(data.sections));
+      }
+      if (data.machines && data.machines.length > 0) {
+        localStorage.setItem(STORAGE_KEYS_LOCAL.MACHINES, JSON.stringify(data.machines));
+      }
+      if (data.looms && data.looms.length > 0) {
+        localStorage.setItem(STORAGE_KEYS_LOCAL.LOOMS, JSON.stringify(data.looms));
+      }
+      if (data.qualities && data.qualities.length > 0) {
+        localStorage.setItem(STORAGE_KEYS_LOCAL.QUALITIES, JSON.stringify(data.qualities));
+      }
+      if (data.standards && data.standards.length > 0) {
+        localStorage.setItem(STORAGE_KEYS_LOCAL.STANDARDS, JSON.stringify(data.standards));
+      }
+      if (data.inspections && Array.isArray(data.inspections)) {
+        localStorage.setItem(STORAGE_KEYS_LOCAL.INSPECTIONS, JSON.stringify(data.inspections));
+      }
+
+      const totalItems =
+        (data.users?.length || 0) +
+        (data.departments?.length || 0) +
+        (data.sections?.length || 0) +
+        (data.machines?.length || 0) +
+        (data.looms?.length || 0) +
+        (data.qualities?.length || 0) +
+        (data.standards?.length || 0) +
+        (data.inspections?.length || 0);
+
+      const nowStr = new Date().toLocaleTimeString();
+      this.notifySyncState({
+        isSyncing: false,
+        lastSyncTime: nowStr,
+        lastSyncStatus: 'success',
+        lastSyncMessage: `Synced ${data.inspections?.length || 0} inspections & ${data.users?.length || 0} users in real time`,
+        itemsCount: {
+          inspections: data.inspections?.length || 0,
+          users: data.users?.length || 0,
+          departments: data.departments?.length || 0,
+          sections: data.sections?.length || 0,
+          machines: data.machines?.length || 0,
+          looms: data.looms?.length || 0,
+          qualities: data.qualities?.length || 0,
+          standards: data.standards?.length || 0,
+        },
+      });
+
+      // Broadcast update to all mounted React UI views
+      broadcastDataChange('postgres_poll');
+      return { success: true, totalItems };
+    } catch (err: any) {
+      console.warn('[PostgresService] Realtime sync error:', err);
+      this.notifySyncState({
+        isSyncing: false,
+        lastSyncStatus: 'error',
+        lastSyncMessage: err.message || 'Sync error',
+      });
+      return { success: false, error: err.message || 'Sync error' };
+    }
+  }
+
+  public async fetchAllDataFromPostgres(): Promise<{
+    users: UserProfile[];
+    departments: Department[];
+    sections: Section[];
+    machines: Machine[];
+    looms: Loom[];
+    qualities: QualityMaster[];
+    standards: StandardDefinition[];
+    inspections: InspectionRecord[];
+  } | null> {
+    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+      return null;
+    }
+
+    try {
+      const res = await fetch(`${this.apiUrl}/api/all-data`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        return json.data;
+      }
+      return null;
+    } catch (err) {
+      console.warn('[PostgresService] fetchAllDataFromPostgres network error:', err);
+      return null;
     }
   }
 
