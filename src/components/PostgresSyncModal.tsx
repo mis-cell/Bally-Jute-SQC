@@ -16,9 +16,11 @@ import {
   FileCode,
   ShieldCheck,
   ExternalLink,
+  Code2,
 } from 'lucide-react';
 import { postgresService, PostgresConnectionStatus } from '../services/postgresService';
 import { dataService } from '../services/dataService';
+import { LOCAL_SERVER_JS_CODE } from '../data/serverScript';
 
 interface PostgresSyncModalProps {
   isOpen: boolean;
@@ -97,6 +99,18 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
     const fullState = dataService.getFullDatabaseState();
     const sql = postgresService.generateSqlDumpScript(fullState);
     postgresService.downloadSqlFile(sql, `bally_jute_sqc_full_dump_${new Date().toISOString().split('T')[0]}.sql`);
+  };
+
+  const handleDownloadServerJs = () => {
+    const blob = new Blob([LOCAL_SERVER_JS_CODE], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'server.js';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleCopy = (text: string, key: string) => {
@@ -187,6 +201,18 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
             <FileCode size={15} />
             Instant SQL Dump
           </button>
+          <button
+            id="pg-tab-server"
+            onClick={() => setActiveTab('server')}
+            className={`pb-2.5 px-3 border-b-2 flex items-center gap-1.5 transition-colors ${
+              activeTab === 'server'
+                ? 'border-emerald-600 text-emerald-900 bg-white rounded-t-lg'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Code2 size={15} />
+            Node.js server.js
+          </button>
         </div>
 
         {/* Tab Contents */}
@@ -228,6 +254,23 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                     {status?.message ||
                       'Data created in this web app is currently retained in browser storage until synchronized with your local PostgreSQL.'}
                   </p>
+                  {status?.message && (status.message.toLowerCase().includes('password') || status.message.toLowerCase().includes('authentication failed')) && (
+                    <div className="mt-2.5 p-3 bg-rose-100 border border-rose-300 rounded-lg text-rose-950 space-y-1.5">
+                      <p className="font-bold flex items-center gap-1.5 text-xs text-rose-900">
+                        <AlertTriangle size={14} className="text-rose-700" />
+                        Quick Fix: Update your PostgreSQL password in .env
+                      </p>
+                      <p className="text-[11px] leading-relaxed">
+                        The Cloudflare Tunnel is connected, but Node.js was rejected by PostgreSQL due to an incorrect password.
+                      </p>
+                      <ol className="list-decimal list-inside text-[11px] space-y-1 text-slate-800 font-mono bg-white/80 p-2 rounded border border-rose-200">
+                        <li>Open <code className="text-rose-800 font-bold">C:\my-local-api\.env</code> in Notepad.</li>
+                        <li>Change <code className="text-emerald-800 font-bold">PGPASSWORD=your_actual_postgres_password</code> (the password you use in pgAdmin / DBeaver).</li>
+                        <li>In Terminal 1 (where <code className="text-slate-800">node server.js</code> is running), press <code className="text-slate-800">Ctrl + C</code>, then run <code className="text-emerald-800">node server.js</code> again.</li>
+                        <li>Click <strong>Check Status</strong> above!</li>
+                      </ol>
+                    </div>
+                  )}
                   {status?.checkedAt && (
                     <p className="text-[11px] text-slate-500 mt-1">Last checked: {status.checkedAt}</p>
                   )}
@@ -307,14 +350,47 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
 
                 {syncResult && (
                   <div
-                    className={`p-3 rounded-lg text-xs font-medium mt-2 flex items-start gap-2 ${
+                    className={`p-3.5 rounded-lg text-xs font-medium mt-2 flex flex-col gap-2 ${
                       syncResult.success
                         ? 'bg-emerald-950/80 border border-emerald-700 text-emerald-200'
                         : 'bg-rose-950/80 border border-rose-700 text-rose-200'
                     }`}
                   >
-                    {syncResult.success ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" /> : <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
-                    <span>{syncResult.message}</span>
+                    <div className="flex items-start gap-2">
+                      {syncResult.success ? (
+                        <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-400" />
+                      ) : (
+                        <AlertTriangle size={16} className="shrink-0 mt-0.5 text-rose-400" />
+                      )}
+                      <span>{syncResult.message}</span>
+                    </div>
+
+                    {!syncResult.success && (syncResult.message.includes('server.js') || syncResult.message.includes('sync-all')) && (
+                      <div className="pt-2 border-t border-rose-800/60 flex flex-wrap gap-2 items-center">
+                        <button
+                          onClick={handleDownloadServerJs}
+                          className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-md font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+                        >
+                          <Download size={14} />
+                          📥 Download Updated server.js
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleCopy(LOCAL_SERVER_JS_CODE, 'srv-err');
+                          }}
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 rounded-md font-bold text-xs flex items-center gap-1.5 transition-colors"
+                        >
+                          {copiedKey === 'srv-err' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                          {copiedKey === 'srv-err' ? 'Copied server.js Code!' : 'Copy server.js Code'}
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('server')}
+                          className="px-3 py-1.5 bg-rose-900/60 hover:bg-rose-900 text-rose-200 border border-rose-700/80 rounded-md font-bold text-xs transition-colors"
+                        >
+                          View Setup Instructions &rarr;
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -374,6 +450,37 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                   <Terminal size={16} className="text-slate-700" />
                   Commands to Run on Your Local Computer (Windows PowerShell)
                 </h4>
+
+                {/* .env configuration box */}
+                <div className="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-[11px] space-y-2 border border-slate-800">
+                  <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
+                    <span>Local Config File: C:\my-local-api\.env</span>
+                    <button
+                      onClick={() =>
+                        handleCopy(
+                          `DB_HOST=localhost\nDB_PORT=5432\nDB_USER=postgres\nDB_PASSWORD=Verified@3656\nDB_NAME=SQC\nAPI_KEY=change-this-to-a-long-secret-key-123456\nPORT=3000`,
+                          'env-copy'
+                        )
+                      }
+                      className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 text-[11px]"
+                    >
+                      {copiedKey === 'env-copy' ? <Check size={12} /> : <Copy size={12} />}
+                      {copiedKey === 'env-copy' ? 'Copied' : 'Copy Template'}
+                    </button>
+                  </div>
+                  <pre className="text-slate-300 select-all overflow-x-auto">
+{`DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=Verified@3656
+DB_NAME=SQC
+API_KEY=change-this-to-a-long-secret-key-123456
+PORT=3000`}
+                  </pre>
+                  <p className="text-[10px] text-amber-300">
+                    💡 If your PostgreSQL password in pgAdmin/DBeaver is not "postgres", update <code className="bg-slate-800 px-1 py-0.5 rounded">PGPASSWORD</code> here.
+                  </p>
+                </div>
 
                 <div className="bg-slate-950 text-slate-100 p-3.5 rounded-xl font-mono text-[11px] space-y-2 border border-slate-800">
                   <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
@@ -462,6 +569,68 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                 <pre className="p-4 bg-slate-950 text-slate-200 font-mono text-[11px] max-h-56 overflow-y-auto overflow-x-auto select-all leading-relaxed">
                   {sqlPreview.slice(0, 3000)}
                   {sqlPreview.length > 3000 ? '\n\n-- ... [Remaining SQL statements generated dynamically] ...' : ''}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: COMPLETE SERVER.JS CODE */}
+          {activeTab === 'server' && (
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-950">
+                <p className="font-bold text-sm flex items-center gap-1.5">
+                  <Code2 size={18} className="text-blue-700" />
+                  Updated Local Node.js API Server (`server.js`)
+                </p>
+                <p className="mt-1 text-slate-700 leading-relaxed">
+                  Save this file to <code className="bg-blue-100 px-1 py-0.5 rounded font-mono font-bold text-blue-900">C:\my-local-api\server.js</code>. It includes support for your <code className="font-mono text-emerald-800 font-bold">DB_PASSWORD / DB_*</code> environment variables, automatic table creation on startup, and the bulk sync <code className="font-mono text-blue-800 font-bold">/api/sync-all</code> route.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleDownloadServerJs}
+                    className="px-4 py-2 bg-blue-700 hover:bg-blue-600 text-white rounded-lg font-bold flex items-center gap-2 shadow-xs transition-colors"
+                  >
+                    <Download size={15} />
+                    Download server.js File
+                  </button>
+                  <button
+                    onClick={() => handleCopy(LOCAL_SERVER_JS_CODE, 'srv-tab-copy')}
+                    className="px-4 py-2 bg-white border border-blue-300 hover:bg-blue-100/50 text-blue-900 rounded-lg font-bold flex items-center gap-2 transition-colors"
+                  >
+                    {copiedKey === 'srv-tab-copy' ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                    {copiedKey === 'srv-tab-copy' ? 'Copied server.js Code!' : 'Copy server.js Code'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick 2-Step Restart Guide */}
+              <div className="bg-slate-900 text-slate-200 p-3.5 rounded-xl font-mono text-[11px] space-y-2 border border-slate-800">
+                <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
+                  <span className="font-sans font-bold text-emerald-400">Restart Server in PowerShell:</span>
+                  <button
+                    onClick={() => handleCopy('cd C:\\my-local-api; node server.js', 'srv-restart-cmd')}
+                    className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 text-[10px]"
+                  >
+                    {copiedKey === 'srv-restart-cmd' ? <Check size={12} /> : <Copy size={12} />}
+                    Copy
+                  </button>
+                </div>
+                <pre className="text-emerald-400 select-all overflow-x-auto">
+                  # 1. In Terminal 1 where node server.js is running, press Ctrl + C to stop it{'\n'}
+                  # 2. Replace C:\my-local-api\server.js with the downloaded file{'\n'}
+                  # 3. Start the updated server:{'\n'}
+                  node server.js
+                </pre>
+              </div>
+
+              {/* server.js code preview */}
+              <div className="border border-slate-300 rounded-xl overflow-hidden">
+                <div className="bg-slate-800 text-slate-300 px-4 py-2 font-mono text-[11px] flex items-center justify-between border-b border-slate-700">
+                  <span>server.js Code Preview</span>
+                </div>
+                <pre className="p-4 bg-slate-950 text-slate-200 font-mono text-[11px] max-h-56 overflow-y-auto overflow-x-auto select-all leading-relaxed">
+                  {LOCAL_SERVER_JS_CODE.slice(0, 3000)}
+                  {LOCAL_SERVER_JS_CODE.length > 3000 ? '\n\n// ... [Full 900+ lines ready in download and copy buttons] ...' : ''}
                 </pre>
               </div>
             </div>

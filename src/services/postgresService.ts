@@ -148,10 +148,30 @@ class PostgresService {
       });
 
       if (!rootRes.ok) {
-        const errorText = await rootRes.text();
+        let errorMsg = `HTTP ${rootRes.status}`;
+        try {
+          const errorJson = await rootRes.json();
+          if (errorJson.error) {
+            if (errorJson.error.includes('password authentication failed')) {
+              errorMsg = `PostgreSQL Password Mismatch: The password in your .env file does not match your local PostgreSQL password. Open C:\\my-local-api\\.env, update PGPASSWORD with your actual PostgreSQL password, and restart node server.js.`;
+            } else if (errorJson.error.toLowerCase().includes('does not exist') && errorJson.error.includes('SQC')) {
+              errorMsg = `Database "SQC" does not exist yet in PostgreSQL. Create it in pgAdmin or DBeaver using: CREATE DATABASE "SQC";`;
+            } else {
+              errorMsg = errorJson.error;
+            }
+          } else if (errorJson.message) {
+            errorMsg = errorJson.message;
+          }
+        } catch {
+          try {
+            errorMsg = await rootRes.text();
+          } catch {
+            // ignore
+          }
+        }
         const res: PostgresConnectionStatus = {
           isConnected: false,
-          message: `Local server reached but returned HTTP ${rootRes.status}: ${errorText}`,
+          message: errorMsg,
           checkedAt,
         };
         this.notifyStatus(res);
@@ -590,7 +610,14 @@ class PostgresService {
       });
 
       if (!response.ok) {
-        const errText = await response.text();
+        let errText = await response.text();
+        if (response.status === 404 || errText.includes('Cannot POST /api/sync-all')) {
+          return {
+            success: false,
+            message:
+              '⚠️ Local server.js needs to be updated: The running server.js file is an older version that does not have the /api/sync-all route. Please download or copy the updated server.js from the "Tunnel Config & Commands" tab, replace C:\\my-local-api\\server.js, and restart node server.js.',
+          };
+        }
         return { success: false, message: `Bulk Sync Error: ${errText}` };
       }
 

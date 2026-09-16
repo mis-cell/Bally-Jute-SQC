@@ -1,6 +1,7 @@
-// ==============================================================================
+// Complete Production-Ready Local PostgreSQL API Server for Windows PowerShell
+export const LOCAL_SERVER_JS_CODE = `// ==============================================================================
 // BALLY JUTE COMPANY LIMITED - S.Q.C. QUALITY CONTROL SYSTEM
-// Production Local PostgreSQL API Server (for Windows PowerShell / C:\my-local-api)
+// Production Local PostgreSQL API Server (for Windows PowerShell / C:\\my-local-api)
 // Comprehensive CRUD & Synchronization for Users, Masters, and Inspections
 // ==============================================================================
 
@@ -13,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || 'change-this-to-a-long-secret-key-123456';
 
-// 1. CORS Configuration (Supports Cloudflare Tunnel, Ngrok & AI Studio Web App)
+// 1. CORS Configuration (Supports Cloudflare Tunnel, Ngrok & Web App)
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -35,10 +36,10 @@ const pool = new Pool({
 async function initDatabase() {
   try {
     const client = await pool.connect();
-    console.log('📦 Connected to PostgreSQL database:', process.env.PGDATABASE || 'SQC');
+    console.log('📦 Connected to PostgreSQL database:', process.env.DB_NAME || process.env.PGDATABASE || 'SQC');
 
     // Users Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(100) PRIMARY KEY,
         employee_code VARCHAR(50) UNIQUE NOT NULL,
@@ -53,10 +54,10 @@ async function initDatabase() {
       );
       CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
       CREATE INDEX IF NOT EXISTS idx_users_emp ON users (employee_code);
-    `);
+    \`);
 
     // Departments Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS departments (
         id VARCHAR(100) PRIMARY KEY,
         code VARCHAR(50) UNIQUE NOT NULL,
@@ -66,10 +67,10 @@ async function initDatabase() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
-    `);
+    \`);
 
     // Sections Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS sections (
         id VARCHAR(100) PRIMARY KEY,
         code VARCHAR(50) UNIQUE NOT NULL,
@@ -78,10 +79,10 @@ async function initDatabase() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
-    `);
+    \`);
 
     // Machines Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS machines (
         id VARCHAR(100) PRIMARY KEY,
         code VARCHAR(50) UNIQUE NOT NULL,
@@ -93,10 +94,10 @@ async function initDatabase() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
-    `);
+    \`);
 
     // Looms Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS looms (
         id VARCHAR(100) PRIMARY KEY,
         code VARCHAR(50) UNIQUE NOT NULL,
@@ -107,10 +108,10 @@ async function initDatabase() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
-    `);
+    \`);
 
     // Qualities Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS qualities (
         id VARCHAR(100) PRIMARY KEY,
         code VARCHAR(50) UNIQUE NOT NULL,
@@ -121,10 +122,10 @@ async function initDatabase() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
-    `);
+    \`);
 
     // Standards Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS standards (
         id VARCHAR(100) PRIMARY KEY,
         code VARCHAR(50) UNIQUE NOT NULL,
@@ -139,10 +140,10 @@ async function initDatabase() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
-    `);
+    \`);
 
     // Inspections Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS inspections (
         id SERIAL PRIMARY KEY,
         inspection_no VARCHAR(100) UNIQUE NOT NULL,
@@ -167,10 +168,10 @@ async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_inspections_no ON inspections (inspection_no);
       CREATE INDEX IF NOT EXISTS idx_inspections_form ON inspections (form_code);
       CREATE INDEX IF NOT EXISTS idx_inspections_date ON inspections (inspection_date);
-    `);
+    \`);
 
     // Audit Logs Table
-    await client.query(`
+    await client.query(\`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id VARCHAR(100) PRIMARY KEY,
         user_id VARCHAR(100),
@@ -183,7 +184,7 @@ async function initDatabase() {
         timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_logs (timestamp DESC);
-    `);
+    \`);
 
     client.release();
     console.log('✅ SQC database tables and schema verified successfully.');
@@ -212,12 +213,12 @@ function checkApiKey(req, res, next) {
 app.get('/', async (req, res) => {
   try {
     const dbRes = await pool.query('SELECT current_database() as database, current_user as user, version()');
-    const countsRes = await pool.query(`
+    const countsRes = await pool.query(\`
       SELECT 
         (SELECT COUNT(*) FROM users) as users_count,
         (SELECT COUNT(*) FROM inspections) as inspections_count,
         (SELECT COUNT(*) FROM departments) as departments_count
-    `);
+    \`);
 
     res.json({
       status: 'online',
@@ -237,15 +238,11 @@ app.get('/', async (req, res) => {
   }
 });
 
-// ==========================================
-// 4.1 USERS CRUD (Full PostgreSQL Sync)
-// ==========================================
-
-// GET /api/users
+// USERS ENDPOINTS
 app.get('/api/users', checkApiKey, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM users ORDER BY created_at ASC');
-    const mapped = result.rows.map(r => ({
+    const result = await pool.query('SELECT * FROM users ORDER BY display_name ASC');
+    res.json(result.rows.map(r => ({
       id: r.id,
       employeeCode: r.employee_code,
       displayName: r.display_name,
@@ -254,32 +251,16 @@ app.get('/api/users', checkApiKey, async (req, res) => {
       departmentId: r.department_id,
       departmentName: r.department_name,
       isActive: r.is_active,
-    }));
-    res.json(mapped);
+    })));
   } catch (err) {
-    console.error('Error fetching users:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// POST /api/users - Upsert user into PostgreSQL
 app.post('/api/users', checkApiKey, async (req, res) => {
   const b = req.body;
-  const id = b.id || `u-${Date.now()}`;
-  const employeeCode = b.employeeCode || b.employee_code || `EMP-${Date.now()}`;
-  const displayName = b.displayName || b.display_name;
-  const email = b.email;
-  const role = b.role || 'SQC Inspector / User';
-  const departmentId = b.departmentId || b.department_id || 'dept-general';
-  const departmentName = b.departmentName || b.department_name || 'General';
-  const isActive = b.isActive !== undefined ? b.isActive : true;
-
-  if (!displayName || !email) {
-    return res.status(400).json({ success: false, message: 'displayName and email are required.' });
-  }
-
   try {
-    const query = `
+    const q = \`
       INSERT INTO users (id, employee_code, display_name, email, role, department_id, department_name, is_active, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       ON CONFLICT (email) DO UPDATE SET
@@ -291,39 +272,43 @@ app.post('/api/users', checkApiKey, async (req, res) => {
         is_active = EXCLUDED.is_active,
         updated_at = NOW()
       RETURNING *;
-    `;
-    const values = [id, employeeCode, displayName, email, role, departmentId, departmentName, isActive];
-    const result = await pool.query(query, values);
-    console.log(`👤 [PostgreSQL] Saved user ${displayName} (${email}) in table 'users'.`);
-    res.json({ success: true, record: result.rows[0] });
+    \`;
+    const r = await pool.query(q, [
+      b.id || \`user-\${Date.now()}\`,
+      b.employeeCode || b.employee_code,
+      b.displayName || b.display_name,
+      b.email,
+      b.role || 'Inspector',
+      b.departmentId || b.department_id || '',
+      b.departmentName || b.department_name || '',
+      b.isActive !== undefined ? b.isActive : true,
+    ]);
+    res.json({ success: true, record: r.rows[0] });
   } catch (err) {
-    console.error('Error saving user:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE /api/users/:id
 app.delete('/api/users/:id', checkApiKey, async (req, res) => {
-  const { id } = req.params;
   try {
-    const result = await pool.query('DELETE FROM users WHERE id = $1 OR employee_code = $1 OR email = $1 RETURNING id', [id]);
-    console.log(`🗑️ [PostgreSQL] Deleted user ${id}`);
-    res.json({ success: true, deleted: result.rowCount > 0 });
+    await pool.query('DELETE FROM users WHERE id = $1 OR email = $1', [req.params.id]);
+    res.json({ success: true });
   } catch (err) {
-    console.error('Error deleting user:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
-// ==========================================
-// 4.2 MASTER TABLES CRUD
-// ==========================================
 
 // DEPARTMENTS
 app.get('/api/departments', checkApiKey, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM departments ORDER BY code ASC');
-    res.json(result.rows.map(r => ({ id: r.id, code: r.code, name: r.name, hodName: r.hod_name, status: r.status })));
+    const result = await pool.query('SELECT * FROM departments ORDER BY name ASC');
+    res.json(result.rows.map(r => ({
+      id: r.id,
+      code: r.code,
+      name: r.name,
+      hodName: r.hod_name,
+      status: r.status,
+    })));
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -332,7 +317,7 @@ app.get('/api/departments', checkApiKey, async (req, res) => {
 app.post('/api/departments', checkApiKey, async (req, res) => {
   const b = req.body;
   try {
-    const q = `
+    const q = \`
       INSERT INTO departments (id, code, name, hod_name, status, updated_at)
       VALUES ($1, $2, $3, $4, $5, NOW())
       ON CONFLICT (code) DO UPDATE SET
@@ -341,19 +326,15 @@ app.post('/api/departments', checkApiKey, async (req, res) => {
         status = EXCLUDED.status,
         updated_at = NOW()
       RETURNING *;
-    `;
-    const r = await pool.query(q, [b.id || `dept-${Date.now()}`, b.code, b.name, b.hodName || b.hod_name || '', b.status || 'Active']);
-    console.log(`🏢 [PostgreSQL] Saved Department ${b.code}`);
+    \`;
+    const r = await pool.query(q, [
+      b.id || \`dept-\${Date.now()}\`,
+      b.code,
+      b.name,
+      b.hodName || b.hod_name || '',
+      b.status || 'Active',
+    ]);
     res.json({ success: true, record: r.rows[0] });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.delete('/api/departments/:id', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM departments WHERE id = $1 OR code = $1', [req.params.id]);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -362,8 +343,13 @@ app.delete('/api/departments/:id', checkApiKey, async (req, res) => {
 // SECTIONS
 app.get('/api/sections', checkApiKey, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM sections ORDER BY code ASC');
-    res.json(result.rows.map(r => ({ id: r.id, code: r.code, name: r.name, departmentCode: r.department_code })));
+    const result = await pool.query('SELECT * FROM sections ORDER BY name ASC');
+    res.json(result.rows.map(r => ({
+      id: r.id,
+      code: r.code,
+      name: r.name,
+      departmentCode: r.department_code,
+    })));
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -372,7 +358,7 @@ app.get('/api/sections', checkApiKey, async (req, res) => {
 app.post('/api/sections', checkApiKey, async (req, res) => {
   const b = req.body;
   try {
-    const q = `
+    const q = \`
       INSERT INTO sections (id, code, name, department_code, updated_at)
       VALUES ($1, $2, $3, $4, NOW())
       ON CONFLICT (code) DO UPDATE SET
@@ -380,18 +366,14 @@ app.post('/api/sections', checkApiKey, async (req, res) => {
         department_code = EXCLUDED.department_code,
         updated_at = NOW()
       RETURNING *;
-    `;
-    const r = await pool.query(q, [b.id || `sec-${Date.now()}`, b.code, b.name, b.departmentCode || b.department_code || '']);
+    \`;
+    const r = await pool.query(q, [
+      b.id || \`sec-\${Date.now()}\`,
+      b.code,
+      b.name,
+      b.departmentCode || b.department_code || '',
+    ]);
     res.json({ success: true, record: r.rows[0] });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.delete('/api/sections/:id', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM sections WHERE id = $1 OR code = $1', [req.params.id]);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -418,7 +400,7 @@ app.get('/api/machines', checkApiKey, async (req, res) => {
 app.post('/api/machines', checkApiKey, async (req, res) => {
   const b = req.body;
   try {
-    const q = `
+    const q = \`
       INSERT INTO machines (id, code, name, machine_type, department_code, speed_standard, speed_unit, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       ON CONFLICT (code) DO UPDATE SET
@@ -429,9 +411,9 @@ app.post('/api/machines', checkApiKey, async (req, res) => {
         speed_unit = EXCLUDED.speed_unit,
         updated_at = NOW()
       RETURNING *;
-    `;
+    \`;
     const r = await pool.query(q, [
-      b.id || `mch-${Date.now()}`,
+      b.id || \`mch-\${Date.now()}\`,
       b.code,
       b.name,
       b.machineType || b.machine_type || '',
@@ -440,15 +422,6 @@ app.post('/api/machines', checkApiKey, async (req, res) => {
       b.speedUnit || b.speed_unit || 'rpm',
     ]);
     res.json({ success: true, record: r.rows[0] });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.delete('/api/machines/:id', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM machines WHERE id = $1 OR code = $1', [req.params.id]);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -464,7 +437,7 @@ app.get('/api/looms', checkApiKey, async (req, res) => {
       name: r.name,
       loomType: r.loom_type,
       shed: r.shed,
-      standardRpm: r.standard_rpm,
+      standardRpm: Number(r.standard_rpm),
     })));
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -474,7 +447,7 @@ app.get('/api/looms', checkApiKey, async (req, res) => {
 app.post('/api/looms', checkApiKey, async (req, res) => {
   const b = req.body;
   try {
-    const q = `
+    const q = \`
       INSERT INTO looms (id, code, name, loom_type, shed, standard_rpm, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, NOW())
       ON CONFLICT (code) DO UPDATE SET
@@ -484,9 +457,9 @@ app.post('/api/looms', checkApiKey, async (req, res) => {
         standard_rpm = EXCLUDED.standard_rpm,
         updated_at = NOW()
       RETURNING *;
-    `;
+    \`;
     const r = await pool.query(q, [
-      b.id || `loom-${Date.now()}`,
+      b.id || \`loom-\${Date.now()}\`,
       b.code,
       b.name,
       b.loomType || b.loom_type || '',
@@ -494,15 +467,6 @@ app.post('/api/looms', checkApiKey, async (req, res) => {
       Number(b.standardRpm || b.standard_rpm || 140),
     ]);
     res.json({ success: true, record: r.rows[0] });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.delete('/api/looms/:id', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM looms WHERE id = $1 OR code = $1', [req.params.id]);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -528,7 +492,7 @@ app.get('/api/qualities', checkApiKey, async (req, res) => {
 app.post('/api/qualities', checkApiKey, async (req, res) => {
   const b = req.body;
   try {
-    const q = `
+    const q = \`
       INSERT INTO qualities (id, code, name, category, nominal_count, standard_mr, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, NOW())
       ON CONFLICT (code) DO UPDATE SET
@@ -538,9 +502,9 @@ app.post('/api/qualities', checkApiKey, async (req, res) => {
         standard_mr = EXCLUDED.standard_mr,
         updated_at = NOW()
       RETURNING *;
-    `;
+    \`;
     const r = await pool.query(q, [
-      b.id || `qual-${Date.now()}`,
+      b.id || \`qual-\${Date.now()}\`,
       b.code,
       b.name,
       b.category || '',
@@ -548,15 +512,6 @@ app.post('/api/qualities', checkApiKey, async (req, res) => {
       Number(b.standardMR || b.standard_mr || 17),
     ]);
     res.json({ success: true, record: r.rows[0] });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.delete('/api/qualities/:id', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM qualities WHERE id = $1 OR code = $1', [req.params.id]);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -586,7 +541,7 @@ app.get('/api/standards', checkApiKey, async (req, res) => {
 app.post('/api/standards', checkApiKey, async (req, res) => {
   const b = req.body;
   try {
-    const q = `
+    const q = \`
       INSERT INTO standards (id, code, form_code, name, parameter, nominal_value, lower_limit, upper_limit, unit, tolerance, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
       ON CONFLICT (code) DO UPDATE SET
@@ -600,9 +555,9 @@ app.post('/api/standards', checkApiKey, async (req, res) => {
         tolerance = EXCLUDED.tolerance,
         updated_at = NOW()
       RETURNING *;
-    `;
+    \`;
     const r = await pool.query(q, [
-      b.id || `std-${Date.now()}`,
+      b.id || \`std-\${Date.now()}\`,
       b.code,
       b.formCode || b.form_code || 'FORM-01',
       b.name,
@@ -619,79 +574,45 @@ app.post('/api/standards', checkApiKey, async (req, res) => {
   }
 });
 
-app.delete('/api/standards/:id', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM standards WHERE id = $1 OR code = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ==========================================
-// 4.3 INSPECTIONS CRUD
-// ==========================================
-
-// GET /api/inspections
+// INSPECTIONS CRUD
 app.get('/api/inspections', checkApiKey, async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        id,
-        inspection_no AS "inspectionNo",
-        form_id AS "formId",
-        form_code AS "formCode",
-        form_title AS "formTitle",
-        department_id AS "departmentId",
-        shift_id AS "shiftId",
-        shift_name AS "shiftName",
-        inspector_id AS "inspectorId",
-        inspector_name AS "inspectorName",
-        inspection_date AS "inspectionDate",
-        status,
-        result,
-        form_data AS "formData",
-        reading_rows AS "readingRows",
-        summary_metrics AS "summaryMetrics",
-        remarks,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-      FROM inspections
-      ORDER BY id DESC
-    `);
-    res.json(result.rows);
+    const result = await pool.query('SELECT * FROM inspections ORDER BY id DESC');
+    res.json(result.rows.map(r => ({
+      id: String(r.id),
+      inspectionNo: r.inspection_no,
+      formId: r.form_id,
+      formCode: r.form_code,
+      formTitle: r.form_title,
+      departmentId: r.department_id,
+      shiftId: r.shift_id,
+      shiftName: r.shift_name,
+      inspectorId: r.inspector_id,
+      inspectorName: r.inspector_name,
+      inspectionDate: r.inspection_date,
+      status: r.status,
+      result: r.result,
+      formData: r.form_data,
+      readingRows: r.reading_rows,
+      summaryMetrics: r.summary_metrics,
+      remarks: r.remarks,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    })));
   } catch (err) {
-    console.error('Error fetching inspections:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// POST /api/inspections - Upsert inspection record
 app.post('/api/inspections', checkApiKey, async (req, res) => {
   const b = req.body;
-  const inspectionNo = b.inspection_no || b.inspectionNo;
-  if (!inspectionNo) {
-    return res.status(400).json({ success: false, message: 'inspection_no is required' });
+  const no = b.inspection_no || b.inspectionNo;
+  if (!no) {
+    return res.status(400).json({ success: false, message: 'inspection_no is required.' });
   }
 
-  const formId = b.form_id || b.formId || 'FORM-GENERAL';
-  const formCode = b.form_code || b.formCode || formId;
-  const formTitle = b.form_title || b.formTitle || 'SQC Inspection Form';
-  const departmentId = b.department_id || b.departmentId || 'dept-general';
-  const shiftId = b.shift_id || b.shiftId || 'A';
-  const shiftName = b.shift_name || b.shiftName || 'General';
-  const inspectorId = b.inspector_id || b.inspectorId || 'u1';
-  const inspectorName = b.inspector_name || b.inspectorName || 'SQC Inspector';
-  const inspectionDate = b.inspection_date || b.inspectionDate || new Date().toISOString().split('T')[0];
-  const status = b.status || 'Draft';
-  const result = b.result || 'PASS';
-  const formData = JSON.stringify(b.form_data || b.formData || {});
-  const readingRows = JSON.stringify(b.reading_rows || b.readingRows || []);
-  const summaryMetrics = JSON.stringify(b.summary_metrics || b.summaryMetrics || {});
-  const remarks = b.remarks || '';
-
   try {
-    const query = `
+    const query = \`
       INSERT INTO inspections (
         inspection_no, form_id, form_code, form_title,
         department_id, shift_id, shift_name,
@@ -717,65 +638,65 @@ app.post('/api/inspections', checkApiKey, async (req, res) => {
         remarks = EXCLUDED.remarks,
         updated_at = NOW()
       RETURNING *;
-    `;
+    \`;
 
     const values = [
-      inspectionNo, formId, formCode, formTitle,
-      departmentId, shiftId, shiftName,
-      inspectorId, inspectorName, inspectionDate,
-      status, result, formData, readingRows, summaryMetrics, remarks
+      no,
+      b.form_id || b.formId || 'FORM-01',
+      b.form_code || b.formCode || 'FORM-01',
+      b.form_title || b.formTitle || 'Inspection',
+      b.department_id || b.departmentId || '',
+      b.shift_id || b.shiftId || 'A',
+      b.shift_name || b.shiftName || 'Shift A',
+      b.inspector_id || b.inspectorId || '',
+      b.inspector_name || b.inspectorName || 'Inspector',
+      b.inspection_date || b.inspectionDate || new Date().toISOString().split('T')[0],
+      b.status || 'Draft',
+      b.result || 'PASS',
+      JSON.stringify(b.form_data || b.formData || {}),
+      JSON.stringify(b.reading_rows || b.readingRows || []),
+      JSON.stringify(b.summary_metrics || b.summaryMetrics || {}),
+      b.remarks || '',
     ];
 
-    const dbRes = await pool.query(query, values);
-    console.log(`✅ [PostgreSQL] Saved inspection #${inspectionNo} (Status: ${status}, Result: ${result})`);
-    res.json({ success: true, record: dbRes.rows[0] });
+    const result = await pool.query(query, values);
+    res.json({ success: true, record: result.rows[0] });
   } catch (err) {
-    console.error('Error saving inspection:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE /api/inspections/:inspectionNo
 app.delete('/api/inspections/:inspectionNo', checkApiKey, async (req, res) => {
-  const { inspectionNo } = req.params;
   try {
-    const delRes = await pool.query('DELETE FROM inspections WHERE inspection_no = $1 RETURNING id', [inspectionNo]);
-    if (delRes.rowCount === 0) {
-      return res.status(404).json({ success: false, message: 'Inspection not found' });
-    }
-    console.log(`🗑️ [PostgreSQL] Deleted inspection #${inspectionNo}`);
-    res.json({ success: true, message: `Deleted inspection ${inspectionNo}` });
+    await pool.query('DELETE FROM inspections WHERE inspection_no = $1', [req.params.inspectionNo]);
+    res.json({ success: true });
   } catch (err) {
-    console.error('Error deleting inspection:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// POST /api/inspections/truncate
-app.post('/api/inspections/truncate', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('TRUNCATE TABLE inspections RESTART IDENTITY CASCADE;');
-    console.log('🧹 [PostgreSQL] All inspections truncated.');
-    res.json({ success: true, message: 'All inspection records wiped successfully in local PostgreSQL.' });
-  } catch (err) {
-    console.error('Error truncating inspections:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ==========================================
-// 4.4 BULK SYNC ALL DATA (One-Click Sync)
-// ==========================================
+// BULK SYNC ALL ENDPOINT (/api/sync-all)
 app.post('/api/sync-all', checkApiKey, async (req, res) => {
-  const { users = [], departments = [], sections = [], machines = [], looms = [], qualities = [], standards = [], inspections = [] } = req.body;
+  const {
+    users = [],
+    departments = [],
+    sections = [],
+    machines = [],
+    looms = [],
+    qualities = [],
+    standards = [],
+    inspections = [],
+  } = req.body;
+
   const client = await pool.connect();
+
   try {
     await client.query('BEGIN');
 
     // 1. Sync Users
     for (const u of users) {
-      if (!u.email || !u.displayName) continue;
-      await client.query(`
+      if (!u.email) continue;
+      await client.query(\`
         INSERT INTO users (id, employee_code, display_name, email, role, department_id, department_name, is_active, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
         ON CONFLICT (email) DO UPDATE SET
@@ -786,13 +707,22 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
           department_name = EXCLUDED.department_name,
           is_active = EXCLUDED.is_active,
           updated_at = NOW();
-      `, [u.id || `u-${Date.now()}`, u.employeeCode || `EMP-${Date.now()}`, u.displayName, u.email, u.role || 'SQC Inspector / User', u.departmentId || '', u.departmentName || '', true]);
+      \`, [
+        u.id || \`user-\${Date.now()}\`,
+        u.employeeCode || u.employee_code || '',
+        u.displayName || u.display_name || '',
+        u.email,
+        u.role || 'Inspector',
+        u.departmentId || u.department_id || '',
+        u.departmentName || u.department_name || '',
+        u.isActive !== undefined ? u.isActive : true,
+      ]);
     }
 
     // 2. Sync Departments
     for (const d of departments) {
       if (!d.code || !d.name) continue;
-      await client.query(`
+      await client.query(\`
         INSERT INTO departments (id, code, name, hod_name, status, updated_at)
         VALUES ($1, $2, $3, $4, $5, NOW())
         ON CONFLICT (code) DO UPDATE SET
@@ -800,26 +730,26 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
           hod_name = EXCLUDED.hod_name,
           status = EXCLUDED.status,
           updated_at = NOW();
-      `, [d.id || `dept-${Date.now()}`, d.code, d.name, d.hodName || '', d.status || 'Active']);
+      \`, [d.id || \`dept-\${Date.now()}\`, d.code, d.name, d.hodName || '', d.status || 'Active']);
     }
 
     // 3. Sync Sections
     for (const s of sections) {
       if (!s.code || !s.name) continue;
-      await client.query(`
+      await client.query(\`
         INSERT INTO sections (id, code, name, department_code, updated_at)
         VALUES ($1, $2, $3, $4, NOW())
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name,
           department_code = EXCLUDED.department_code,
           updated_at = NOW();
-      `, [s.id || `sec-${Date.now()}`, s.code, s.name, s.departmentCode || '']);
+      \`, [s.id || \`sec-\${Date.now()}\`, s.code, s.name, s.departmentCode || '']);
     }
 
     // 4. Sync Machines
     for (const m of machines) {
       if (!m.code || !m.name) continue;
-      await client.query(`
+      await client.query(\`
         INSERT INTO machines (id, code, name, machine_type, department_code, speed_standard, speed_unit, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         ON CONFLICT (code) DO UPDATE SET
@@ -829,13 +759,13 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
           speed_standard = EXCLUDED.speed_standard,
           speed_unit = EXCLUDED.speed_unit,
           updated_at = NOW();
-      `, [m.id || `mch-${Date.now()}`, m.code, m.name, m.machineType || '', m.departmentCode || '', Number(m.speedStandard || 0), m.speedUnit || 'rpm']);
+      \`, [m.id || \`mch-\${Date.now()}\`, m.code, m.name, m.machineType || '', m.departmentCode || '', Number(m.speedStandard || 0), m.speedUnit || 'rpm']);
     }
 
     // 5. Sync Looms
     for (const l of looms) {
       if (!l.code || !l.name) continue;
-      await client.query(`
+      await client.query(\`
         INSERT INTO looms (id, code, name, loom_type, shed, standard_rpm, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, NOW())
         ON CONFLICT (code) DO UPDATE SET
@@ -844,13 +774,13 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
           shed = EXCLUDED.shed,
           standard_rpm = EXCLUDED.standard_rpm,
           updated_at = NOW();
-      `, [l.id || `loom-${Date.now()}`, l.code, l.name, l.loomType || '', l.shed || '', Number(l.standardRpm || 140)]);
+      \`, [l.id || \`loom-\${Date.now()}\`, l.code, l.name, l.loomType || '', l.shed || '', Number(l.standardRpm || 140)]);
     }
 
     // 6. Sync Qualities
     for (const q of qualities) {
       if (!q.code || !q.name) continue;
-      await client.query(`
+      await client.query(\`
         INSERT INTO qualities (id, code, name, category, nominal_count, standard_mr, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, NOW())
         ON CONFLICT (code) DO UPDATE SET
@@ -859,13 +789,13 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
           nominal_count = EXCLUDED.nominal_count,
           standard_mr = EXCLUDED.standard_mr,
           updated_at = NOW();
-      `, [q.id || `qual-${Date.now()}`, q.code, q.name, q.category || '', Number(q.nominalCount || 0), Number(q.standardMR || 17)]);
+      \`, [q.id || \`qual-\${Date.now()}\`, q.code, q.name, q.category || '', Number(q.nominalCount || 0), Number(q.standardMR || 17)]);
     }
 
     // 7. Sync Standards
     for (const st of standards) {
       if (!st.code || !st.name) continue;
-      await client.query(`
+      await client.query(\`
         INSERT INTO standards (id, code, form_code, name, parameter, nominal_value, lower_limit, upper_limit, unit, tolerance, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
         ON CONFLICT (code) DO UPDATE SET
@@ -878,13 +808,13 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
           unit = EXCLUDED.unit,
           tolerance = EXCLUDED.tolerance,
           updated_at = NOW();
-      `, [st.id || `std-${Date.now()}`, st.code, st.formCode || 'FORM-01', st.name, st.parameter || '', Number(st.nominalValue || 0), Number(st.lowerLimit || 0), Number(st.upperLimit || 0), st.unit || '', st.tolerance || '']);
+      \`, [st.id || \`std-\${Date.now()}\`, st.code, st.formCode || 'FORM-01', st.name, st.parameter || '', Number(st.nominalValue || 0), Number(st.lowerLimit || 0), Number(st.upperLimit || 0), st.unit || '', st.tolerance || '']);
     }
 
     // 8. Sync Inspections
     for (const i of inspections) {
       if (!i.inspectionNo) continue;
-      await client.query(`
+      await client.query(\`
         INSERT INTO inspections (
           inspection_no, form_id, form_code, form_title,
           department_id, shift_id, shift_name,
@@ -909,7 +839,7 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
           summary_metrics = EXCLUDED.summary_metrics,
           remarks = EXCLUDED.remarks,
           updated_at = NOW();
-      `, [
+      \`, [
         i.inspectionNo, i.formId || 'FORM-01', i.formCode || 'FORM-01', i.formTitle || 'Inspection',
         i.departmentId || '', i.shiftId || 'A', i.shiftName || 'General',
         i.inspectorId || '', i.inspectorName || '', i.inspectionDate || new Date().toISOString().split('T')[0],
@@ -920,10 +850,10 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
     }
 
     await client.query('COMMIT');
-    console.log(`⚡ [PostgreSQL] Bulk sync complete: ${users.length} users, ${departments.length} depts, ${inspections.length} inspections.`);
+    console.log(\`⚡ [PostgreSQL] Bulk sync complete: \${users.length} users, \${departments.length} depts, \${inspections.length} inspections.\`);
     res.json({
       success: true,
-      message: `Bulk synchronized ${users.length} users, ${departments.length} departments, ${machines.length} machines, ${looms.length} looms, ${qualities.length} qualities, and ${inspections.length} inspections to local PostgreSQL.`,
+      message: \`Bulk synchronized \${users.length} users, \${departments.length} departments, \${machines.length} machines, \${looms.length} looms, \${qualities.length} qualities, and \${inspections.length} inspections to local PostgreSQL.\`,
     });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -937,9 +867,10 @@ app.post('/api/sync-all', checkApiKey, async (req, res) => {
 // Start Server binding to IPv4 127.0.0.1
 app.listen(PORT, '127.0.0.1', () => {
   console.log('==================================================================');
-  console.log(`🚀 Bally Jute SQC Backend API running on http://127.0.0.1:${PORT}`);
-  console.log(`🔑 Required Header: x-api-key: ${API_KEY}`);
+  console.log(\`🚀 Bally Jute SQC Backend API running on http://127.0.0.1:\${PORT}\`);
+  console.log(\`🔑 Required Header: x-api-key: \${API_KEY}\`);
   console.log('🌐 Start Cloudflare tunnel with:');
-  console.log(`   cloudflared tunnel --url http://127.0.0.1:${PORT}`);
+  console.log(\`   cloudflared tunnel --url http://127.0.0.1:\${PORT}\`);
   console.log('==================================================================');
 });
+`;

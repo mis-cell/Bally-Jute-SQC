@@ -26,6 +26,7 @@ import { postgresService } from '../services/postgresService';
 import { PostgresSyncModal } from '../components/PostgresSyncModal';
 import { useAuth } from '../context/AuthContext';
 import { ApplicationSettings } from '../types';
+import { LOCAL_SERVER_JS_CODE } from '../data/serverScript';
 
 export const SettingsPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -367,114 +368,19 @@ CREATE INDEX IF NOT EXISTS idx_inspections_no ON inspections (inspection_no);
 CREATE INDEX IF NOT EXISTS idx_inspections_form ON inspections (form_code);
 CREATE INDEX IF NOT EXISTS idx_inspections_date ON inspections (inspection_date);`;
 
-  const serverJsCode = `// Save as: C:\\my-local-api\\server.js
-const express = require('express');
-const cors = require('cors');
-const { Pool } = require('pg');
-require('dotenv').config();
+  const serverJsCode = LOCAL_SERVER_JS_CODE;
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const API_KEY = process.env.API_KEY || 'change-this-to-a-long-secret-key-123456';
-
-app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'] }));
-app.use(express.json({ limit: '10mb' }));
-
-const pool = new Pool({
-  user: process.env.PGUSER || 'postgres',
-  host: process.env.PGHOST || '127.0.0.1',
-  database: process.env.PGDATABASE || 'SQC',
-  password: process.env.PGPASSWORD || 'postgres',
-  port: parseInt(process.env.PGPORT || '5432', 10),
-});
-
-function checkApiKey(req, res, next) {
-  const reqKey = req.headers['x-api-key'] || req.query.apiKey;
-  if (!reqKey || reqKey !== API_KEY) {
-    return res.status(401).json({ success: false, message: 'Unauthorized: Invalid x-api-key' });
-  }
-  next();
-}
-
-// Health check
-app.get('/', async (req, res) => {
-  try {
-    const r = await pool.query('SELECT current_database() as database, current_user as user');
-    res.json({ status: 'online', database: r.rows[0].database, user: r.rows[0].user });
-  } catch (err) {
-    res.status(500).json({ status: 'error', error: err.message });
-  }
-});
-
-// GET inspections
-app.get('/api/inspections', checkApiKey, async (req, res) => {
-  try {
-    const r = await pool.query('SELECT * FROM inspections ORDER BY id DESC');
-    res.json(r.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST inspection
-app.post('/api/inspections', checkApiKey, async (req, res) => {
-  const b = req.body;
-  const no = b.inspection_no || b.inspectionNo;
-  if (!no) return res.status(400).json({ message: 'inspection_no required' });
-
-  try {
-    const q = \`
-      INSERT INTO inspections (
-        inspection_no, form_id, form_code, form_title,
-        department_id, shift_id, shift_name, inspector_id, inspector_name,
-        inspection_date, status, result, form_data, reading_rows, summary_metrics, remarks, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW())
-      ON CONFLICT (inspection_no) DO UPDATE SET
-        status = EXCLUDED.status, result = EXCLUDED.result,
-        form_data = EXCLUDED.form_data, reading_rows = EXCLUDED.reading_rows,
-        summary_metrics = EXCLUDED.summary_metrics, remarks = EXCLUDED.remarks, updated_at = NOW()
-      RETURNING *;
-    \`;
-    const v = [
-      no, b.form_id || b.formId, b.form_code || b.formCode, b.form_title || b.formTitle,
-      b.department_id || b.departmentId, b.shift_id || b.shiftId, b.shift_name || b.shiftName,
-      b.inspector_id || b.inspectorId, b.inspector_name || b.inspectorName,
-      b.inspection_date || b.inspectionDate, b.status || 'Draft', b.result || 'PASS',
-      JSON.stringify(b.form_data || b.formData || {}),
-      JSON.stringify(b.reading_rows || b.readingRows || []),
-      JSON.stringify(b.summary_metrics || b.summaryMetrics || {}),
-      b.remarks || ''
-    ];
-    const saved = await pool.query(q, v);
-    res.json({ success: true, record: saved.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE inspection
-app.delete('/api/inspections/:inspectionNo', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM inspections WHERE inspection_no = $1', [req.params.inspectionNo]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Truncate
-app.post('/api/inspections/truncate', checkApiKey, async (req, res) => {
-  try {
-    await pool.query('TRUNCATE TABLE inspections RESTART IDENTITY CASCADE;');
-    res.json({ success: true, message: 'All inspections truncated.' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(\`SQC Backend running on http://127.0.0.1:\${PORT}\`);
-});`;
+  const handleDownloadServerJs = () => {
+    const blob = new Blob([LOCAL_SERVER_JS_CODE], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'server.js';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -913,14 +819,24 @@ app.listen(PORT, '127.0.0.1', () => {
               <span className="text-xs font-semibold text-slate-700">
                 Complete, production-ready server code (<code className="font-mono">C:\my-local-api\server.js</code>):
               </span>
-              <button
-                type="button"
-                onClick={() => handleCopyCode(serverJsCode, 'server')}
-                className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded inline-flex items-center gap-1"
-              >
-                <Copy size={12} />
-                <span>{copiedTab === 'server' ? 'Copied!' : 'Copy server.js'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadServerJs}
+                  className="px-2.5 py-1 text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded inline-flex items-center gap-1 shadow-2xs"
+                >
+                  <HardDriveDownload size={12} />
+                  <span>Download server.js</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCopyCode(serverJsCode, 'server')}
+                  className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded inline-flex items-center gap-1"
+                >
+                  <Copy size={12} />
+                  <span>{copiedTab === 'server' ? 'Copied!' : 'Copy server.js'}</span>
+                </button>
+              </div>
             </div>
             <pre className="p-3 bg-slate-900 text-slate-100 rounded-lg text-[11px] font-mono overflow-x-auto leading-relaxed max-h-72 overflow-y-auto border border-slate-800">
               {serverJsCode}
