@@ -192,31 +192,39 @@ export const ApprovalsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {recentlyApproved.map(item => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{item.inspectionNo}</td>
-                  <td className="py-2.5 px-3 text-slate-700 font-mono">{item.formCode}</td>
-                  <td className="py-2.5 px-3 text-slate-700">{item.departmentName}</td>
-                  <td className="py-2.5 px-3">
-                    <StatusBadge status={item.status} />
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-800 font-medium">
-                    {item.approvedBy || item.rejectedBy || 'HOD Staff'}
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-500">
-                    {item.approvedAt || item.rejectedAt ? new Date(item.approvedAt || item.rejectedAt || '').toLocaleString() : 'Recent'}
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <button
-                      onClick={() => navigate(`/inspection/${item.id}`)}
-                      className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 inline-flex items-center gap-1"
-                    >
-                      <span>View</span>
-                      <ArrowUpRight size={13} />
-                    </button>
+              {recentlyApproved.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-6 text-center text-slate-400">
+                    No approved, rejected, or returned inspections on record.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentlyApproved.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{item.inspectionNo}</td>
+                    <td className="py-2.5 px-3 text-slate-700 font-mono">{item.formCode}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{item.departmentName}</td>
+                    <td className="py-2.5 px-3">
+                      <StatusBadge status={item.status} />
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-800 font-medium">
+                      {item.approvedBy || item.rejectedBy || 'HOD Staff'}
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-500">
+                      {item.approvedAt || item.rejectedAt ? new Date(item.approvedAt || item.rejectedAt || '').toLocaleString() : 'Recent'}
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <button
+                        onClick={() => navigate(`/inspection/${item.id}`)}
+                        className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 inline-flex items-center gap-1"
+                      >
+                        <span>View</span>
+                        <ArrowUpRight size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

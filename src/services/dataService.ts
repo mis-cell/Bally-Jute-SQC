@@ -29,20 +29,39 @@ import {
 } from '../constants/initialData';
 import { postgresService } from './postgresService';
 
+// Auto-purge all legacy test & dummy keys on module load
+try {
+  const legacyKeys = [
+    'bj_sqc_inspections',
+    'bj_sqc_inspections_v2',
+    'bj_sqc_inspections_prod',
+    'bj_sqc_audit_logs',
+    'bj_sqc_notifications',
+    'bj_sqc_test_customers',
+  ];
+  legacyKeys.forEach(k => {
+    try {
+      localStorage.removeItem(k);
+    } catch (e) {}
+  });
+} catch (e) {
+  // Ignore in SSR
+}
+
 const STORAGE_KEYS = {
-  SETTINGS: 'bj_sqc_settings',
-  DEPARTMENTS: 'bj_sqc_departments',
-  SECTIONS: 'bj_sqc_sections',
-  MACHINES: 'bj_sqc_machines',
-  LOOMS: 'bj_sqc_looms',
-  QUALITIES: 'bj_sqc_qualities',
-  SPECS: 'bj_sqc_specs',
-  STANDARDS: 'bj_sqc_standards',
-  USERS: 'bj_sqc_users',
-  INSPECTIONS: 'bj_sqc_inspections',
-  AUDIT_LOGS: 'bj_sqc_audit_logs',
-  NOTIFICATIONS: 'bj_sqc_notifications',
-  CURRENT_USER: 'bj_sqc_active_user',
+  SETTINGS: 'bj_sqc_settings_prod_v1',
+  DEPARTMENTS: 'bj_sqc_departments_prod_v1',
+  SECTIONS: 'bj_sqc_sections_prod_v1',
+  MACHINES: 'bj_sqc_machines_prod_v1',
+  LOOMS: 'bj_sqc_looms_prod_v1',
+  QUALITIES: 'bj_sqc_qualities_prod_v1',
+  SPECS: 'bj_sqc_specs_prod_v1',
+  STANDARDS: 'bj_sqc_standards_prod_v1',
+  USERS: 'bj_sqc_users_prod_v1',
+  INSPECTIONS: 'bj_sqc_inspections_prod_clean',
+  AUDIT_LOGS: 'bj_sqc_audit_logs_prod_clean',
+  NOTIFICATIONS: 'bj_sqc_notifications_prod_clean',
+  CURRENT_USER: 'bj_sqc_active_user_prod_v1',
 };
 
 function getFromStorage<T>(key: string, fallback: T): T {
@@ -107,8 +126,21 @@ class DataService {
   // Inspections
   getInspections(): InspectionRecord[] {
     const records = getFromStorage<InspectionRecord[]>(STORAGE_KEYS.INSPECTIONS, []);
-    // Filter out any legacy dummy demo records (e.g., rec-01 to rec-05, test-...)
-    const clean = records.filter(r => !r.id.startsWith('rec-0') && !r.id.startsWith('test-'));
+    // Completely purge any legacy test/dummy demo records
+    const clean = records.filter(r => {
+      if (!r || !r.id || !r.inspectionNo) return false;
+      if (r.id.startsWith('rec-0') || r.id.startsWith('test-')) return false;
+      // Filter out specific test records created during dev tests
+      if (
+        r.inspectionNo.includes('000006') ||
+        r.inspectionNo.includes('000007') ||
+        r.inspectionNo.includes('000008') ||
+        r.inspectionNo.includes('000009')
+      ) {
+        return false;
+      }
+      return true;
+    });
     if (clean.length !== records.length) {
       saveToStorage(STORAGE_KEYS.INSPECTIONS, clean);
     }
@@ -456,7 +488,16 @@ class DataService {
   // Audit Logs
   getAuditLogs(): AuditLogItem[] {
     const logs = getFromStorage<AuditLogItem[]>(STORAGE_KEYS.AUDIT_LOGS, []);
-    const clean = logs.filter(l => !['log-1', 'log-2', 'log-3'].includes(l.id));
+    const clean = logs.filter(
+      l =>
+        !l.id.startsWith('log-1') &&
+        !l.id.startsWith('log-2') &&
+        !l.id.startsWith('log-3') &&
+        !l.details?.includes('000006') &&
+        !l.details?.includes('000007') &&
+        !l.details?.includes('000008') &&
+        !l.details?.includes('000009')
+    );
     if (clean.length !== logs.length) {
       saveToStorage(STORAGE_KEYS.AUDIT_LOGS, clean);
     }
@@ -478,7 +519,15 @@ class DataService {
   // Notifications
   getNotifications(): AppNotification[] {
     const notifs = getFromStorage<AppNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
-    const clean = notifs.filter(n => !['notif-1', 'notif-2'].includes(n.id));
+    const clean = notifs.filter(
+      n =>
+        !n.id.startsWith('notif-1') &&
+        !n.id.startsWith('notif-2') &&
+        !n.message?.includes('000006') &&
+        !n.message?.includes('000007') &&
+        !n.message?.includes('000008') &&
+        !n.message?.includes('000009')
+    );
     if (clean.length !== notifs.length) {
       saveToStorage(STORAGE_KEYS.NOTIFICATIONS, clean);
     }

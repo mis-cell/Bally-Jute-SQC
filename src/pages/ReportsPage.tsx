@@ -216,26 +216,34 @@ export const ReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map(item => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{item.inspectionNo}</td>
-                  <td className="py-2.5 px-3 text-slate-700">{item.inspectionDate}</td>
-                  <td className="py-2.5 px-3">
-                    <span className="font-mono text-emerald-800 font-bold mr-1">{item.formCode}</span>
-                    <span className="text-slate-800 font-medium">{item.formTitle.split('–')[1]?.trim() || item.formTitle}</span>
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-700">{item.departmentName}</td>
-                  <td className="py-2.5 px-3 text-slate-700">{item.qualityName}</td>
-                  <td className="py-2.5 px-3 text-slate-700">{item.shiftName.split(' ')[0]}</td>
-                  <td className="py-2.5 px-3 text-slate-700">{item.inspectorName}</td>
-                  <td className="py-2.5 px-3">
-                    <StatusBadge status={item.status} />
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <ResultBadge result={item.result} />
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
+                    No inspection records found for the selected filter criteria.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filtered.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{item.inspectionNo}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{item.inspectionDate}</td>
+                    <td className="py-2.5 px-3">
+                      <span className="font-mono text-emerald-800 font-bold mr-1">{item.formCode}</span>
+                      <span className="text-slate-800 font-medium">{item.formTitle.split('–')[1]?.trim() || item.formTitle}</span>
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-700">{item.departmentName}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{item.qualityName}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{item.shiftName.split(' ')[0]}</td>
+                    <td className="py-2.5 px-3 text-slate-700">{item.inspectorName}</td>
+                    <td className="py-2.5 px-3">
+                      <StatusBadge status={item.status} />
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <ResultBadge result={item.result} />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
