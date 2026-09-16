@@ -80,7 +80,10 @@ class PostgresService {
   
   // Real-Time Polling & Bi-Directional Synchronization
   private syncIntervalTimer: any = null;
+  private autoPushDebounceTimer: any = null;
   private syncStateListeners: Array<(state: RealtimeSyncState) => void> = [];
+  private fullDataSupplier: (() => any) | null = null;
+  private hasPendingLocalChanges: boolean = false;
   private syncState: RealtimeSyncState = {
     isAutoSyncEnabled: true,
     isSyncing: false,
@@ -117,20 +120,100 @@ class PostgresService {
     // Initialize Auto-Sync loop on startup if in browser
     if (typeof window !== 'undefined') {
       setTimeout(() => {
-        this.startAutoSync(7000); // Poll every 7 seconds
+        this.startAutoSync(6000); // Continuous bi-directional sync every 6 seconds
       }, 1500);
 
-      // Trigger instant sync when user returns to this browser tab
+      // Trigger instant bi-directional sync when user returns to this browser tab
       window.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && this.isSyncEnabled()) {
+          this.triggerImmediateAutoPush();
           this.pullAndSyncAllData(false);
         }
       });
       window.addEventListener('focus', () => {
         if (this.isSyncEnabled()) {
+          this.triggerImmediateAutoPush();
           this.pullAndSyncAllData(false);
         }
       });
+    }
+  }
+
+  public registerDataSupplier(supplier: () => any) {
+    this.fullDataSupplier = supplier;
+  }
+
+  /**
+   * Automatically pushes all local changes to PostgreSQL without needing manual clicks.
+   * Debounced to coalesce rapid updates into a single efficient bulk-sync call.
+   */
+  public queueAutoPush(supplier?: () => any) {
+    if (supplier) {
+      this.fullDataSupplier = supplier;
+    }
+    this.hasPendingLocalChanges = true;
+
+    if (this.autoPushDebounceTimer) {
+      clearTimeout(this.autoPushDebounceTimer);
+    }
+
+    this.autoPushDebounceTimer = setTimeout(() => {
+      this.triggerImmediateAutoPush();
+    }, 350);
+  }
+
+  public async triggerImmediateAutoPush(): Promise<boolean> {
+    if (!this.isSyncEnabled() || !this.fullDataSupplier) {
+      return false;
+    }
+
+    try {
+      const state = this.fullDataSupplier();
+      if (!state) return false;
+
+      this.notifySyncState({
+        isSyncing: true,
+        lastSyncStatus: 'syncing',
+        lastSyncMessage: 'Auto-pushing changes to PostgreSQL...',
+      });
+
+      const res = await this.syncAllDataToPostgres(state);
+      this.hasPendingLocalChanges = !res.success;
+
+      if (res.success) {
+        const nowStr = new Date().toLocaleTimeString();
+        this.notifySyncState({
+          isSyncing: false,
+          lastSyncTime: nowStr,
+          lastSyncStatus: 'success',
+          lastSyncMessage: `⚡ Auto-synchronized with PostgreSQL at ${nowStr}`,
+          itemsCount: {
+            inspections: state.inspections?.length || 0,
+            users: state.users?.length || 0,
+            departments: state.departments?.length || 0,
+            sections: state.sections?.length || 0,
+            machines: state.machines?.length || 0,
+            looms: state.looms?.length || 0,
+            qualities: state.qualities?.length || 0,
+            standards: state.standards?.length || 0,
+          },
+        });
+        return true;
+      } else {
+        this.notifySyncState({
+          isSyncing: false,
+          lastSyncStatus: 'error',
+          lastSyncMessage: res.message || 'Auto-push to PostgreSQL failed',
+        });
+        return false;
+      }
+    } catch (err: any) {
+      this.notifySyncState({
+        isSyncing: false,
+        lastSyncStatus: 'error',
+        lastSyncMessage: err.message || 'Auto-push error',
+      });
+      return false;
     }
   }
 
@@ -151,14 +234,19 @@ class PostgresService {
     return this.syncState;
   }
 
-  public startAutoSync(intervalMs: number = 7000) {
+  public startAutoSync(intervalMs: number = 6000) {
     if (this.syncIntervalTimer) {
       clearInterval(this.syncIntervalTimer);
     }
     this.notifySyncState({ isAutoSyncEnabled: true });
     this.syncIntervalTimer = setInterval(() => {
       if (this.isSyncEnabled() && !this.syncState.isSyncing) {
-        this.pullAndSyncAllData(false);
+        // If we have pending local changes, push first; otherwise pull latest
+        if (this.hasPendingLocalChanges && this.fullDataSupplier) {
+          this.triggerImmediateAutoPush();
+        } else {
+          this.pullAndSyncAllData(false);
+        }
       }
     }, intervalMs);
   }
@@ -192,7 +280,7 @@ class PostgresService {
         return { success: false, error: 'Failed to retrieve data from PostgreSQL backend.' };
       }
 
-      // Merge / overwrite local storage with database truths
+      // Storage keys
       const STORAGE_KEYS_LOCAL = {
         DEPARTMENTS: 'bj_sqc_departments_prod_v1',
         SECTIONS: 'bj_sqc_sections_prod_v1',
@@ -204,29 +292,79 @@ class PostgresService {
         INSPECTIONS: 'bj_sqc_inspections_prod_clean',
       };
 
-      if (data.users && data.users.length > 0) {
-        localStorage.setItem(STORAGE_KEYS_LOCAL.USERS, JSON.stringify(data.users));
+      const getLocalArray = <T>(key: string): T[] => {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : [];
+        } catch {
+          return [];
+        }
+      };
+
+      // Smart merge: merge PostgreSQL database data with local items to guarantee zero data loss
+      if (data.users && Array.isArray(data.users)) {
+        const localUsers = getLocalArray<UserProfile>(STORAGE_KEYS_LOCAL.USERS);
+        const mergedUsers = [...data.users];
+        // Preserve any local user that hasn't appeared in PG yet
+        localUsers.forEach(lu => {
+          if (!mergedUsers.some(mu => mu.id === lu.id || mu.email === lu.email)) {
+            mergedUsers.push(lu);
+          }
+        });
+        localStorage.setItem(STORAGE_KEYS_LOCAL.USERS, JSON.stringify(mergedUsers));
       }
-      if (data.departments && data.departments.length > 0) {
+
+      if (data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.DEPARTMENTS, JSON.stringify(data.departments));
       }
-      if (data.sections && data.sections.length > 0) {
+      if (data.sections && Array.isArray(data.sections) && data.sections.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.SECTIONS, JSON.stringify(data.sections));
       }
-      if (data.machines && data.machines.length > 0) {
+      if (data.machines && Array.isArray(data.machines) && data.machines.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.MACHINES, JSON.stringify(data.machines));
       }
-      if (data.looms && data.looms.length > 0) {
+      if (data.looms && Array.isArray(data.looms) && data.looms.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.LOOMS, JSON.stringify(data.looms));
       }
-      if (data.qualities && data.qualities.length > 0) {
+      if (data.qualities && Array.isArray(data.qualities) && data.qualities.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.QUALITIES, JSON.stringify(data.qualities));
       }
-      if (data.standards && data.standards.length > 0) {
+      if (data.standards && Array.isArray(data.standards) && data.standards.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.STANDARDS, JSON.stringify(data.standards));
       }
+
       if (data.inspections && Array.isArray(data.inspections)) {
-        localStorage.setItem(STORAGE_KEYS_LOCAL.INSPECTIONS, JSON.stringify(data.inspections));
+        const localInspections = getLocalArray<InspectionRecord>(STORAGE_KEYS_LOCAL.INSPECTIONS);
+        const map = new Map<string, InspectionRecord>();
+        
+        // Populate with PG records
+        data.inspections.forEach((r: InspectionRecord) => {
+          if (r && r.inspectionNo) {
+            map.set(r.inspectionNo, r);
+          }
+        });
+
+        // Merge local records if newer or not in PG yet
+        localInspections.forEach(li => {
+          if (li && li.inspectionNo) {
+            const existing = map.get(li.inspectionNo);
+            if (!existing) {
+              map.set(li.inspectionNo, li);
+            } else {
+              const localTime = new Date(li.updatedAt || li.createdAt || 0).getTime();
+              const pgTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+              if (localTime > pgTime) {
+                map.set(li.inspectionNo, li);
+              }
+            }
+          }
+        });
+
+        const mergedInspections = Array.from(map.values()).sort((a, b) => {
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+
+        localStorage.setItem(STORAGE_KEYS_LOCAL.INSPECTIONS, JSON.stringify(mergedInspections));
       }
 
       const totalItems =
@@ -244,7 +382,7 @@ class PostgresService {
         isSyncing: false,
         lastSyncTime: nowStr,
         lastSyncStatus: 'success',
-        lastSyncMessage: `Synced ${data.inspections?.length || 0} inspections & ${data.users?.length || 0} users in real time`,
+        lastSyncMessage: `Auto-synced ${data.inspections?.length || 0} inspections & ${data.users?.length || 0} users`,
         itemsCount: {
           inspections: data.inspections?.length || 0,
           users: data.users?.length || 0,

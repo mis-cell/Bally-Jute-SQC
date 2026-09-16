@@ -119,6 +119,8 @@ export const UsersPage: React.FC = () => {
       return;
     }
     dataService.deleteUser(deleteCandidate.id, currentUser);
+    setSyncStatusNotice({ isError: false, message: `✅ User "${deleteCandidate.displayName}" deleted and auto-synchronized with PostgreSQL.` });
+    setTimeout(() => setSyncStatusNotice(null), 6000);
     setDeleteCandidate(null);
   };
 
