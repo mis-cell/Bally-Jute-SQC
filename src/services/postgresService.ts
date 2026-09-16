@@ -17,7 +17,16 @@ export interface PostgresConnectionStatus {
   isConnected: boolean;
   message: string;
   checkedAt?: string;
-  customersCount?: number;
+  database?: string;
+  user?: string;
+  inspectionsCount?: number;
+}
+
+export interface PostgresSyncResult {
+  success: boolean;
+  message: string;
+  error?: string;
+  data?: any;
 }
 
 class PostgresService {
@@ -37,6 +46,7 @@ class PostgresService {
       apiUrl: this.apiUrl,
       apiKey: this.apiKey,
       syncEnabled: this.syncEnabled,
+      isDefaultPlaceholder: this.apiUrl.includes('blue-example.trycloudflare.com'),
     };
   }
 
@@ -57,10 +67,14 @@ class PostgresService {
   /**
    * loadCustomers()
    * Loads customer test records from the local PostgreSQL database via Cloudflare Tunnel.
-   * Matches the requested pattern:
-   * const response = await fetch(`${API_URL}/api/customers`, { headers: { "x-api-key": API_KEY } });
    */
   public async loadCustomers(): Promise<CustomerRecord[]> {
+    if (this.apiUrl.includes('blue-example.trycloudflare.com')) {
+      throw new Error(
+        'Please enter your real Cloudflare Tunnel URL in Settings. (Currently set to placeholder: blue-example.trycloudflare.com)'
+      );
+    }
+
     const url = `${this.apiUrl}/api/customers`;
     console.log(`[PostgresService] Fetching customers from: ${url}`);
 
@@ -125,14 +139,27 @@ class PostgresService {
   /**
    * syncInspectionToPostgres()
    * Transmits a saved inspection form directly into local PostgreSQL table `inspections`.
+   * Returns a detailed result object so UI can tell the user if local PostgreSQL sync succeeded or failed.
    */
-  public async syncInspectionToPostgres(inspection: InspectionRecord): Promise<boolean> {
-    if (!this.isSyncEnabled()) {
-      return false;
+  public async syncInspectionToPostgres(inspection: InspectionRecord): Promise<PostgresSyncResult> {
+    if (!this.syncEnabled) {
+      return {
+        success: false,
+        message: 'PostgreSQL auto-sync is disabled in Settings.',
+      };
+    }
+
+    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+      return {
+        success: false,
+        message:
+          'Cloudflare Tunnel URL not configured yet. Go to Settings and enter your actual trycloudflare.com URL.',
+        error: 'Placeholder URL detected',
+      };
     }
 
     const url = `${this.apiUrl}/api/inspections`;
-    console.log(`[PostgresService] Syncing inspection ${inspection.inspectionNo} to ${url}`);
+    console.log(`[PostgresService] Sending inspection ${inspection.inspectionNo} to local PostgreSQL at: ${url}`);
 
     try {
       const response = await fetch(url, {
@@ -140,38 +167,143 @@ class PostgresService {
         headers: {
           'x-api-key': this.apiKey,
           'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
         },
         body: JSON.stringify({
           inspection_no: inspection.inspectionNo,
           form_id: inspection.formId,
           form_code: inspection.formCode,
           form_title: inspection.formTitle,
-          department_id: inspection.departmentId,
-          shift_id: inspection.shiftId,
-          shift_name: inspection.shiftName,
-          inspector_id: inspection.inspectorId,
-          inspector_name: inspection.inspectorName,
-          inspection_date: inspection.inspectionDate,
-          status: inspection.status,
-          result: inspection.result,
-          form_data: inspection.formData,
-          reading_rows: inspection.readingRows,
-          summary_metrics: inspection.summaryMetrics,
-          remarks: inspection.remarks,
+          department_id: inspection.departmentId || 'dept-general',
+          shift_id: inspection.shiftId || 'A',
+          shift_name: inspection.shiftName || 'General',
+          inspector_id: inspection.inspectorId || 'u1',
+          inspector_name: inspection.inspectorName || 'SQC Inspector',
+          inspection_date: inspection.inspectionDate || new Date().toISOString().split('T')[0],
+          status: inspection.status || 'Draft',
+          result: inspection.result || 'PASS',
+          form_data: inspection.formData || {},
+          reading_rows: inspection.readingRows || [],
+          summary_metrics: inspection.summaryMetrics || {},
+          remarks: inspection.remarks || '',
         }),
       });
 
       if (!response.ok) {
-        console.warn(`[PostgresService] Sync returned HTTP ${response.status}`);
-        return false;
+        const errorBody = await response.text();
+        console.error(`[PostgresService] Local server returned HTTP ${response.status}:`, errorBody);
+        return {
+          success: false,
+          message: `Local API error (HTTP ${response.status}): ${errorBody || response.statusText}`,
+          error: errorBody,
+        };
       }
 
       const saved = await response.json();
-      console.log('[PostgresService] Inspection saved to PostgreSQL:', saved);
-      return true;
+      console.log('✅ [PostgresService] Inspection saved to local PostgreSQL successfully:', saved);
+      return {
+        success: true,
+        message: `Successfully saved to local PostgreSQL (Inspection #${inspection.inspectionNo})`,
+        data: saved,
+      };
+    } catch (err: any) {
+      console.error('[PostgresService] Network / Tunnel Error while saving to PostgreSQL:', err);
+      return {
+        success: false,
+        message: `Cannot reach local server at ${this.apiUrl}. Ensure 'node server.js' and 'cloudflared tunnel' are running.`,
+        error: err.message,
+      };
+    }
+  }
+
+  /**
+   * loadInspections()
+   * Retrieves inspection records directly from the local PostgreSQL database.
+   */
+  public async loadInspections(): Promise<any[]> {
+    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+      return [];
+    }
+
+    const url = `${this.apiUrl}/api/inspections`;
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'x-api-key': this.apiKey,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     } catch (err) {
-      console.warn('[PostgresService] Could not sync inspection to Postgres (Tunnel might be offline):', err);
+      console.error('[PostgresService] Failed to load inspections from PostgreSQL:', err);
+      return [];
+    }
+  }
+
+  /**
+   * deleteInspectionFromPostgres()
+   * Deletes a specific inspection record from local PostgreSQL by inspection number.
+   */
+  public async deleteInspectionFromPostgres(inspectionNo: string): Promise<boolean> {
+    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
       return false;
+    }
+
+    const url = `${this.apiUrl}/api/inspections/${encodeURIComponent(inspectionNo)}`;
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'x-api-key': this.apiKey,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      });
+      return response.ok;
+    } catch (err) {
+      console.error('[PostgresService] Failed to delete inspection from PostgreSQL:', err);
+      return false;
+    }
+  }
+
+  /**
+   * clearAllInspectionsFromPostgres()
+   * Wipes/truncates the inspections table in the local PostgreSQL database.
+   */
+  public async clearAllInspectionsFromPostgres(): Promise<{ success: boolean; message: string }> {
+    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+      return { success: false, message: 'Tunnel URL not configured.' };
+    }
+
+    const url = `${this.apiUrl}/api/inspections/truncate`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'x-api-key': this.apiKey,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      });
+
+      if (response.ok) {
+        const res = await response.json();
+        return { success: true, message: res.message || 'All inspections cleared in local PostgreSQL.' };
+      } else {
+        const errText = await response.text();
+        return { success: false, message: `Failed to truncate inspections: ${errText}` };
+      }
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error connecting to local server.' };
     }
   }
 
@@ -191,7 +323,7 @@ class PostgresService {
     }
 
     try {
-      // 1. First test root health check
+      // 1. First test root health check (verifies Node server + PostgreSQL connectivity)
       const rootRes = await fetch(`${this.apiUrl}/`, {
         method: 'GET',
         headers: {
@@ -207,14 +339,44 @@ class PostgresService {
         };
       }
 
-      // 2. Test authenticated endpoint with API key
-      const customers = await this.loadCustomers();
+      let rootData: any = {};
+      try {
+        rootData = await rootRes.json();
+      } catch {
+        // Ignored if non-JSON
+      }
+
+      // 2. Test authenticated inspections endpoint
+      let inspectionsCount: number | undefined;
+      try {
+        const inspRes = await fetch(`${this.apiUrl}/api/inspections`, {
+          method: 'GET',
+          headers: {
+            'x-api-key': this.apiKey,
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+          },
+        });
+        if (inspRes.ok) {
+          const inspData = await inspRes.json();
+          if (Array.isArray(inspData)) {
+            inspectionsCount = inspData.length;
+          }
+        }
+      } catch {
+        // Root already confirmed online
+      }
+
+      const dbName = rootData.database || 'SQC';
+      const dbUser = rootData.user || 'postgres';
 
       return {
         isConnected: true,
-        message: `Successfully connected to local PostgreSQL via Cloudflare Tunnel!`,
+        message: `Successfully connected to local PostgreSQL database "${dbName}" (User: ${dbUser})!`,
         checkedAt,
-        customersCount: customers.length,
+        database: dbName,
+        user: dbUser,
+        inspectionsCount,
       };
     } catch (err: any) {
       return {

@@ -19,9 +19,11 @@ import {
 } from 'lucide-react';
 import { FORM_REGISTRY, FormMetadata } from '../constants/formsRegistry';
 import { dataService } from '../services/dataService';
+import { postgresService, PostgresSyncResult } from '../services/postgresService';
 import { useAuth } from '../context/AuthContext';
 import { InspectionRecord, InspectionStatus, InspectionResult } from '../types';
 import { StatusBadge, ResultBadge } from '../components/common/Badges';
+import { Database, RefreshCw, ExternalLink } from 'lucide-react';
 
 export const InspectionFormPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -31,6 +33,8 @@ export const InspectionFormPage: React.FC = () => {
 
   const [existingRecord, setExistingRecord] = useState<InspectionRecord | null>(null);
   const [selectedFormCode, setSelectedFormCode] = useState<string>('FORM-01');
+  const [pgSyncStatus, setPgSyncStatus] = useState<PostgresSyncResult | null>(null);
+  const [isSyncingToPg, setIsSyncingToPg] = useState(false);
 
   // Load existing or new
   useEffect(() => {
@@ -202,7 +206,19 @@ export const InspectionFormPage: React.FC = () => {
 
     const saved = dataService.saveInspection(record, currentUser);
     setExistingRecord(saved);
-    alert(`Draft saved successfully: ${saved.inspectionNo}`);
+
+    // Attempt local PostgreSQL synchronization
+    setIsSyncingToPg(true);
+    postgresService.syncInspectionToPostgres(saved).then(res => {
+      setPgSyncStatus(res);
+      setIsSyncingToPg(false);
+      if (res.success) {
+        alert(`✅ Draft saved in browser & successfully written to local PostgreSQL!\nInspection No: ${saved.inspectionNo}`);
+      } else {
+        alert(`ℹ️ Draft saved in browser.\n\n⚠️ PostgreSQL Sync Note:\n${res.message}\n\n(Tip: Go to Settings to configure your Cloudflare Tunnel URL so data writes directly to your local PC database)`);
+      }
+    });
+
     navigate(`/inspection/${saved.id}`);
   };
 
@@ -247,8 +263,39 @@ export const InspectionFormPage: React.FC = () => {
     const submitted = dataService.submitInspection(saved.id, currentUser);
     if (submitted) {
       setExistingRecord(submitted);
-      alert(`Inspection ${submitted.inspectionNo} submitted successfully!`);
+
+      // Attempt local PostgreSQL synchronization
+      setIsSyncingToPg(true);
+      postgresService.syncInspectionToPostgres(submitted).then(res => {
+        setPgSyncStatus(res);
+        setIsSyncingToPg(false);
+        if (res.success) {
+          alert(`✅ Inspection submitted & successfully saved to your local PostgreSQL!\nInspection No: ${submitted.inspectionNo}`);
+        } else {
+          alert(`ℹ️ Inspection submitted & saved in browser.\n\n⚠️ Local PostgreSQL Notice:\n${res.message}\n\n(Tip: Make sure 'node server.js' and 'cloudflared tunnel' are active on your computer, and check your URL in Settings)`);
+        }
+      });
+
       navigate(`/inspection/${submitted.id}`);
+    }
+  };
+
+  // Manual trigger to re-sync current inspection into local PostgreSQL
+  const handleManualPgSync = async () => {
+    if (!existingRecord) return;
+    setIsSyncingToPg(true);
+    try {
+      const res = await postgresService.syncInspectionToPostgres(existingRecord);
+      setPgSyncStatus(res);
+      if (res.success) {
+        alert(`✅ Synced to Local PostgreSQL successfully!\nInspection No: ${existingRecord.inspectionNo}`);
+      } else {
+        alert(`⚠️ Local PostgreSQL sync notice:\n${res.message}`);
+      }
+    } catch (err: any) {
+      alert(`⚠️ Connection error: ${err.message}`);
+    } finally {
+      setIsSyncingToPg(false);
     }
   };
 
@@ -326,6 +373,21 @@ export const InspectionFormPage: React.FC = () => {
             <span>Print Report</span>
           </button>
 
+          {/* Local PostgreSQL Push button */}
+          {existingRecord && (
+            <button
+              id="sync-to-postgres-btn"
+              type="button"
+              onClick={handleManualPgSync}
+              disabled={isSyncingToPg}
+              title="Push this inspection directly to your local PostgreSQL database"
+              className="px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+            >
+              <Database size={13} className={isSyncingToPg ? 'animate-spin text-blue-600' : 'text-blue-700'} />
+              <span>{isSyncingToPg ? 'Syncing...' : 'Sync to PostgreSQL'}</span>
+            </button>
+          )}
+
           {!isReadOnly && (
             <>
               <button
@@ -388,6 +450,56 @@ export const InspectionFormPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Local PostgreSQL Cloudflare Tunnel Status Banner */}
+      {postgresService.getConfig().isDefaultPlaceholder ? (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+            <div>
+              <span className="font-bold">Local PostgreSQL Not Connected Yet:</span>{' '}
+              Inspection data is currently saving to browser local storage only. To save records directly into your computer's PostgreSQL database table, configure your Cloudflare Tunnel URL.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/settings')}
+            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-semibold inline-flex items-center gap-1 shrink-0"
+          >
+            <span>Configure Tunnel in Settings</span>
+            <ExternalLink size={12} />
+          </button>
+        </div>
+      ) : pgSyncStatus ? (
+        <div
+          className={`p-3 rounded-xl border text-xs flex items-center justify-between shadow-xs ${
+            pgSyncStatus.success
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+              : 'bg-rose-50 border-rose-300 text-rose-950'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {pgSyncStatus.success ? (
+              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+            )}
+            <div>
+              <span className="font-bold">Local PostgreSQL Sync:</span> {pgSyncStatus.message}
+            </div>
+          </div>
+          {!pgSyncStatus.success && existingRecord && (
+            <button
+              type="button"
+              onClick={handleManualPgSync}
+              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-semibold inline-flex items-center gap-1 shrink-0"
+            >
+              <RefreshCw size={12} className={isSyncingToPg ? 'animate-spin' : ''} />
+              <span>Retry Sync</span>
+            </button>
+          )}
+        </div>
+      ) : null}
 
       {/* Lock Notice if approved */}
       {isApproved && (

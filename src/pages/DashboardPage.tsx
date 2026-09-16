@@ -235,7 +235,14 @@ export const DashboardPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {recentList.map(rec => (
+                  {recentList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-400">
+                        No inspection records found. Start live production entries using "New Inspection Entry".
+                      </td>
+                    </tr>
+                  ) : (
+                    recentList.map(rec => (
                     <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-2.5 px-3 font-mono font-medium text-emerald-900">
                         {rec.inspectionNo}
@@ -264,7 +271,7 @@ export const DashboardPage: React.FC = () => {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>

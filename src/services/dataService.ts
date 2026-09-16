@@ -106,11 +106,58 @@ class DataService {
 
   // Inspections
   getInspections(): InspectionRecord[] {
-    return getFromStorage(STORAGE_KEYS.INSPECTIONS, SEED_INSPECTIONS);
+    const records = getFromStorage<InspectionRecord[]>(STORAGE_KEYS.INSPECTIONS, []);
+    // Filter out any legacy dummy demo records (e.g., rec-01 to rec-05, test-...)
+    const clean = records.filter(r => !r.id.startsWith('rec-0') && !r.id.startsWith('test-'));
+    if (clean.length !== records.length) {
+      saveToStorage(STORAGE_KEYS.INSPECTIONS, clean);
+    }
+    return clean;
   }
 
   getInspectionById(id: string): InspectionRecord | undefined {
     return this.getInspections().find(i => i.id === id);
+  }
+
+  deleteInspection(id: string, user: UserProfile): boolean {
+    const records = this.getInspections();
+    const target = records.find(r => r.id === id);
+    if (!target) return false;
+
+    const remaining = records.filter(r => r.id !== id);
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, remaining);
+
+    // Also attempt deletion in local PostgreSQL
+    postgresService.deleteInspectionFromPostgres(target.inspectionNo).catch(() => {});
+
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'DELETE',
+      module: 'Inspection',
+      recordId: target.id,
+      details: `Deleted inspection ${target.inspectionNo} (${target.formCode}).`,
+    });
+
+    return true;
+  }
+
+  clearAllInspections(user?: UserProfile): void {
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, []);
+    saveToStorage(STORAGE_KEYS.AUDIT_LOGS, []);
+    saveToStorage(STORAGE_KEYS.NOTIFICATIONS, []);
+    localStorage.removeItem('bj_sqc_test_customers');
+    if (user) {
+      this.addAuditLog({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'DELETE',
+        module: 'System Administration',
+        details: 'All inspection records and dummy test logs purged for production readiness.',
+      });
+    }
   }
 
   saveInspection(record: InspectionRecord, user: UserProfile): InspectionRecord {
@@ -206,6 +253,9 @@ class DataService {
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
 
+    // Asynchronously replicate approval status to local PostgreSQL
+    postgresService.syncInspectionToPostgres(record).catch(() => {});
+
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -240,6 +290,9 @@ class DataService {
     record.updatedBy = user.displayName;
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+
+    // Asynchronously replicate rejection status to local PostgreSQL
+    postgresService.syncInspectionToPostgres(record).catch(() => {});
 
     this.addAuditLog({
       userId: user.id,
@@ -402,7 +455,12 @@ class DataService {
 
   // Audit Logs
   getAuditLogs(): AuditLogItem[] {
-    return getFromStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
+    const logs = getFromStorage<AuditLogItem[]>(STORAGE_KEYS.AUDIT_LOGS, []);
+    const clean = logs.filter(l => !['log-1', 'log-2', 'log-3'].includes(l.id));
+    if (clean.length !== logs.length) {
+      saveToStorage(STORAGE_KEYS.AUDIT_LOGS, clean);
+    }
+    return clean;
   }
 
   addAuditLog(item: Omit<AuditLogItem, 'id' | 'timestamp'>): void {
@@ -419,7 +477,12 @@ class DataService {
 
   // Notifications
   getNotifications(): AppNotification[] {
-    return getFromStorage(STORAGE_KEYS.NOTIFICATIONS, INITIAL_NOTIFICATIONS);
+    const notifs = getFromStorage<AppNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
+    const clean = notifs.filter(n => !['notif-1', 'notif-2'].includes(n.id));
+    if (clean.length !== notifs.length) {
+      saveToStorage(STORAGE_KEYS.NOTIFICATIONS, clean);
+    }
+    return clean;
   }
 
   addNotification(notif: Omit<AppNotification, 'id' | 'timestamp' | 'read'>): void {
@@ -463,7 +526,9 @@ class DataService {
     saveToStorage(STORAGE_KEYS.SPECS, INITIAL_PRODUCT_SPECS);
     saveToStorage(STORAGE_KEYS.STANDARDS, INITIAL_STANDARDS);
     saveToStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
-    saveToStorage(STORAGE_KEYS.INSPECTIONS, SEED_INSPECTIONS);
+    saveToStorage(STORAGE_KEYS.INSPECTIONS, []);
+    saveToStorage(STORAGE_KEYS.AUDIT_LOGS, []);
+    saveToStorage(STORAGE_KEYS.NOTIFICATIONS, []);
     saveToStorage(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS);
     this.addAuditLog({
       userId: user.id,
