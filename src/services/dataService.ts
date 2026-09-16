@@ -394,6 +394,7 @@ class DataService {
       list.push({ ...dept, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
+    postgresService.syncDepartmentToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -409,6 +410,7 @@ class DataService {
   deleteDepartment(id: string, user: UserProfile): Department[] {
     const list = this.getDepartments().filter(d => d.id !== id);
     saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
+    postgresService.deleteDepartmentFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -434,6 +436,7 @@ class DataService {
       list.push(section);
     }
     saveToStorage(STORAGE_KEYS.SECTIONS, list);
+    postgresService.syncSectionToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -449,6 +452,7 @@ class DataService {
   deleteSection(id: string, user: UserProfile): Section[] {
     const list = this.getSections().filter(s => s.id !== id);
     saveToStorage(STORAGE_KEYS.SECTIONS, list);
+    postgresService.deleteSectionFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -474,6 +478,7 @@ class DataService {
       list.push({ ...machine, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.MACHINES, list);
+    postgresService.syncMachineToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -489,6 +494,7 @@ class DataService {
   deleteMachine(id: string, user: UserProfile): Machine[] {
     const list = this.getMachines().filter(m => m.id !== id);
     saveToStorage(STORAGE_KEYS.MACHINES, list);
+    postgresService.deleteMachineFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -514,6 +520,7 @@ class DataService {
       list.push({ ...loom, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.LOOMS, list);
+    postgresService.syncLoomToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -529,6 +536,7 @@ class DataService {
   deleteLoom(id: string, user: UserProfile): Loom[] {
     const list = this.getLooms().filter(l => l.id !== id);
     saveToStorage(STORAGE_KEYS.LOOMS, list);
+    postgresService.deleteLoomFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -554,6 +562,7 @@ class DataService {
       list.push({ ...quality, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.QUALITIES, list);
+    postgresService.syncQualityToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -569,6 +578,7 @@ class DataService {
   deleteQuality(id: string, user: UserProfile): QualityMaster[] {
     const list = this.getQualities().filter(q => q.id !== id);
     saveToStorage(STORAGE_KEYS.QUALITIES, list);
+    postgresService.deleteQualityFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -598,6 +608,7 @@ class DataService {
       list.push({ ...std, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.STANDARDS, list);
+    postgresService.syncStandardToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -613,6 +624,7 @@ class DataService {
   deleteStandard(id: string, user: UserProfile): StandardDefinition[] {
     const list = this.getStandards().filter(s => s.id !== id);
     saveToStorage(STORAGE_KEYS.STANDARDS, list);
+    postgresService.deleteStandardFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
       userEmail: user.email,
@@ -638,6 +650,7 @@ class DataService {
       list.push(userData);
     }
     saveToStorage(STORAGE_KEYS.USERS, list);
+    postgresService.syncUserToPostgres(userData).catch(() => {});
     if (actorUser) {
       this.addAuditLog({
         userId: actorUser.id,
@@ -655,6 +668,7 @@ class DataService {
   deleteUser(id: string, actorUser?: UserProfile): UserProfile[] {
     const list = this.getUsers().filter(u => u.id !== id);
     saveToStorage(STORAGE_KEYS.USERS, list);
+    postgresService.deleteUserFromPostgres(id).catch(() => {});
     if (actorUser) {
       this.addAuditLog({
         userId: actorUser.id,
@@ -747,6 +761,20 @@ class DataService {
     const count = records.length + 1;
     const pad = String(count).padStart(6, '0');
     return `${prefix}${formCode}/${pad}`;
+  }
+
+  // Export all current entities for PostgreSQL bulk sync
+  getFullDatabaseState() {
+    return {
+      users: this.getUsers(),
+      departments: this.getDepartments(),
+      sections: this.getSections(),
+      machines: this.getMachines(),
+      looms: this.getLooms(),
+      qualities: this.getQualities(),
+      standards: this.getStandards(),
+      inspections: this.getInspections(),
+    };
   }
 
   // Reset to sample state

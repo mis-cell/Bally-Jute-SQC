@@ -14,6 +14,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
+import { postgresService } from '../services/postgresService';
+import { PostgresSyncModal } from '../components/PostgresSyncModal';
 import { useAuth } from '../context/AuthContext';
 import {
   Department,
@@ -40,6 +42,8 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
   const [isEditing, setIsEditing] = useState(false);
   const [activeFormData, setActiveFormData] = useState<any>({});
   const [deleteCandidate, setDeleteCandidate] = useState<{ id: string; name: string; type: string } | null>(null);
+  const [isPgModalOpen, setIsPgModalOpen] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   const canEdit = hasPermission('MANAGE_MASTERS');
 
@@ -183,17 +187,41 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
           </p>
         </div>
 
-        {canEdit && (
+        <div className="flex items-center gap-2">
           <button
-            id="btn-add-master-entry"
-            onClick={handleOpenAdd}
-            className="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs transition-colors"
+            id="btn-masters-pg-sync"
+            onClick={() => setIsPgModalOpen(true)}
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs transition-colors border border-slate-700"
+            title="Manage PostgreSQL replication and view database status"
           >
-            <Plus size={15} />
-            <span>+ Add New Entry</span>
+            <Database size={14} className="text-emerald-400" />
+            <span>PostgreSQL Sync Hub</span>
           </button>
-        )}
+
+          {canEdit && (
+            <button
+              id="btn-add-master-entry"
+              onClick={handleOpenAdd}
+              className="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs transition-colors"
+            >
+              <Plus size={15} />
+              <span>+ Add New Entry</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {syncNotice && (
+        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-lg text-xs font-semibold flex items-center justify-between shadow-2xs animate-in fade-in">
+          <span>{syncNotice}</span>
+          <button
+            onClick={() => setIsPgModalOpen(true)}
+            className="underline font-bold text-emerald-950 hover:text-emerald-800"
+          >
+            Open DB Hub
+          </button>
+        </div>
+      )}
 
       {/* Tabs navigation */}
       <div className="flex border-b border-slate-200 overflow-x-auto gap-2 text-xs">
@@ -757,6 +785,8 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
           </div>
         </div>
       )}
+      {/* PostgreSQL Sync Modal */}
+      <PostgresSyncModal isOpen={isPgModalOpen} onClose={() => setIsPgModalOpen(false)} />
     </div>
   );
 };

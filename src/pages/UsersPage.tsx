@@ -13,8 +13,12 @@ import {
   Mail,
   Building,
   BadgeAlert,
+  Database,
+  UploadCloud,
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
+import { postgresService } from '../services/postgresService';
+import { PostgresSyncModal } from '../components/PostgresSyncModal';
 import { useAuth } from '../context/AuthContext';
 import { UserProfile, UserRole } from '../types';
 
@@ -28,6 +32,8 @@ export const UsersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<UserProfile | null>(null);
+  const [isPgModalOpen, setIsPgModalOpen] = useState(false);
+  const [syncStatusNotice, setSyncStatusNotice] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<UserProfile>({
@@ -93,6 +99,17 @@ export const UsersPage: React.FC = () => {
     const updatedList = dataService.saveUser(formData, currentUser);
     setUsers([...updatedList]);
     setIsModalOpen(false);
+
+    // Provide immediate sync feedback
+    setSyncStatusNotice(`User "${formData.displayName}" saved. Replicating to local PostgreSQL...`);
+    postgresService.syncUserToPostgres(formData).then(res => {
+      if (res.success) {
+        setSyncStatusNotice(`✅ User "${formData.displayName}" successfully saved in local PostgreSQL!`);
+      } else {
+        setSyncStatusNotice(`⚠️ Saved locally. Local PG Notice: ${res.message}`);
+      }
+      setTimeout(() => setSyncStatusNotice(null), 6000);
+    });
   };
 
   const handleConfirmDelete = () => {
@@ -132,6 +149,15 @@ export const UsersPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            id="btn-users-pg-sync"
+            onClick={() => setIsPgModalOpen(true)}
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs transition-colors border border-slate-700"
+            title="Manage PostgreSQL replication and view database status"
+          >
+            <Database size={14} className="text-emerald-400" />
+            <span>PostgreSQL Sync Hub</span>
+          </button>
           <div className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
             Active: <strong className="text-emerald-900">{currentUser.displayName}</strong>
           </div>
@@ -145,6 +171,18 @@ export const UsersPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {syncStatusNotice && (
+        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-lg text-xs font-semibold flex items-center justify-between shadow-2xs animate-in fade-in">
+          <span>{syncStatusNotice}</span>
+          <button
+            onClick={() => setIsPgModalOpen(true)}
+            className="underline font-bold text-emerald-950 hover:text-emerald-800"
+          >
+            Open DB Hub
+          </button>
+        </div>
+      )}
 
       {/* Role explanation summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs">
@@ -431,6 +469,8 @@ export const UsersPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* PostgreSQL Sync Modal */}
+      <PostgresSyncModal isOpen={isPgModalOpen} onClose={() => setIsPgModalOpen(false)} />
     </div>
   );
 };

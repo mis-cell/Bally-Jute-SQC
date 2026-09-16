@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { postgresService } from '../services/postgresService';
+import { PostgresSyncModal } from '../components/PostgresSyncModal';
 import { useAuth } from '../context/AuthContext';
 import { ApplicationSettings } from '../types';
 
@@ -52,6 +53,8 @@ export const SettingsPage: React.FC = () => {
   const [pgInspections, setPgInspections] = useState<any[]>([]);
   const [loadingPgInspections, setLoadingPgInspections] = useState(false);
   const [deletingNo, setDeletingNo] = useState<string | null>(null);
+  const [isPgModalOpen, setIsPgModalOpen] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
 
   // SQL / Guide Tabs
   const [activeSqlTab, setActiveSqlTab] = useState<'wipe' | 'schema' | 'server'>('wipe');
@@ -154,6 +157,42 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  // 5b. Bulk Push all state to PostgreSQL
+  const handleSyncAllToPostgres = async () => {
+    setSyncingAll(true);
+    postgresService.setConfig(tunnelUrl, apiKey, syncEnabled);
+    try {
+      const state = dataService.getFullDatabaseState();
+      const res = await postgresService.syncAllDataToPostgres(state);
+      if (res.success) {
+        showNotice('success', `✅ PostgreSQL Replicated! ${res.message}`);
+        handleLoadPgInspections();
+      } else {
+        showNotice('error', `⚠️ Bulk Sync issue: ${res.message}`);
+      }
+    } catch (err: any) {
+      showNotice('error', `⚠️ Sync failed: ${err.message}`);
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
+  // 5c. Download Complete SQL File for DBeaver / pgAdmin import
+  const handleDownloadFullSql = () => {
+    const state = dataService.getFullDatabaseState();
+    const sql = postgresService.generateSqlDumpScript(state);
+    const blob = new Blob([sql], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bally_jute_sqc_full_dump_${new Date().toISOString().slice(0, 10)}.sql`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showNotice('success', '💾 Full SQL dump downloaded! Execute it in DBeaver / pgAdmin 4.');
+  };
+
   // 6. Save settings form
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,10 +245,102 @@ DROP TABLE IF EXISTS customers CASCADE;
 SELECT COUNT(*) AS total_inspections_remaining FROM inspections;`;
 
   const sqlSchema = `-- ==============================================================================
--- BALLY JUTE SQC - LOCAL POSTGRESQL PRODUCTION TABLE SETUP
+-- BALLY JUTE SQC - LOCAL POSTGRESQL PRODUCTION DDL (ALL TABLES)
 -- Run this in DBeaver or pgAdmin 4 (Database: SQC)
 -- ==============================================================================
 
+-- 1. Users Table
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(100) PRIMARY KEY,
+    employee_code VARCHAR(50) UNIQUE NOT NULL,
+    display_name VARCHAR(150) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    department_id VARCHAR(100),
+    department_name VARCHAR(150),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Departments Table
+CREATE TABLE IF NOT EXISTS departments (
+    id VARCHAR(100) PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    hod_name VARCHAR(150),
+    status VARCHAR(50) DEFAULT 'Active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Sections Table
+CREATE TABLE IF NOT EXISTS sections (
+    id VARCHAR(100) PRIMARY KEY,
+    department_id VARCHAR(100) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    supervisor VARCHAR(150),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Machines Table
+CREATE TABLE IF NOT EXISTS machines (
+    id VARCHAR(100) PRIMARY KEY,
+    department_id VARCHAR(100) NOT NULL,
+    section_id VARCHAR(100),
+    machine_number VARCHAR(100) NOT NULL,
+    type VARCHAR(100) NOT NULL,
+    standard_speed NUMERIC,
+    status VARCHAR(50) DEFAULT 'Running',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. Looms Table
+CREATE TABLE IF NOT EXISTS looms (
+    id VARCHAR(100) PRIMARY KEY,
+    loom_number VARCHAR(100) NOT NULL,
+    shed VARCHAR(100),
+    type VARCHAR(100) NOT NULL,
+    rpm NUMERIC,
+    reed_space VARCHAR(50),
+    status VARCHAR(50) DEFAULT 'Running',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Qualities Table
+CREATE TABLE IF NOT EXISTS qualities (
+    id VARCHAR(100) PRIMARY KEY,
+    quality_code VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT NOT NULL,
+    fabric_type VARCHAR(100),
+    standard_porter NUMERIC,
+    standard_shots NUMERIC,
+    standard_width_inch NUMERIC,
+    standard_weight_oz NUMERIC,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. Standards Table
+CREATE TABLE IF NOT EXISTS standards (
+    id VARCHAR(100) PRIMARY KEY,
+    form_code VARCHAR(50) NOT NULL,
+    form_title VARCHAR(255) NOT NULL,
+    parameter_name VARCHAR(150) NOT NULL,
+    target_value NUMERIC NOT NULL,
+    min_acceptable NUMERIC NOT NULL,
+    max_acceptable NUMERIC NOT NULL,
+    unit_of_measure VARCHAR(50),
+    standard_reference VARCHAR(150),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. Inspections Table
 CREATE TABLE IF NOT EXISTS inspections (
     id SERIAL PRIMARY KEY,
     inspection_no VARCHAR(100) UNIQUE NOT NULL,
@@ -446,16 +577,49 @@ app.listen(PORT, '127.0.0.1', () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              id="open-sync-hub-modal-btn"
+              type="button"
+              onClick={() => setIsPgModalOpen(true)}
+              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 transition-colors shadow-xs border border-slate-700"
+            >
+              <Database size={13} className="text-emerald-400" />
+              <span>PostgreSQL Hub</span>
+            </button>
+
+            <button
+              id="bulk-sync-all-btn"
+              type="button"
+              onClick={handleSyncAllToPostgres}
+              disabled={syncingAll}
+              className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 disabled:bg-emerald-600 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 transition-colors shadow-xs"
+              title="Push all Users, Departments, Machines, Looms, Qualities, Standards, and Inspections to PostgreSQL"
+            >
+              <RefreshCw size={13} className={syncingAll ? 'animate-spin' : ''} />
+              <span>{syncingAll ? 'Syncing...' : '⚡ Push All Data to PG'}</span>
+            </button>
+
+            <button
+              id="download-sql-dump-btn"
+              type="button"
+              onClick={handleDownloadFullSql}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 transition-colors shadow-2xs"
+              title="Download entire database state as a standalone .sql script"
+            >
+              <HardDriveDownload size={13} className="text-blue-600" />
+              <span>💾 Download .SQL Dump</span>
+            </button>
+
             <button
               id="test-connection-btn"
               type="button"
               onClick={handleTestConnection}
               disabled={testingConnection}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 transition-colors shadow-xs"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 transition-colors shadow-xs"
             >
               <RefreshCw size={13} className={testingConnection ? 'animate-spin' : ''} />
-              <span>{testingConnection ? 'Testing Connection...' : 'Test Connection'}</span>
+              <span>{testingConnection ? 'Testing...' : 'Test Connection'}</span>
             </button>
           </div>
         </div>
@@ -831,6 +995,9 @@ app.listen(PORT, '127.0.0.1', () => {
           </div>
         )}
       </form>
+
+      {/* PostgreSQL Bridge & Sync Modal */}
+      <PostgresSyncModal isOpen={isPgModalOpen} onClose={() => setIsPgModalOpen(false)} />
     </div>
   );
 };
