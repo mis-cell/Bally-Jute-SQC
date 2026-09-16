@@ -27,6 +27,7 @@ import {
   INITIAL_NOTIFICATIONS,
   INITIAL_SETTINGS,
 } from '../constants/initialData';
+import { postgresService } from './postgresService';
 
 const STORAGE_KEYS = {
   SETTINGS: 'bj_sqc_settings',
@@ -147,6 +148,10 @@ class DataService {
     }
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+
+    // Asynchronously replicate to local PostgreSQL via Cloudflare Tunnel
+    postgresService.syncInspectionToPostgres(updatedRecord).catch(() => {});
+
     return updatedRecord;
   }
 
@@ -162,6 +167,9 @@ class DataService {
     record.updatedBy = user.displayName;
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
+
+    // Asynchronously replicate status change to local PostgreSQL
+    postgresService.syncInspectionToPostgres(record).catch(() => {});
 
     this.addAuditLog({
       userId: user.id,

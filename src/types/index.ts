@@ -165,6 +165,14 @@ export interface AppNotification {
   recipientUserId?: string;
 }
 
+export interface CustomerRecord {
+  id?: number | string;
+  name: string;
+  email: string;
+  phone?: string;
+  created_at?: string;
+}
+
 export interface ApplicationSettings {
   companyName: string;
   companySubtitle: string;
@@ -174,4 +182,8 @@ export interface ApplicationSettings {
   enableOfflineCache: boolean;
   requireDualApproval: boolean;
   autoApprovePass: boolean;
+  // Local PostgreSQL & Cloudflare Tunnel Settings
+  postgresApiUrl?: string;
+  postgresApiKey?: string;
+  enablePostgresSync?: boolean;
 }
