@@ -394,11 +394,71 @@ class DataService {
       list.push({ ...dept, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: idx >= 0 ? 'UPDATE' : 'CREATE',
+      module: 'Master Data',
+      recordId: dept.id,
+      details: `${idx >= 0 ? 'Updated' : 'Created'} Department ${dept.code} - ${dept.name}`,
+    });
+    return list;
+  }
+
+  deleteDepartment(id: string, user: UserProfile): Department[] {
+    const list = this.getDepartments().filter(d => d.id !== id);
+    saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'DELETE',
+      module: 'Master Data',
+      recordId: id,
+      details: `Deleted Department ID ${id}`,
+    });
     return list;
   }
 
   getSections(): Section[] {
     return getFromStorage(STORAGE_KEYS.SECTIONS, INITIAL_SECTIONS);
+  }
+
+  saveSection(section: Section, user: UserProfile): Section[] {
+    const list = this.getSections();
+    const idx = list.findIndex(s => s.id === section.id);
+    if (idx >= 0) {
+      list[idx] = { ...section };
+    } else {
+      list.push(section);
+    }
+    saveToStorage(STORAGE_KEYS.SECTIONS, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: idx >= 0 ? 'UPDATE' : 'CREATE',
+      module: 'Master Data',
+      recordId: section.id,
+      details: `${idx >= 0 ? 'Updated' : 'Created'} Section ${section.code} - ${section.name}`,
+    });
+    return list;
+  }
+
+  deleteSection(id: string, user: UserProfile): Section[] {
+    const list = this.getSections().filter(s => s.id !== id);
+    saveToStorage(STORAGE_KEYS.SECTIONS, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'DELETE',
+      module: 'Master Data',
+      recordId: id,
+      details: `Deleted Section ID ${id}`,
+    });
+    return list;
   }
 
   getMachines(): Machine[] {
@@ -414,6 +474,30 @@ class DataService {
       list.push({ ...machine, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.MACHINES, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: idx >= 0 ? 'UPDATE' : 'CREATE',
+      module: 'Master Data',
+      recordId: machine.id,
+      details: `${idx >= 0 ? 'Updated' : 'Created'} Machine ${machine.code} - ${machine.name}`,
+    });
+    return list;
+  }
+
+  deleteMachine(id: string, user: UserProfile): Machine[] {
+    const list = this.getMachines().filter(m => m.id !== id);
+    saveToStorage(STORAGE_KEYS.MACHINES, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'DELETE',
+      module: 'Master Data',
+      recordId: id,
+      details: `Deleted Machine ID ${id}`,
+    });
     return list;
   }
 
@@ -430,6 +514,30 @@ class DataService {
       list.push({ ...loom, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.LOOMS, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: idx >= 0 ? 'UPDATE' : 'CREATE',
+      module: 'Master Data',
+      recordId: loom.id,
+      details: `${idx >= 0 ? 'Updated' : 'Created'} Loom ${loom.code} - ${loom.name}`,
+    });
+    return list;
+  }
+
+  deleteLoom(id: string, user: UserProfile): Loom[] {
+    const list = this.getLooms().filter(l => l.id !== id);
+    saveToStorage(STORAGE_KEYS.LOOMS, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'DELETE',
+      module: 'Master Data',
+      recordId: id,
+      details: `Deleted Loom ID ${id}`,
+    });
     return list;
   }
 
@@ -446,6 +554,30 @@ class DataService {
       list.push({ ...quality, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.QUALITIES, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: idx >= 0 ? 'UPDATE' : 'CREATE',
+      module: 'Master Data',
+      recordId: quality.id,
+      details: `${idx >= 0 ? 'Updated' : 'Created'} Quality ${quality.code} - ${quality.name}`,
+    });
+    return list;
+  }
+
+  deleteQuality(id: string, user: UserProfile): QualityMaster[] {
+    const list = this.getQualities().filter(q => q.id !== id);
+    saveToStorage(STORAGE_KEYS.QUALITIES, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'DELETE',
+      module: 'Master Data',
+      recordId: id,
+      details: `Deleted Quality ID ${id}`,
+    });
     return list;
   }
 
@@ -466,6 +598,30 @@ class DataService {
       list.push({ ...std, createdAt: new Date().toISOString(), createdBy: user.displayName, updatedAt: new Date().toISOString(), updatedBy: user.displayName });
     }
     saveToStorage(STORAGE_KEYS.STANDARDS, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: idx >= 0 ? 'UPDATE' : 'CREATE',
+      module: 'Master Data',
+      recordId: std.id,
+      details: `${idx >= 0 ? 'Updated' : 'Created'} Standard ${std.code} - ${std.name}`,
+    });
+    return list;
+  }
+
+  deleteStandard(id: string, user: UserProfile): StandardDefinition[] {
+    const list = this.getStandards().filter(s => s.id !== id);
+    saveToStorage(STORAGE_KEYS.STANDARDS, list);
+    this.addAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'DELETE',
+      module: 'Master Data',
+      recordId: id,
+      details: `Deleted Standard ID ${id}`,
+    });
     return list;
   }
 
@@ -473,7 +629,7 @@ class DataService {
     return getFromStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
   }
 
-  saveUser(userData: UserProfile): UserProfile[] {
+  saveUser(userData: UserProfile, actorUser?: UserProfile): UserProfile[] {
     const list = this.getUsers();
     const idx = list.findIndex(u => u.id === userData.id);
     if (idx >= 0) {
@@ -482,6 +638,34 @@ class DataService {
       list.push(userData);
     }
     saveToStorage(STORAGE_KEYS.USERS, list);
+    if (actorUser) {
+      this.addAuditLog({
+        userId: actorUser.id,
+        userEmail: actorUser.email,
+        userRole: actorUser.role,
+        action: idx >= 0 ? 'UPDATE' : 'CREATE',
+        module: 'User Management',
+        recordId: userData.id,
+        details: `${idx >= 0 ? 'Updated' : 'Created'} User ${userData.displayName} (${userData.role})`,
+      });
+    }
+    return list;
+  }
+
+  deleteUser(id: string, actorUser?: UserProfile): UserProfile[] {
+    const list = this.getUsers().filter(u => u.id !== id);
+    saveToStorage(STORAGE_KEYS.USERS, list);
+    if (actorUser) {
+      this.addAuditLog({
+        userId: actorUser.id,
+        userEmail: actorUser.email,
+        userRole: actorUser.role,
+        action: 'DELETE',
+        module: 'User Management',
+        recordId: id,
+        details: `Deleted User ID ${id}`,
+      });
+    }
     return list;
   }
 

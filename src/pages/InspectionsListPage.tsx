@@ -14,6 +14,9 @@ import {
   RotateCcw,
   Clock,
   Printer,
+  Edit2,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +29,7 @@ export const InspectionsListPage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [inspections, setInspections] = useState<InspectionRecord[]>(() => dataService.getInspections());
+  const [deleteTarget, setDeleteTarget] = useState<InspectionRecord | null>(null);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
@@ -250,10 +254,27 @@ export const InspectionsListPage: React.FC = () => {
                         <button
                           id={`view-rec-${item.id}`}
                           onClick={() => navigate(`/inspection/${item.id}`)}
-                          className="px-2.5 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded text-xs font-semibold inline-flex items-center gap-1"
+                          title="Open Inspection Details"
+                          className="px-2 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded text-xs font-semibold inline-flex items-center gap-1 border border-emerald-200"
                         >
                           <span>Open</span>
                           <ArrowUpRight size={13} />
+                        </button>
+                        <button
+                          id={`edit-rec-${item.id}`}
+                          onClick={() => navigate(`/inspection/${item.id}`)}
+                          title="Edit Inspection Data"
+                          className="p-1 text-blue-700 hover:bg-blue-50 border border-blue-200 rounded transition-colors"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          id={`del-rec-${item.id}`}
+                          onClick={() => setDeleteTarget(item)}
+                          title="Delete Inspection"
+                          className="p-1 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded transition-colors"
+                        >
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </td>
@@ -264,6 +285,43 @@ export const InspectionsListPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-3">
+            <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
+              <AlertTriangle size={18} />
+              <span>Confirm Inspection Deletion</span>
+            </div>
+            <p className="text-xs text-slate-600">
+              Are you sure you want to permanently delete inspection{' '}
+              <strong className="text-slate-900 font-mono">{deleteTarget.inspectionNo}</strong>?
+              This will remove the entry from browser storage, PostgreSQL database, and record an audit log.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="px-3 py-1.5 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  dataService.deleteInspection(deleteTarget.id, currentUser);
+                  setInspections(dataService.getInspections());
+                  setDeleteTarget(null);
+                }}
+                className="px-3.5 py-1.5 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-lg shadow-xs"
+              >
+                Delete Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

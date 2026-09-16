@@ -69,10 +69,12 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             <button
               id="sidebar-toggle-btn"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-1.5 rounded-md hover:bg-emerald-800 text-emerald-100 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-emerald-800 text-emerald-100 transition-colors flex items-center gap-1.5 border border-emerald-700/60 bg-emerald-800/40"
               aria-label="Toggle Sidebar"
+              title="Toggle Menu"
             >
-              {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+              <span className="text-xs font-bold hidden sm:inline">Menu</span>
             </button>
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center font-black text-white text-base shadow-inner border border-emerald-400">
@@ -180,30 +182,43 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         {/* Left ERP Sidebar */}
         <aside
           id="main-sidebar"
-          className={`fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-200 ease-in-out ${
+          className={`fixed lg:static inset-y-0 left-0 z-30 w-72 bg-slate-50 border-r-2 border-slate-300 flex flex-col transition-transform duration-200 ease-in-out shadow-sm ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >
-          <div className="p-3 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Navigation Menu</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-mono font-semibold border border-emerald-200">
-              v2.6 Enterprise
-            </span>
+          {/* Sidebar Header */}
+          <div className="p-3.5 bg-white border-b-2 border-slate-200 flex items-center justify-between shadow-2xs">
+            <span className="text-xs font-black text-slate-900 uppercase tracking-wider">Navigation Menu</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-950 font-mono font-bold border border-emerald-300">
+                v2.6 Enterprise
+              </span>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+                title="Close Navigation Menu"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-1 text-xs">
+          <div className="flex-1 overflow-y-auto p-3 space-y-1.5 text-xs">
+            {/* Dashboard */}
             <NavLink
               to="/"
               id="nav-link-dashboard"
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-colors ${
-                  isActive ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100'
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
+                  isActive
+                    ? 'bg-emerald-800 text-white shadow-sm'
+                    : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-950'
                 }`
               }
             >
-              <LayoutDashboard size={16} />
-              <span>Dashboard</span>
+              <LayoutDashboard size={18} className="shrink-0" />
+              <span>Dashboard Overview</span>
             </NavLink>
 
             {/* Inspections Header */}
@@ -211,28 +226,28 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <button
                 id="toggle-inspection-forms-menu"
                 onClick={() => setFormsSubmenuOpen(!formsSubmenuOpen)}
-                className="w-full flex items-center justify-between px-3 py-2 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-slate-900 font-bold text-[13px] rounded-lg hover:bg-emerald-50 hover:text-emerald-950 transition-colors"
               >
-                <div className="flex items-center gap-2.5">
-                  <ClipboardList size={16} className="text-emerald-700" />
+                <div className="flex items-center gap-3">
+                  <ClipboardList size={18} className="text-emerald-800 shrink-0" />
                   <span>SQC Inspection (1–36)</span>
                 </div>
-                {formsSubmenuOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {formsSubmenuOpen ? <ChevronDown size={16} className="text-slate-700" /> : <ChevronRight size={16} className="text-slate-700" />}
               </button>
 
               {formsSubmenuOpen && (
-                <div className="mt-1 pl-4 pr-1 space-y-1">
+                <div className="mt-1 pl-2 pr-1 space-y-1 bg-white rounded-lg p-2.5 border border-slate-200 shadow-2xs">
                   <NavLink
                     to="/inspections"
                     id="nav-link-all-inspections"
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] font-medium ${
-                        isActive ? 'text-emerald-800 bg-emerald-50 font-bold' : 'text-slate-600 hover:bg-slate-100'
+                      `flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-bold transition-colors ${
+                        isActive ? 'text-emerald-950 bg-emerald-100 border border-emerald-300' : 'text-slate-800 hover:bg-slate-100'
                       }`
                     }
                   >
-                    <Layers size={13} />
+                    <Layers size={15} className="text-emerald-800" />
                     <span>All Inspection Records</span>
                   </NavLink>
 
@@ -241,40 +256,49 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     id="nav-link-create-inspection"
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] font-medium ${
-                        isActive ? 'text-emerald-800 bg-emerald-50 font-bold' : 'text-emerald-700 hover:bg-emerald-50/50'
+                      `flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-bold transition-colors ${
+                        isActive ? 'text-emerald-950 bg-emerald-100 border border-emerald-300' : 'text-emerald-900 bg-emerald-50/80 hover:bg-emerald-100'
                       }`
                     }
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-700"></span>
                     <span>+ New Inspection Entry</span>
                   </NavLink>
 
-                  <div className="pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
+                  <div className="pt-2.5 pb-1 text-[11px] font-black text-slate-800 uppercase tracking-wider px-2">
                     Department Form Lists
                   </div>
 
                   {formGroups.map((group, gIdx) => (
-                    <div key={gIdx} className="space-y-0.5">
-                      <div className="text-[10px] font-semibold text-slate-500 px-2 pt-1">{group.title}</div>
+                    <div key={gIdx} className="space-y-0.5 pt-1">
+                      <div className="text-[11px] font-black text-slate-900 px-2 pt-1 uppercase tracking-tight">
+                        {group.title}
+                      </div>
                       {group.forms.map(fCode => {
                         const meta = FORM_REGISTRY[fCode];
                         if (!meta) return null;
+                        const isMatch = location.search.includes(fCode);
                         return (
                           <NavLink
                             key={fCode}
                             to={`/new-inspection?form=${fCode}`}
                             id={`nav-form-${fCode.toLowerCase()}`}
                             onClick={() => setSidebarOpen(false)}
-                            className={({ isActive }) =>
-                              `block px-2.5 py-1 rounded text-[11px] truncate transition-colors ${
-                                location.search.includes(fCode) ? 'bg-emerald-100 text-emerald-900 font-bold' : 'text-slate-600 hover:bg-slate-100'
+                            className={
+                              `flex items-center px-2 py-1.5 rounded text-xs font-semibold truncate transition-colors ${
+                                isMatch
+                                  ? 'bg-emerald-800 text-white font-bold'
+                                  : 'text-slate-800 hover:bg-emerald-50 hover:text-emerald-950'
                               }`
                             }
                             title={`${meta.code}: ${meta.title}`}
                           >
-                            <span className="font-mono text-emerald-800 mr-1.5 font-semibold">{meta.code.replace('FORM-', 'F')}</span>
-                            {meta.title.split('–')[1]?.trim() || meta.title}
+                            <span className={`font-mono mr-1.5 font-bold px-1 py-0.5 rounded text-[10px] shrink-0 border ${
+                              isMatch ? 'bg-white text-emerald-950 border-white' : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                            }`}>
+                              {meta.code.replace('FORM-', 'F')}
+                            </span>
+                            <span className="truncate">{meta.title.split('–')[1]?.trim() || meta.title}</span>
                           </NavLink>
                         );
                       })}
@@ -290,12 +314,14 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               id="nav-link-approvals"
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-colors ${
-                  isActive ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100'
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
+                  isActive
+                    ? 'bg-emerald-800 text-white shadow-sm'
+                    : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-950'
                 }`
               }
             >
-              <CheckCircle2 size={16} className="text-emerald-600" />
+              <CheckCircle2 size={18} className="text-emerald-700 shrink-0" />
               <span>Approvals Workflow</span>
             </NavLink>
 
@@ -305,12 +331,14 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               id="nav-link-reports"
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-colors ${
-                  isActive ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100'
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
+                  isActive
+                    ? 'bg-emerald-800 text-white shadow-sm'
+                    : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-950'
                 }`
               }
             >
-              <FileBarChart size={16} className="text-emerald-600" />
+              <FileBarChart size={18} className="text-emerald-700 shrink-0" />
               <span>Reports & Analytics</span>
             </NavLink>
 
@@ -319,31 +347,31 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <button
                 id="toggle-masters-menu"
                 onClick={() => setMastersSubmenuOpen(!mastersSubmenuOpen)}
-                className="w-full flex items-center justify-between px-3 py-2 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-slate-900 font-bold text-[13px] rounded-lg hover:bg-emerald-50 hover:text-emerald-950 transition-colors"
               >
-                <div className="flex items-center gap-2.5">
-                  <Database size={16} className="text-emerald-700" />
+                <div className="flex items-center gap-3">
+                  <Database size={18} className="text-emerald-800 shrink-0" />
                   <span>Master Data</span>
                 </div>
-                {mastersSubmenuOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {mastersSubmenuOpen ? <ChevronDown size={16} className="text-slate-700" /> : <ChevronRight size={16} className="text-slate-700" />}
               </button>
 
               {mastersSubmenuOpen && (
-                <div className="mt-1 pl-6 pr-1 space-y-0.5 text-[11px]">
-                  <NavLink to="/masters/departments" id="nav-master-dept" className="block py-1 text-slate-600 hover:text-emerald-800">Departments & HODs</NavLink>
-                  <NavLink to="/masters/sections" id="nav-master-sec" className="block py-1 text-slate-600 hover:text-emerald-800">Sections & Stages</NavLink>
-                  <NavLink to="/masters/machines" id="nav-master-mach" className="block py-1 text-slate-600 hover:text-emerald-800">Machines & Speeds</NavLink>
-                  <NavLink to="/masters/looms" id="nav-master-loom" className="block py-1 text-slate-600 hover:text-emerald-800">Looms Master</NavLink>
-                  <NavLink to="/masters/qualities" id="nav-master-qual" className="block py-1 text-slate-600 hover:text-emerald-800">Qualities & Counts</NavLink>
-                  <NavLink to="/masters/specs" id="nav-master-spec" className="block py-1 text-slate-600 hover:text-emerald-800">Product & Bag Specs</NavLink>
-                  <NavLink to="/masters/standards" id="nav-master-std" className="block py-1 text-slate-600 hover:text-emerald-800">Standards & Tolerances</NavLink>
+                <div className="mt-1 pl-2 pr-1 space-y-1 bg-white rounded-lg p-2.5 border border-slate-200 shadow-2xs text-xs font-bold">
+                  <NavLink to="/masters/departments" id="nav-master-dept" className="block px-2.5 py-1.5 text-slate-800 hover:text-emerald-950 hover:bg-emerald-50 rounded">Departments & HODs</NavLink>
+                  <NavLink to="/masters/sections" id="nav-master-sec" className="block px-2.5 py-1.5 text-slate-800 hover:text-emerald-950 hover:bg-emerald-50 rounded">Sections & Stages</NavLink>
+                  <NavLink to="/masters/machines" id="nav-master-mach" className="block px-2.5 py-1.5 text-slate-800 hover:text-emerald-950 hover:bg-emerald-50 rounded">Machines & Speeds</NavLink>
+                  <NavLink to="/masters/looms" id="nav-master-loom" className="block px-2.5 py-1.5 text-slate-800 hover:text-emerald-950 hover:bg-emerald-50 rounded">Looms Master</NavLink>
+                  <NavLink to="/masters/qualities" id="nav-master-qual" className="block px-2.5 py-1.5 text-slate-800 hover:text-emerald-950 hover:bg-emerald-50 rounded">Qualities & Counts</NavLink>
+                  <NavLink to="/masters/specs" id="nav-master-spec" className="block px-2.5 py-1.5 text-slate-800 hover:text-emerald-950 hover:bg-emerald-50 rounded">Product & Bag Specs</NavLink>
+                  <NavLink to="/masters/standards" id="nav-master-std" className="block px-2.5 py-1.5 text-slate-800 hover:text-emerald-950 hover:bg-emerald-50 rounded">Standards & Tolerances</NavLink>
                 </div>
               )}
             </div>
 
             {/* System Administration */}
-            <div className="pt-2 border-t border-slate-100">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pb-1">
+            <div className="pt-3 border-t-2 border-slate-200 mt-2">
+              <div className="text-[11px] font-black text-slate-800 uppercase tracking-wider px-3 py-1 bg-slate-200/90 rounded-md border border-slate-300 mb-1.5">
                 Administration
               </div>
               <NavLink
@@ -351,25 +379,29 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 id="nav-link-users"
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 px-3 py-1.5 rounded-lg font-medium text-xs ${
-                    isActive ? 'bg-slate-100 text-emerald-900 font-bold' : 'text-slate-700 hover:bg-slate-100'
+                  `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
+                    isActive
+                      ? 'bg-emerald-800 text-white shadow-sm'
+                      : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-950'
                   }`
                 }
               >
-                <User size={15} />
-                <span>Users & Roles</span>
+                <User size={17} className="shrink-0" />
+                <span>Users & Roles (RBAC)</span>
               </NavLink>
               <NavLink
                 to="/admin/audit-logs"
                 id="nav-link-audit-logs"
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 px-3 py-1.5 rounded-lg font-medium text-xs ${
-                    isActive ? 'bg-slate-100 text-emerald-900 font-bold' : 'text-slate-700 hover:bg-slate-100'
+                  `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
+                    isActive
+                      ? 'bg-emerald-800 text-white shadow-sm'
+                      : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-950'
                   }`
                 }
               >
-                <History size={15} />
+                <History size={17} className="shrink-0" />
                 <span>Audit Trail</span>
               </NavLink>
               <NavLink
@@ -377,30 +409,43 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 id="nav-link-settings"
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 px-3 py-1.5 rounded-lg font-medium text-xs ${
-                    isActive ? 'bg-slate-100 text-emerald-900 font-bold' : 'text-slate-700 hover:bg-slate-100'
+                  `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
+                    isActive
+                      ? 'bg-emerald-800 text-white shadow-sm'
+                      : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-950'
                   }`
                 }
               >
-                <Settings size={15} />
+                <Settings size={17} className="shrink-0" />
                 <span>System Settings</span>
               </NavLink>
             </div>
           </div>
 
           {/* User Profile Footer */}
-          <div className="p-3 bg-slate-50 border-t border-slate-200">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-emerald-700 text-white font-bold flex items-center justify-center text-xs">
+          <div className="p-3.5 bg-white border-t-2 border-slate-300 shadow-inner">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-emerald-800 text-white font-black flex items-center justify-center text-sm shadow-xs border border-emerald-600">
                 {currentUser.displayName.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-slate-900 truncate">{currentUser.displayName}</p>
-                <p className="text-[10px] text-emerald-700 font-medium truncate">{currentUser.role}</p>
+                <p className="text-xs font-black text-slate-950 truncate">{currentUser.displayName}</p>
+                <p className="text-[10px] font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-block truncate mt-0.5">
+                  {currentUser.role}
+                </p>
               </div>
             </div>
           </div>
         </aside>
+
+        {/* Mobile Sidebar Backdrop Overlay */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-2xs z-20 lg:hidden"
+            aria-hidden="true"
+          />
+        )}
 
         {/* Main Content Viewport */}
         <main id="app-main-content" className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-50/80">
