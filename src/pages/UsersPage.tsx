@@ -35,7 +35,7 @@ export const UsersPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<UserProfile | null>(null);
   const [isPgModalOpen, setIsPgModalOpen] = useState(false);
-  const [syncStatusNotice, setSyncStatusNotice] = useState<string | null>(null);
+  const [syncStatusNotice, setSyncStatusNotice] = useState<{ isError: boolean; message: string } | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<UserProfile>({
@@ -100,14 +100,14 @@ export const UsersPage: React.FC = () => {
     setIsModalOpen(false);
 
     // Provide immediate sync feedback
-    setSyncStatusNotice(`User "${formData.displayName}" saved. Replicating to local PostgreSQL...`);
+    setSyncStatusNotice({ isError: false, message: `User "${formData.displayName}" saved. Replicating to local PostgreSQL...` });
     postgresService.syncUserToPostgres(formData).then(res => {
       if (res.success) {
-        setSyncStatusNotice(`✅ User "${formData.displayName}" successfully saved in local PostgreSQL!`);
+        setSyncStatusNotice({ isError: false, message: `✅ User "${formData.displayName}" successfully saved in local PostgreSQL!` });
       } else {
-        setSyncStatusNotice(`⚠️ Saved locally. Local PG Notice: ${res.message}`);
+        setSyncStatusNotice({ isError: true, message: `⚠️ User saved locally. PostgreSQL Note: ${res.message}` });
       }
-      setTimeout(() => setSyncStatusNotice(null), 6000);
+      setTimeout(() => setSyncStatusNotice(null), 9000);
     });
   };
 
@@ -171,13 +171,25 @@ export const UsersPage: React.FC = () => {
       </div>
 
       {syncStatusNotice && (
-        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-lg text-xs font-semibold flex items-center justify-between shadow-2xs animate-in fade-in">
-          <span>{syncStatusNotice}</span>
+        <div
+          className={`p-3 rounded-lg text-xs font-semibold flex items-center justify-between shadow-2xs animate-in fade-in ${
+            syncStatusNotice.isError
+              ? 'bg-amber-50 border border-amber-300 text-amber-950'
+              : 'bg-emerald-50 border border-emerald-300 text-emerald-900'
+          }`}
+        >
+          <div className="flex items-center gap-2 pr-2">
+            <span>{syncStatusNotice.message}</span>
+          </div>
           <button
             onClick={() => setIsPgModalOpen(true)}
-            className="underline font-bold text-emerald-950 hover:text-emerald-800"
+            className={`shrink-0 px-2.5 py-1 rounded text-[11px] font-bold transition-colors ${
+              syncStatusNotice.isError
+                ? 'bg-amber-800 hover:bg-amber-900 text-white'
+                : 'bg-emerald-800 hover:bg-emerald-900 text-white'
+            }`}
           >
-            Open DB Hub
+            {syncStatusNotice.isError ? 'Update server.js in Hub' : 'Open DB Hub'}
           </button>
         </div>
       )}

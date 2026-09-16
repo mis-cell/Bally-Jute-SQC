@@ -443,6 +443,29 @@ class PostgresService {
     }
   }
 
+  private cleanErrorMessage(status: number, rawText: string, endpoint: string): string {
+    if (!rawText) return `Local server returned HTTP ${status}`;
+    
+    // Check if the running server.js is an older version missing the route
+    if (
+      rawText.includes('Cannot POST') ||
+      rawText.includes('Cannot GET') ||
+      rawText.includes('Cannot DELETE') ||
+      rawText.includes('Cannot PUT') ||
+      status === 404
+    ) {
+      return `Your local server.js (on your computer) is running an older version missing the '${endpoint}' route. Please download/copy the updated server.js from the PostgreSQL Sync Hub, replace C:\\my-local-api\\server.js, and restart 'node server.js' (Ctrl+C then node server.js).`;
+    }
+
+    // Strip HTML markup if any (e.g. Express error page)
+    if (rawText.includes('<!DOCTYPE html>') || rawText.includes('<html')) {
+      const stripped = rawText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+      return stripped.slice(0, 180);
+    }
+
+    return rawText;
+  }
+
   // ==========================================
   // 2. USER SYNCHRONIZATION
   // ==========================================
@@ -470,7 +493,8 @@ class PostgresService {
 
       if (!response.ok) {
         const err = await response.text();
-        return { success: false, message: `Local API Error: ${err}` };
+        const cleanMsg = this.cleanErrorMessage(response.status, err, '/api/users');
+        return { success: false, message: cleanMsg };
       }
 
       const res = await response.json();
@@ -524,7 +548,11 @@ class PostgresService {
         headers: this.getHeaders(),
         body: JSON.stringify(dept),
       });
-      return { success: res.ok, message: res.ok ? 'Department saved in PostgreSQL' : await res.text() };
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/departments') };
+      }
+      return { success: true, message: 'Department saved in PostgreSQL' };
     } catch (err: any) {
       return { success: false, message: err.message };
     }
@@ -551,7 +579,11 @@ class PostgresService {
         headers: this.getHeaders(),
         body: JSON.stringify(section),
       });
-      return { success: res.ok, message: res.ok ? 'Section saved in PostgreSQL' : await res.text() };
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/sections') };
+      }
+      return { success: true, message: 'Section saved in PostgreSQL' };
     } catch (err: any) {
       return { success: false, message: err.message };
     }
@@ -578,7 +610,11 @@ class PostgresService {
         headers: this.getHeaders(),
         body: JSON.stringify(mch),
       });
-      return { success: res.ok, message: res.ok ? 'Machine saved in PostgreSQL' : await res.text() };
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/machines') };
+      }
+      return { success: true, message: 'Machine saved in PostgreSQL' };
     } catch (err: any) {
       return { success: false, message: err.message };
     }
@@ -605,7 +641,11 @@ class PostgresService {
         headers: this.getHeaders(),
         body: JSON.stringify(loom),
       });
-      return { success: res.ok, message: res.ok ? 'Loom saved in PostgreSQL' : await res.text() };
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/looms') };
+      }
+      return { success: true, message: 'Loom saved in PostgreSQL' };
     } catch (err: any) {
       return { success: false, message: err.message };
     }
@@ -632,7 +672,11 @@ class PostgresService {
         headers: this.getHeaders(),
         body: JSON.stringify(quality),
       });
-      return { success: res.ok, message: res.ok ? 'Quality saved in PostgreSQL' : await res.text() };
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/qualities') };
+      }
+      return { success: true, message: 'Quality saved in PostgreSQL' };
     } catch (err: any) {
       return { success: false, message: err.message };
     }
@@ -670,7 +714,11 @@ class PostgresService {
           tolerance: std.tolerance,
         }),
       });
-      return { success: res.ok, message: res.ok ? 'Standard saved in PostgreSQL' : await res.text() };
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/standards') };
+      }
+      return { success: true, message: 'Standard saved in PostgreSQL' };
     } catch (err: any) {
       return { success: false, message: err.message };
     }
@@ -732,9 +780,10 @@ class PostgresService {
 
       if (!response.ok) {
         const errorBody = await response.text();
+        const cleanMsg = this.cleanErrorMessage(response.status, errorBody, '/api/inspections');
         return {
           success: false,
-          message: `Local API error (HTTP ${response.status}): ${errorBody || response.statusText}`,
+          message: cleanMsg,
           error: errorBody,
         };
       }
