@@ -25,7 +25,7 @@ const STORAGE_KEYS = {
 
 // Default fallback configuration
 export const DEFAULT_API_URL =
-  (import.meta as any).env?.VITE_API_URL || 'https://blue-example.trycloudflare.com';
+  (import.meta as any).env?.VITE_API_URL || 'https://curtis-references-approximately-authorization.trycloudflare.com';
 export const DEFAULT_API_KEY =
   (import.meta as any).env?.VITE_API_KEY || 'change-this-to-a-long-secret-key-123456';
 
@@ -429,14 +429,33 @@ class PostgresService {
         headers: this.getHeaders(),
       });
 
-      if (!res.ok) {
-        return null;
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json.data;
+        }
       }
 
-      const json = await res.json();
-      if (json.success && json.data) {
-        return json.data;
+      // If /api/all-data is 404 (running an older server.js), fallback to pulling inspections and users individually
+      if (res.status === 404) {
+        console.info('[PostgresService] /api/all-data returned 404. Falling back to individual endpoints...');
+        const [inspections, users] = await Promise.all([
+          this.loadInspections().catch(() => []),
+          this.loadUsers().catch(() => []),
+        ]);
+        
+        return {
+          users,
+          departments: [],
+          sections: [],
+          machines: [],
+          looms: [],
+          qualities: [],
+          standards: [],
+          inspections,
+        };
       }
+
       return null;
     } catch (err) {
       console.warn('[PostgresService] fetchAllDataFromPostgres network error:', err);
