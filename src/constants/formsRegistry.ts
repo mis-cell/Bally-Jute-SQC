@@ -43,6 +43,114 @@ export interface FormMetadata {
   };
 }
 
+
+
+export async function getCurrentWeather() {
+  return new Promise((resolve, reject) => {
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+
+          // 1. Get weather
+          const weatherResponse = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&timezone=auto`
+          );
+
+          if (!weatherResponse.ok) {
+            throw new Error("Weather API failed: " + weatherResponse.status);
+          }
+
+          const weatherData = await weatherResponse.json();
+          const current = weatherData.current;
+
+          // 2. Get city (optional)
+          let city = "Unknown";
+          let state = "";
+          let country = "";
+
+          try {
+            const locationResponse = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=jsonv2&addressdetails=1`
+            );
+
+            if (locationResponse.ok) {
+              const locationData = await locationResponse.json();
+              const address = locationData.address || {};
+
+              city =
+                address.city ||
+                address.town ||
+                address.village ||
+                address.municipality ||
+                address.county ||
+                "Unknown";
+
+              state = address.state || "";
+              country = address.country || "";
+            } else {
+              console.warn("City API status:", locationResponse.status);
+            }
+          } catch (error) {
+            console.warn("City detection unavailable:", error);
+          }
+
+          // 3. Return weather
+          resolve({
+            city,
+            state,
+            country,
+            latitude,
+            longitude,
+            temperature: current.temperature_2m,
+            feelsLike: current.apparent_temperature,
+            humidity: current.relative_humidity_2m,
+            condition: current.weather_code,
+            timezone: weatherData.timezone
+          });
+
+        } catch (error) {
+          reject(error);
+        }
+      },
+
+      (error) => {
+        reject(new Error("Location error: " + error.message));
+      },
+
+      {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 300000
+      }
+    );
+  });
+}
+
+
+
+let temperature = '';
+let humidity = '';
+// Load weather
+const loadWeather = async () => {
+  try {
+    const weather = await getCurrentWeather();
+
+    console.log("Temperature:", weather.temperature);
+    console.log("Humidity:", weather.humidity);
+
+    temperature = String(weather.temperature);
+    humidity = String(weather.humidity);
+
+  } catch (error) {
+    console.error("Weather Error:", error.message);
+  }
+};
+loadWeather()
+
+
 // Math helpers
 export function calcMean(arr: number[]): number {
   if (arr.length === 0) return 0;
@@ -84,8 +192,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'SEL',
     section: 'Raw Jute Selection',
     sampleUnit: 'kg',
-    defaultRowCount: 10,
-    description: '10 Morrah weight readings taken at selection. Calculates Average Weight, Range, and C.V.%.',
+    defaultRowCount: 5,
+    description: '5 Morrah weight readings taken at selection. Calculates Average Weight, Range, and C.V.%.',
     sourceStandardText: 'Standard Morrah Weight: 1.50 kg to 2.25 kg depending on grade. Standard C.V.%: Max 8.0%.',
     fields: [
       { key: 'batchNo', label: 'Batch No.', type: 'text', required: true },
@@ -134,26 +242,27 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'SEL',
     section: 'Raw Jute Testing',
     sampleUnit: 'g/tex',
-    defaultRowCount: 10,
+    defaultRowCount: 5,
     description: 'Tenacity checking of raw jute fiber bundles using fiber bundle tester.',
     sourceStandardText: 'Standard Bundle Strength (Tenacity): Min 22.0 g/tex. Standard C.V.%: Max 10.0%.',
     fields: [
       { key: 'baleNo', label: 'Bale / Lot No.', type: 'text', required: true },
       { key: 'juteVariety', label: 'Jute Variety (TD / W-4 etc.)', type: 'text', required: true },
-      { key: 'standardTenacity', label: 'Standard Tenacity (g/tex)', type: 'number', defaultValue: 24.0, unit: 'g/tex' },
+      { key: 'standardTenacity', label: 'Standard Tenacity', type: 'number', defaultValue: 24.0, unit: 'g/tex' },
+      { key: 'labmoisture', label: 'Jute moisture at lab', type: 'text' }
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
       { key: 'bundleWeightMg', label: 'Bundle Wt (mg)', type: 'number', unit: 'mg' },
-      { key: 'breakingLoadKg', label: 'Breaking Load (kg)', type: 'number', unit: 'kg' },
-      { key: 'tenacityGtex', label: 'Tenacity (g/tex)', type: 'number', unit: 'g/tex', precision: 2 },
+      { key: 'breakingLoadKg', label: 'Breaking Load (gm)', type: 'number', unit: 'gm' },
+      { key: 'tenacityGtex', label: 'Tenacity', type: 'readOnly', unit: 'g/tex', precision: 2 },
     ],
     calculate: (formData, rows) => {
       const tenacities = rows.map(r => {
-        if (r.tenacityGtex) return Number(r.tenacityGtex);
+        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
         const w = Number(r.bundleWeightMg);
         const l = Number(r.breakingLoadKg);
-        if (w > 0 && l > 0) return (l * 1000) / (w / 5); // 50mm gauge length standard
+        if (w > 0 && l > 0) return r.tenacityGtex = ((l/w)*0.125).toFixed(3); // 50mm gauge length standard
         return 0;
       }).filter(v => v > 0);
 
@@ -186,24 +295,33 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'JSP',
     section: 'Spreader Delivery',
     sampleUnit: 'lbs / 100 yds',
-    defaultRowCount: 10,
+    defaultRowCount: 5,
     hasMoistureCorrection: true,
     description: 'Sliver weight checking per 100 yds with moisture regain correction (Converted Weight = Observed Wt × (100 + Std MR)/(100 + Obs MR)).',
     sourceStandardText: 'Standard Spreader Sliver Weight: Nominal ± 3%. Standard Moisture Regain: 28% to 32%. Max C.V.%: 4.5%.',
     fields: [
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
-      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 30.0, unit: '%' },
-      { key: 'observedMR', label: 'Observed %MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
+      { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
+      { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
-      { key: 'observedWeightLbs', label: 'Observed Weight (lbs)', type: 'number', unit: 'lbs', precision: 2, required: true },
+      { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
+      { key: 'correctedWeightYds', label: 'Corrected Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
     ],
     calculate: (formData, rows) => {
       const stdMR = Number(formData.standardMR) || 30.0;
       const obsMR = Number(formData.observedMR) || 30.0;
       const stdWt = Number(formData.standardSliverWeight) || 34.0;
+      const stdtestlth = Number(formData.standardTestLength) || 100;
       const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
+
+      const correctedWeights = rows.map(r => {
+        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
+        if (stdMR > 0 && obsMR > 0) return r.correctedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
+        return 0;
+      }).filter(v => v > 0);
 
       const avgObs = calcMean(obsWeights);
       const convertedWeights = obsWeights.map(w => moistureCorrect(w, obsMR, stdMR));
@@ -243,7 +361,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Morrah Feeding Rate: 36–42 Morrahs/min. Doffing Loss Time: ≤ 25 seconds.',
     fields: [
       { key: 'targetFeedPerMin', label: 'Standard Feeding Rate (Morrah/min)', type: 'number', defaultValue: 38, unit: 'm/min' },
-      { key: 'maxDoffingSec', label: 'Max Doffing Time (sec)', type: 'number', defaultValue: 25, unit: 'sec' },
+      { key: 'maxDoffingSec', label: 'Max Doffing Time', type: 'number', defaultValue: 25, unit: 'sec' },
+      { key: 'feederName', label: 'Feeder Name', type: 'text', defaultValue: '', unit: '' },
+      { key: 'receiverName', label: 'Receiver Name', type: 'text', defaultValue: '', unit: '' }
     ],
     columns: [
       { key: 'rollNo', label: 'Roll No.', type: 'readonly', width: '80px' },
@@ -298,26 +418,49 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'JSP',
     section: 'Emulsion Plant',
     sampleUnit: '% Application',
-    defaultRowCount: 6,
+    defaultRowCount: 5,
     description: 'Checks Oil-in-Water emulsion strength, specific gravity, flow rate, and application percentage.',
     sourceStandardText: 'Standard Emulsion Application: 22% to 26% on fiber. Oil content in emulsion: 18% to 22%.',
     fields: [
-      { key: 'emulsionTankNo', label: 'Emulsion Tank No.', type: 'text' },
-      { key: 'standardEmulsionPct', label: 'Standard Emulsion Application (%)', type: 'number', defaultValue: 24.0, unit: '%' },
-      { key: 'standardOilPctInEmulsion', label: 'Standard Oil in Emulsion (%)', type: 'number', defaultValue: 20.0, unit: '%' },
+      { key: 'standardEmulsionPct', label: 'Standard Emulsion Application ', type: 'number', defaultValue: 24.0, unit: '%' },
+      { key: 'standardOilPctInEmulsion', label: 'Standard Oil in Emulsion ', type: 'number', defaultValue: 20.0, unit: '%' },
+      { key: 'temperature', label: 'Temperature ', type: 'number', defaultValue: '', unit: '°C' },
+      { key: 'roomHumidity', label: 'Room Humidity ', type: 'number', defaultValue: '', unit: '%' }
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample / Nozzle', type: 'readonly', width: '120px' },
-      { key: 'oilPct', label: 'Oil % in Emulsion', type: 'number', unit: '%' },
-      { key: 'flowRateLpm', label: 'Flow Rate (L/min)', type: 'number', unit: 'L/min', precision: 2 },
-      { key: 'applicationPct', label: 'Calculated Application (%)', type: 'number', unit: '%' },
+      { key: 'nozzleSizeEmulsion', label: 'Nozzle Size Emulsion', type: 'number', unit: '' },
+      { key: 'nozzleSizeChemical', label: 'Nozzle Size Chemical', type: 'number', unit: '' },
+      { key: 'machineDeliveryRpm', label: 'Machine Delivery RPM', type: 'number', unit: '', precision: 2 },
+      { key: 'production', label: 'Production', type: 'number', unit: 'KG/MIN' },
+      { key: 'flowRateEmulsion', label: 'Flow Rate Emulsion', type: 'number', unit: 'KG/MIN' },
+      { key: 'flowRateChemical', label: 'Flow Rate Chemical', type: 'number', unit: 'KG/MIN' },
+      { key: 'calApplicationEml', label: 'Calculated Application Emulsion', type: 'number', unit: '%' },
+      { key: 'calApplicationChem', label: 'Calculated Application Chemical', type: 'number', unit: '%' }
     ],
+    
     calculate: (formData, rows) => {
+      const temp = temperature || 0;
+      const hum = humidity || 0;
+      formData.temperature = temp;
+      formData.roomHumidity = hum;
       const apps = rows.map(r => Number(r.applicationPct) || 0).filter(v => v > 0);
       const oils = rows.map(r => Number(r.oilPct) || 0).filter(v => v > 0);
       const avgApp = calcMean(apps);
       const avgOil = calcMean(oils);
       const stdApp = Number(formData.standardEmulsionPct) || 24.0;
+
+      rows.forEach(r => {
+        if(r.machineDeliveryRpm >0) {
+           r.production = (0.172*Number(r.machineDeliveryRpm)).toFixed(3);
+        }
+        if(r.flowRateEmulsion > 0 && r.production > 0) {
+           r.calApplicationEml = ((Number(r.flowRateEmulsion)/Number(r.production))*100).toFixed(3);
+        }
+        if(r.flowRateChemical > 0 && r.production > 0) {
+           r.calApplicationChem = ((Number(r.flowRateChemical)/Number(r.production))*100).toFixed(3);
+        }
+      }); 
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (apps.length === 0) result = 'WARNING';
@@ -335,10 +478,10 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     },
   },
 
-  'FORM-06': {
-    code: 'FORM-06',
-    number: 6,
-    title: 'Breaker Card – Sliver Weight Checking',
+  /* 'FORM-08': {
+    code: 'FORM-08',
+    number: 8,
+    title: 'Inter Card – Sliver Weight Checking',
     department: 'Carding',
     departmentCode: 'CRD',
     section: 'Breaker Card',
@@ -480,8 +623,188 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         result,
       };
     },
-  },
+  }, */
 
+  'FORM-06': {
+    code: 'FORM-06',
+    number: 6,
+    title: 'Breaker Card – Sliver Weight Checking',
+    department: 'Carding',
+    departmentCode: 'CRD',
+    section: 'Breaker Card',
+    sampleUnit: 'lbs / 100 yds',
+    defaultRowCount: 5,
+    hasMoistureCorrection: true,
+    description: 'Sliver weight checking per 100 yds with moisture regain correction (Converted Weight = Observed Wt × (100 + Std MR)/(100 + Obs MR)).',
+    sourceStandardText: 'Standard Spreader Sliver Weight: Nominal ± 3%. Standard Moisture Regain: 28% to 32%. Max C.V.%: 4.5%.',
+    fields: [
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 30.0, unit: '%' },
+      { key: 'observedMR', label: 'Observed %MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+    ],
+    columns: [
+      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
+      { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
+      { key: 'correctedWeightYds', label: 'Corrected Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+    ],
+    calculate: (formData, rows) => {
+      const stdMR = Number(formData.standardMR) || 30.0;
+      const obsMR = Number(formData.observedMR) || 30.0;
+      const stdWt = Number(formData.standardSliverWeight) || 34.0;
+      const stdtestlth = Number(formData.standardTestLength) || 100;
+      const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
+
+      const correctedWeights = rows.map(r => {
+        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
+        if (stdMR > 0 && obsMR > 0) return r.correctedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
+        return 0;
+      }).filter(v => v > 0);
+
+      const avgObs = calcMean(obsWeights);
+      const convertedWeights = obsWeights.map(w => moistureCorrect(w, obsMR, stdMR));
+      const avgConverted = calcMean(convertedWeights);
+      const cv = calcCV(convertedWeights);
+
+      const pctDev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0;
+      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
+      if (obsWeights.length === 0) result = 'WARNING';
+      else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
+      else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING';
+
+      return {
+        metrics: {
+          sampleCount: obsWeights.length,
+          avgObservedLbs: Number(avgObs.toFixed(2)),
+          avgConvertedLbs: Number(avgConverted.toFixed(2)),
+          percentDeviation: Number(pctDev.toFixed(2)),
+          cvPercent: Number(cv.toFixed(2)),
+          standardSliverWeight: stdWt,
+        },
+        result,
+      };
+    },
+  },
+  'FORM-07': {
+    code: 'FORM-07',
+    number: 7,
+    title: 'Inter Card – Sliver Weight Checking',
+    department: 'Carding',
+    departmentCode: 'CRD',
+    section: 'Inter Card',
+    sampleUnit: 'lbs / 100 yds',
+    defaultRowCount: 10,
+    hasMoistureCorrection: true,
+    description: 'Inter card sliver weight checking with moisture regain conversion and C.V.%.',
+    sourceStandardText: 'Standard Inter Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
+    fields: [
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 30.0, unit: '%' },
+      { key: 'observedMR', label: 'Observed %MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+    ],
+    columns: [
+      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
+      { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
+      { key: 'correctedWeightYds', label: 'Corrected Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+    ],
+    calculate: (formData, rows) => {
+      const stdMR = Number(formData.standardMR) || 30.0;
+      const obsMR = Number(formData.observedMR) || 30.0;
+      const stdWt = Number(formData.standardSliverWeight) || 34.0;
+      const stdtestlth = Number(formData.standardTestLength) || 100;
+      const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
+
+      const correctedWeights = rows.map(r => {
+        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
+        if (stdMR > 0 && obsMR > 0) return r.correctedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
+        return 0;
+      }).filter(v => v > 0);
+
+      const avgObs = calcMean(obsWeights);
+      const convertedWeights = obsWeights.map(w => moistureCorrect(w, obsMR, stdMR));
+      const avgConverted = calcMean(convertedWeights);
+      const cv = calcCV(convertedWeights);
+
+      const pctDev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0;
+      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
+      if (obsWeights.length === 0) result = 'WARNING';
+      else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
+      else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING';
+
+      return {
+        metrics: {
+          sampleCount: obsWeights.length,
+          avgObservedLbs: Number(avgObs.toFixed(2)),
+          avgConvertedLbs: Number(avgConverted.toFixed(2)),
+          percentDeviation: Number(pctDev.toFixed(2)),
+          cvPercent: Number(cv.toFixed(2)),
+          standardSliverWeight: stdWt,
+        },
+        result,
+      };
+    },
+  },
+  'FORM-08': {
+    code: 'FORM-08',
+    number: 8,
+    title: 'Finisher Card – Sliver Weight Checking',
+    department: 'Carding',
+    departmentCode: 'CRD',
+    section: 'Finisher Card',
+    sampleUnit: 'lbs / 100 yds',
+    defaultRowCount: 10,
+    hasMoistureCorrection: true,
+    description: 'Finisher card sliver weight checking with moisture regain conversion and C.V.%.',
+    sourceStandardText: 'Standard Finisher Card Sliver Wt: Nominal ± 3.0%. Standard MR: 24%. Max C.V.%: 4.0%.',
+    fields: [
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 30.0, unit: '%' },
+      { key: 'observedMR', label: 'Observed %MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+    ],
+    columns: [
+      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
+      { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
+      { key: 'correctedWeightYds', label: 'Corrected Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+    ],
+    calculate: (formData, rows) => {
+      const stdMR = Number(formData.standardMR) || 30.0;
+      const obsMR = Number(formData.observedMR) || 30.0;
+      const stdWt = Number(formData.standardSliverWeight) || 34.0;
+      const stdtestlth = Number(formData.standardTestLength) || 100;
+      const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
+
+      const correctedWeights = rows.map(r => {
+        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
+        if (stdMR > 0 && obsMR > 0) return r.correctedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
+        return 0;
+      }).filter(v => v > 0);
+
+      const avgObs = calcMean(obsWeights);
+      const convertedWeights = obsWeights.map(w => moistureCorrect(w, obsMR, stdMR));
+      const avgConverted = calcMean(convertedWeights);
+      const cv = calcCV(convertedWeights);
+
+      const pctDev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0;
+      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
+      if (obsWeights.length === 0) result = 'WARNING';
+      else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
+      else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING';
+
+      return {
+        metrics: {
+          sampleCount: obsWeights.length,
+          avgObservedLbs: Number(avgObs.toFixed(2)),
+          avgConvertedLbs: Number(avgConverted.toFixed(2)),
+          percentDeviation: Number(pctDev.toFixed(2)),
+          cvPercent: Number(cv.toFixed(2)),
+          standardSliverWeight: stdWt,
+        },
+        result,
+      };
+    },
+  },
   'FORM-09': {
     code: 'FORM-09',
     number: 9,
@@ -540,25 +863,45 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'SPN',
     section: 'Spinning Frames',
     sampleUnit: 'lbs / Spy (Count)',
-    defaultRowCount: 10,
+    defaultRowCount: 5,
     description: 'Yarn Count Checking. Evaluates actual count vs nominal count. Standard rule: Count must be within ±5% of nominal count.',
     sourceStandardText: 'Source Rule: Standard count must be strictly within ±5% of nominal count (lbs/spyndle).',
     fields: [
       { key: 'frameNo', label: 'Frame No.', type: 'text', required: true },
-      { key: 'side', label: 'Frame Side (R/S or L/S)', type: 'select', options: ['Right Side (R/S)', 'Left Side (L/S)', 'Both'], defaultValue: 'Right Side (R/S)' },
+      { key: 'frameType', label: 'Frame Type', type: 'select', options: ['Ring', 'AD', 'SD'], defaultValue: 'Ring' },
       { key: 'nominalCountLbs', label: 'Nominal Yarn Count (lbs/spyndle)', type: 'number', defaultValue: 8.0, unit: 'lbs', required: true },
-      { key: 'yarnType', label: 'Yarn Type (Warp / Weft)', type: 'select', options: ['Warp (Hessian)', 'Weft (Hessian)', 'Warp (Sacking)', 'Weft (Sacking)'], defaultValue: 'Warp (Hessian)' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['S4_WP', 'S4_WT', 'TBAG_WP', 'TBAG_WT', 'SKG_WP', 'SKG_WT', 'VL_WP', 'VL_WT'], defaultValue: 'S4_WP' },
+      { key: 'standardTestLength', label: 'Standard Test Length', type: 'select', options: ['75', '150', '225', '300', '375', '450', '525', '600','675','750'], defaultValue: '75' },
+      { key: 'temperature', label: 'Temperature ', type: 'number', defaultValue: '', unit: '°C' },
+      { key: 'roomHumidity', label: 'Room Humidity ', type: 'number', defaultValue: '', unit: '%' },
+      { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
+      { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' }
     ],
     columns: [
-      { key: 'spindleNo', label: 'Spindle / Bobbin No.', type: 'text', width: '120px' },
-      { key: 'observedCountLbs', label: 'Observed Count (lbs/spy)', type: 'number', precision: 2, required: true },
+      { key: 'observedWt', label: 'Observed WT',  unit: 'gm', type: 'number', precision: 2, required: true },
+      { key: 'observedCountLbs', label: 'Observed Count', type: 'number', precision: 2, required: true },
+      {key: 'correctedWt', label: 'Corrected Weight in 14400 YDS', unit: 'LBS', type: 'number', precision: 2, required: true },
     ],
     calculate: (formData, rows) => {
+      const temp10 = temperature || 0;
+      const hum10 = humidity || 0;
+      formData.temperature = temp10;
+      formData.roomHumidity = hum10;
+      rows.forEach(r => {
+        if(r.observedWt >0) {
+           r.observedCountLbs = ((31.75/formData.standardTestLength)*r.observedWt).toFixed(3);
+        }
+        if(r.observedCountLbs > 0 ) {
+           r.correctedWt = (Number(r.observedCountLbs)*(100+Number(formData.standardMR))/(100+Number(formData.observedMR))).toFixed(3);
+        }
+        
+      }); 
       const nominal = Number(formData.nominalCountLbs) || 8.0;
       const counts = rows.map(r => Number(r.observedCountLbs) || 0).filter(v => v > 0);
       const avg = calcMean(counts);
       const cv = calcCV(counts);
       const pctDev = nominal > 0 ? ((avg - nominal) / nominal) * 100 : 0;
+      
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (counts.length === 0) result = 'WARNING';
