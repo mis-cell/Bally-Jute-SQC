@@ -875,7 +875,10 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'temperature', label: 'Temperature ', type: 'number', defaultValue: '', unit: '°C' },
       { key: 'roomHumidity', label: 'Room Humidity ', type: 'number', defaultValue: '', unit: '%' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
-      { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' }
+      { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
+      { key: 'DP', label: 'DP', type: 'number', defaultValue: '', unit: '' },
+      { key: 'TP', label: 'TP', type: 'number', defaultValue: '', unit: '' },
+
     ],
     columns: [
       { key: 'observedWt', label: 'Observed WT',  unit: 'gm', type: 'number', precision: 2, required: true },
@@ -883,10 +886,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       {key: 'correctedWt', label: 'Corrected Weight in 14400 YDS', unit: 'LBS', type: 'number', precision: 2, required: true },
     ],
     calculate: (formData, rows) => {
-      const temp10 = temperature || 0;
-      const hum10 = humidity || 0;
-      formData.temperature = temp10;
-      formData.roomHumidity = hum10;
+      
       rows.forEach(r => {
         if(r.observedWt >0) {
            r.observedCountLbs = ((31.75/formData.standardTestLength)*r.observedWt).toFixed(3);
@@ -936,6 +936,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'yarnQuality', label: 'Yarn Quality / Count', type: 'text', defaultValue: '8.0 lbs Hessian Warp' },
       { key: 'minQualityRatioPct', label: 'Standard Min %QR', type: 'number', defaultValue: 90, unit: '%' },
       { key: 'targetTPI', label: 'Target TPI (Twist/Inch)', type: 'number', defaultValue: 4.5 },
+      { key: 'standardTestLength', label: 'Standard Test Length', type: 'number', defaultValue: '', unit: 'YDS' },
+      { key: 'dp', label: 'DP', type: 'number', defaultValue: '', unit: '' },
+      { key: 'tp', label: 'TP', type: 'number', defaultValue: '', unit: '' }
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '80px' },
@@ -1052,21 +1055,24 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'BMG',
     section: 'Beaming Machine',
     sampleUnit: 'Ends',
-    defaultRowCount: 4,
+    defaultRowCount: 1,
     description: 'Calculates standard number of ends: Standard Ends = (Fabric Width in inches × Ends Per Inch) + Selvedge Ends.',
     sourceStandardText: 'Calculated Formula: Total Standard Ends = (Width inch × Ends/Inch) + Selvedge Ends. Permissible deviation: 0 missing ends.',
     fields: [
       { key: 'beamNo', label: 'Beam No.', type: 'text', required: true },
       { key: 'fabricWidthInch', label: 'Fabric Width (inch)', type: 'number', defaultValue: 40.0, unit: 'in', required: true },
-      { key: 'endsPerInch', label: 'Ends Per Inch (EPI / Porter)', type: 'number', defaultValue: 11.0, required: true },
-      { key: 'selvedgeEnds', label: 'Selvedge Ends', type: 'number', defaultValue: 24 },
+      { key: 'beamVolume', label: 'BEAM Volume', type: 'select', options: ['1/4', '1/2', '3/4', 'FULL'] },
+      { key: 'totalNoEnds', label: 'Total no of ENDS', type: 'number', defaultValue: '' },
       { key: 'actualObservedEnds', label: 'Actual Counted Ends', type: 'number', required: true },
+      { key: 'standardCount', label: 'Standard Count Used', type: 'number', defaultValue: '' },
+      { key: 'spoolMark', label: 'Spool Mark', type: 'number', defaultValue: '' },
     ],
     columns: [
-      { key: 'sectionNo', label: 'Creel / Section No.', type: 'text' },
-      { key: 'spoolCount', label: 'Spools Running', type: 'number' },
-      { key: 'missingEnds', label: 'Missing / Cross Ends', type: 'number' },
-      { key: 'remarks', label: 'Remarks', type: 'text' },
+      /* { key: 'sectionNo', label: 'Creel / Section No.', type: 'text' }, */
+      { key: 'standard', label: 'Standard', type: 'number' },
+      { key: 'observed', label: 'Observed', type: 'number' },
+      { key: 'diffends', label: 'Difference no of ends', type: 'text' },
+      { key: 'actiontaken', label: 'Action Taken', type: 'select', options: ['Rectified', 'Not Rectified', 'Put Of'] },
     ],
     calculate: (formData, rows) => {
       const width = Number(formData.fabricWidthInch) || 40;
@@ -1076,6 +1082,11 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const actualEnds = Number(formData.actualObservedEnds) || stdEnds;
       const totalMissing = rows.reduce((s, r) => s + (Number(r.missingEnds) || 0), 0);
       const diff = actualEnds - stdEnds;
+
+      rows.forEach(r => {
+        r.standard = formData.standardCount || 0;
+        r.diffends = (Number(r.standard) || 0) - (Number(r.observed) || 0);
+      });
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (Math.abs(diff) > 4 || totalMissing > 4) result = 'FAIL';
@@ -1101,25 +1112,43 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'BMG',
     section: 'Beamed Rolls',
     sampleUnit: '% Moisture Regain',
-    defaultRowCount: 8,
+    defaultRowCount: 1,
     description: 'Evaluates observed beam %MR against quality-specific ranges: Broad Loom/STB (18–22%), Hessian (16–18%), Sacking (18–20%).',
     sourceStandardText: 'Standard Moisture Regain at Beaming: Broad Loom / STB: 18.0–22.0%; Hessian: 16.0–18.0%; Sacking: 18.0–20.0%.',
     fields: [
       { key: 'fabricType', label: 'Fabric Quality Group', type: 'select', options: ['Broad Loom / STB (18–22%)', 'Hessian (16–18%)', 'Sacking (18–20%)'], defaultValue: 'Hessian (16–18%)' },
       { key: 'minMR', label: 'Min Standard %MR', type: 'number', defaultValue: 16.0, unit: '%' },
       { key: 'maxMR', label: 'Max Standard %MR', type: 'number', defaultValue: 18.0, unit: '%' },
+      { key: 'beamVolume', label: 'BEAM Volume', type: 'select', options: ['1/4', '1/2', '3/4', 'FULL'] },
+      { key: 'standardCount', label: 'Standard Count Used', type: 'number', defaultValue: '' },
+      { key: 'spoolMark', label: 'Spool Mark', type: 'number', defaultValue: '' }
     ],
     columns: [
-      { key: 'beamNo', label: 'Beam No.', type: 'text', width: '100px' },
-      { key: 'sideReading', label: 'Side / Flange %MR', type: 'number', precision: 1 },
-      { key: 'middleReading', label: 'Middle %MR', type: 'number', precision: 1 },
+      { key: 'leftSideMoisture', label: 'Left side %MR', type: 'text' },
+      { key: 'middle1', label: 'Middle 1 %MR', type: 'number', precision: 1 },
+      { key: 'middle2', label: 'Middle 2 %MR', type: 'number', precision: 1 },
+      { key: 'rightSideMoisture', label: 'Right side %MR', type: 'text' },
       { key: 'averageMR', label: 'Average %MR', type: 'number', precision: 1, required: true },
     ],
     calculate: (formData, rows) => {
       const mrs = rows.map(r => Number(r.averageMR) || 0).filter(v => v > 0);
-      const avg = calcMean(mrs);
+      let avg = calcMean(mrs);
       const minStd = Number(formData.minMR) || 16.0;
       const maxStd = Number(formData.maxMR) || 18.0;
+
+      rows.forEach(r => {
+        const mrs = [
+          Number(r.leftSideMoisture) || 0,
+          Number(r.middle1) || 0,
+          Number(r.middle2) || 0,
+          Number(r.rightSideMoisture) || 0,
+        ].filter(v => v > 0);
+
+        r.averageMR = mrs.length
+          ? Number((mrs.reduce((sum, v) => sum + v, 0) / mrs.length).toFixed(1))
+          : 0;
+          avg = r.averageMR;
+      });
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (mrs.length === 0) result = 'WARNING';
@@ -1331,7 +1360,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'LAP',
     section: 'Finished Cloth Inspection',
     sampleUnit: '% Moisture Regain',
-    defaultRowCount: 8,
+    defaultRowCount: 5,
     description: 'Post-finishing moisture regain determination across cloth pieces.',
     sourceStandardText: 'Finished Cloth Standard %MR: 14.0% to 16.0% for Hessian; 16.0% to 18.0% for Sacking.',
     fields: [
@@ -1339,14 +1368,63 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'maxAcceptableMR', label: 'Max Acceptable %MR', type: 'number', defaultValue: 16.5, unit: '%' },
     ],
     columns: [
-      { key: 'cutPieceNo', label: 'Cut / Piece No.', type: 'text', width: '110px' },
-      { key: 'moisturePct', label: 'Measured %MR', type: 'number', precision: 1, required: true },
+      { key: 'moisture1', label: '%MR 1', type: 'number', precision: 1 },
+      { key: 'moisture2', label: '%MR 2', type: 'number', precision: 1 },
+      { key: 'moisture3', label: '%MR 3', type: 'number', precision: 1 },
+      { key: 'moisture4', label: '%MR 4', type: 'number', precision: 1 },
+      { key: 'moisture5', label: '%MR 5', type: 'number', precision: 1 },
+      { key: 'moisture6', label: '%MR 6', type: 'number', precision: 1 },
+      { key: 'moisture7', label: '%MR 7', type: 'number', precision: 1 },
+      { key: 'moisture8', label: '%MR 8', type: 'number', precision: 1 },
+      { key: 'moisture9', label: '%MR 9', type: 'number', precision: 1 },
+      { key: 'rowmoistureAVG', label: '%MR AVG', type: 'number', precision: 1 },
     ],
     calculate: (formData, rows) => {
-      const mrs = rows.map(r => Number(r.moisturePct) || 0).filter(v => v > 0);
-      const avg = calcMean(mrs);
+      
       const minStd = Number(formData.minAcceptableMR) || 14.0;
       const maxStd = Number(formData.maxAcceptableMR) || 16.5;
+      rows.forEach(r => {
+        const totalmrs = [
+          Number(r.moisture1) || 0,
+          Number(r.moisture2) || 0,
+          Number(r.moisture3) || 0,
+          Number(r.moisture4) || 0,
+          Number(r.moisture5) || 0,
+          Number(r.moisture6) || 0,
+          Number(r.moisture7) || 0,
+          Number(r.moisture8) || 0,
+          Number(r.moisture9) || 0,
+        ].filter(v => v > 0);
+
+        r.rowmoistureAVG = totalmrs.length
+          ? Number((totalmrs.reduce((sum, v) => sum + v, 0) / totalmrs.length).toFixed(1))
+          : 0;
+      });
+
+      // Collect all moisture values from all rows (exclude AVG column)
+    const allMrs = rows.flatMap(r => [
+      Number(r.moisture1),
+      Number(r.moisture2),
+      Number(r.moisture3),
+      Number(r.moisture4),
+      Number(r.moisture5),
+      Number(r.moisture6),
+      Number(r.moisture7),
+      Number(r.moisture8),
+      Number(r.moisture9),
+    ].filter(v => Number.isFinite(v) && v > 0));
+
+    // Find maximum and minimum
+    const maxMR = allMrs.length ? Math.max(...allMrs) : 0;
+    const minMR = allMrs.length ? Math.min(...allMrs) : 0;
+
+      const mrs = rows
+      .map(r => Number(r.rowmoistureAVG) || 0)
+      .filter(v => v > 0);
+
+    const avg = mrs.length
+      ? mrs.reduce((sum, v) => sum + v, 0) / mrs.length
+      : 0;
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (mrs.length === 0) result = 'WARNING';
@@ -1356,9 +1434,10 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       return {
         metrics: {
           sampleCount: mrs.length,
-          avgFinishedClothMR: Number(avg.toFixed(1)),
+          avgFinishedClothMR: Number(avg.toFixed(2)),
           minAllowedMR: minStd,
           maxAllowedMR: maxStd,
+          moistureRange: Number(maxMR) + ' - ' + Number(minMR)
         },
         result,
       };
@@ -1379,6 +1458,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     fields: [
       { key: 'specifiedBagLengthCm', label: 'Specified Bag Length (cm)', type: 'number', defaultValue: 94.0, unit: 'cm', required: true },
       { key: 'toleranceCm', label: 'Permissible Tolerance (± cm)', type: 'number', defaultValue: 1.5, unit: 'cm' },
+      { key: 'place', label: 'Place', type: 'select', options: ['Main Mill', 'Godown no 3', 'Godown no 1A', 'Godown no 10', 'Godown no 15'], defaultValue: '' },
     ],
     columns: [
       { key: 'pieceNo', label: 'Cut Piece No.', type: 'readonly', width: '100px' },
