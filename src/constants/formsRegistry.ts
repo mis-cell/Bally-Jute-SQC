@@ -253,8 +253,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
-      { key: 'bundleWeightMg', label: 'Bundle Wt (mg)', type: 'number', unit: 'mg' },
-      { key: 'breakingLoadKg', label: 'Breaking Load (gm)', type: 'number', unit: 'gm' },
+      { key: 'bundleWeightMg', label: 'Bundle Wt ', type: 'number', unit: 'gm' },
+      { key: 'breakingLoadKg', label: 'Breaking Load', type: 'number', unit: 'gm' },
       { key: 'tenacityGtex', label: 'Tenacity', type: 'readOnly', unit: 'g/tex', precision: 2 },
     ],
     calculate: (formData, rows) => {
@@ -1676,106 +1676,192 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     },
   },
 
-  'FORM-25': {
-    code: 'FORM-25',
-    number: 25,
-    title: 'Press – HY/LT Calculation of Finished Bale',
-    department: 'Press',
-    departmentCode: 'PRS',
-    section: 'Baling Press',
-    sampleUnit: 'kg / Bale',
-    defaultRowCount: 5,
-    description: 'Calculates standard bale weight for Fabric and Bag according to source formulas.',
-    sourceStandardText: 'Formula Fabric Bale: Std Wt = (Total Yards × HY/LT in lbs ÷ 100) × 0.4536 kg + Hoop Tare. Formula Bag Bale: Std Wt = (No. of Bags × Bag Wt in kg) + Hoop Tare.',
-    fields: [
-      { key: 'baleType', label: 'Bale Content Type', type: 'select', options: ['Bag Bale', 'Cloth / Fabric Bale'], defaultValue: 'Bag Bale' },
-      { key: 'itemCount', label: 'Quantity (Bags or Yards in Bale)', type: 'number', defaultValue: 500, required: true },
-      { key: 'unitWeight', label: 'Unit Weight (g/bag or HYLT lbs/100 yds)', type: 'number', defaultValue: 1020, required: true },
-      { key: 'hoopTareWeightKg', label: 'Hoop Iron & Wrapper Tare (kg)', type: 'number', defaultValue: 4.5, unit: 'kg' },
-    ],
-    columns: [
-      { key: 'baleNo', label: 'Bale No.', type: 'text', width: '100px', required: true },
-      { key: 'grossWeightKg', label: 'Gross Wt (kg)', type: 'number', precision: 2, required: true },
-      { key: 'netWeightKg', label: 'Net Wt (kg)', type: 'number', precision: 2 },
-    ],
-    calculate: (formData, rows) => {
-      const type = formData.baleType;
-      const count = Number(formData.itemCount) || 500;
-      const unitW = Number(formData.unitWeight) || 1020;
-      const tare = Number(formData.hoopTareWeightKg) || 4.5;
+  
+'FORM-25': {
+  code: 'FORM-25',
+  number: 25,
+  title: 'Press – HY/LT Summary of Finished Bales',
+  department: 'Press',
+  departmentCode: 'PRS',
+  section: 'Baling Press',
+  sampleUnit: 'kg / Bale',
+  defaultRowCount: 1,
+  description: 'Calculates standard bale weight for Fabric and Bag according to source formulas.',
+  sourceStandardText: '',
 
-      let stdNetKg = 0;
-      if (type === 'Cloth / Fabric Bale') {
-        // Yards × HYLT/100 × 0.4536
-        stdNetKg = ((count * unitW) / 100) * 0.4536;
-      } else {
-        // Bags × (g/bag / 1000)
-        stdNetKg = (count * unitW) / 1000;
-      }
-      const stdGrossKg = stdNetKg + tare;
+  fields: [
+    { key: 'standardNetWeight', label: 'Standard Net WT', type: 'number', defaultValue: '0', unit: 'kg' },
+    { key: 'standardMoisture', label: 'Standard Moisture', type: 'number', defaultValue: 0, unit: '%' },
+    { key: 'totalNoOfBales', label: 'Total No. of Bales', type: 'number', defaultValue: 0, unit: '' }
+  ],
 
-      const grossVals = rows.map(r => Number(r.grossWeightKg) || 0).filter(v => v > 0);
-      const avgGross = calcMean(grossVals);
-      const devGross = stdGrossKg > 0 ? ((avgGross - stdGrossKg) / stdGrossKg) * 100 : 0;
+  columns: [
+    { key: 'avgObservedGrossWt', label: 'Avg Observed Gross WT', type: 'number', precision: 3, width: '100px', unit: 'kg' },
+    { key: 'avgobservedTearWt', label: 'Avg Observed Tare WT', type: 'number', precision: 3, unit: 'kg' },
+    { key: 'avgNetWt', label: 'Avg Net WT', type: 'number', precision: 3, unit: 'kg' },
+    { key: 'avgMoisture', label: 'Avg Observed Moisture', type: 'number', precision: 2, unit: '%' },
+    { key: 'avgConvertedNetWt', label: 'Avg Converted Net WT', type: 'number', precision: 3, unit: 'kg' },
+    { key: 'avgConvertedHYLT', label: 'Avg Converted HY/LT', type: 'number', precision: 2, unit: '%' },
+    { key: 'totalProductionWt', label: 'Total Production WT', type: 'number', precision: 3, unit: 'MT' },
+    { key: 'lossGainWt', label: 'Loss/Gain WT', type: 'number', precision: 3, unit: 'MT' },
+  ],
 
-      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-      if (grossVals.length === 0) result = 'WARNING';
-      else if (Math.abs(devGross) > 3.5) result = 'FAIL';
-      else if (Math.abs(devGross) > 2.0) result = 'WARNING';
+  calculate: (formData, rows) => {
+    const standardNetWeight = Number(formData.standardNetWeight) || 0;
+    const standardMoisture = Number(formData.standardMoisture) || 0;
+    const totalNoOfBales = Number(formData.totalNoOfBales) || 0;
 
-      return {
-        metrics: {
-          standardNetKg: Number(stdNetKg.toFixed(2)),
-          standardGrossKg: Number(stdGrossKg.toFixed(2)),
-          averageActualGrossKg: Number(avgGross.toFixed(2)),
-          weightDeviationPct: Number(devGross.toFixed(2)),
-        },
-        result,
-      };
-    },
+    let avgNetWtsummary = 0;
+    let avgConvertedNetWtsummary = 0;
+    let avgConvertedHYLTsummary = 0;
+    let totalProductionWtsummary = 0;
+    let lossGainWtsummary = 0;
+
+    rows.forEach(r => {
+      const grossWt = Number(r.avgObservedGrossWt) || 0;
+      const tareWt = Number(r.avgobservedTearWt) || 0;
+      const observedMoisture = Number(r.avgMoisture) || 0;
+
+      // 1. Average Net Weight
+      const netWt = grossWt - tareWt;
+
+      // 2. Moisture Converted Net Weight
+      const convertedNetWt =
+        (100 + observedMoisture) !== 0
+          ? netWt * ((100 + standardMoisture) / (100 + observedMoisture))
+          : 0;
+
+      // 3. Converted HY/LT Percentage
+      const convertedHYLT =
+        standardNetWeight > 0
+          ? ((convertedNetWt - standardNetWeight) / standardNetWeight) * 100
+          : 0;
+
+      // 4. Total Production Weight (MT)
+      const totalProductionWt =
+        (convertedNetWt * totalNoOfBales) / 1000;
+
+      // 5. Loss / Gain Weight (MT)
+      const lossGainWt =
+        ((convertedNetWt - standardNetWeight) * totalNoOfBales) / 1000;
+
+      // Assign calculated values
+      r.avgNetWt = netWt.toFixed(3);
+      r.avgConvertedNetWt = convertedNetWt.toFixed(3);
+      r.avgConvertedHYLT = convertedHYLT.toFixed(2);
+      r.totalProductionWt = totalProductionWt.toFixed(3);
+      r.lossGainWt = lossGainWt.toFixed(3);
+
+      // Summary values
+      avgNetWtsummary = netWt;
+      avgConvertedNetWtsummary = convertedNetWt;
+      avgConvertedHYLTsummary = convertedHYLT;
+      totalProductionWtsummary = totalProductionWt;
+      lossGainWtsummary = lossGainWt;
+    });
+
+    return {
+      metrics: {
+        avgNetWt: Number(avgNetWtsummary.toFixed(2)),
+        avgConvertedNetWt: Number(avgConvertedNetWtsummary.toFixed(2)),
+        avgConvertedHYLT: Number(avgConvertedHYLTsummary.toFixed(2)),
+        totalProductionWt: Number(totalProductionWtsummary.toFixed(2)),
+        lossGainWt: Number(lossGainWtsummary.toFixed(2)),
+      },
+      result: 'PASS',
+    };
   },
+},
+
 
   'FORM-26': {
     code: 'FORM-26',
     number: 26,
-    title: 'Press – HY/LT Summary of Finished Bale',
+    title: 'Press – HY/LT Summary of Finished Rolls',
     department: 'Press',
     departmentCode: 'PRS',
     section: 'Press Daily Summary',
-    sampleUnit: 'Bales Summary',
-    defaultRowCount: 8,
+    sampleUnit: 'Rolls Summary',
+    defaultRowCount: 1,
     description: 'Summary compilation of pressed bales for shift/day, verifying average HY/LT compliance across lots.',
     sourceStandardText: 'Permissible Bale Lot Deviation: Max ± 1.5% across pressed lot.',
     fields: [
-      { key: 'lotNumber', label: 'Export / Domestic Lot No.', type: 'text', defaultValue: 'EXP-2026/04' },
-      { key: 'totalBalesPacked', label: 'Total Bales Packed', type: 'number', defaultValue: 50 },
+      { key: 'Gsm', label: 'GSM', type: 'number', defaultValue: '0', unit: 'g/m²' },
+      { key: 'width', label: 'Width', type: 'number', defaultValue: 0, unit: 'cm' },
+      { key: 'rollLength', label: 'Roll length', type: 'number', defaultValue: 0, unit: 'Metre' },
+      { key: 'standardRollWt', label: 'Standard Roll WT', type: 'number', defaultValue: 0, unit: 'kg' },
+      { key: 'standardMoisture', label: 'Standard Moisture', type: 'number', defaultValue: 0, unit: '%' }
     ],
+
     columns: [
-      { key: 'lotRange', label: 'Bale Serial Range', type: 'text', width: '130px' },
-      { key: 'baleCount', label: 'No. of Bales', type: 'number' },
-      { key: 'totalWeightKg', label: 'Total Weight (kg)', type: 'number', precision: 2 },
-      { key: 'avgBaleWeightKg', label: 'Avg Bale Wt (kg)', type: 'number', precision: 2 },
+      { key: 'grosswt', label: 'Gross WT', type: 'number', precision: 3, width: '100px', unit: 'kg' },
+      { key: 'tarewt', label: 'Tare WT', type: 'number', precision: 3, unit: 'kg' },
+      { key: 'observedNetwt', label: 'Observed Net WT', type: 'number', precision: 3, unit: 'kg' },
+      { key: 'avgObservedMoisture', label: 'Avg Observed Moisture', type: 'number', precision: 2, unit: '%' },
+      { key: 'avgConvertedNetWt', label: 'Avg Converted Net WT', type: 'number', precision: 3, unit: 'kg' },
+      { key: 'avgConvertedHYLT', label: 'Avg Converted HY/LT', type: 'number', precision: 2, unit: '%' },
+      { key: 'totalProductionWt', label: 'Total Production WT', type: 'number', precision: 3, unit: 'MT' },
+      { key: 'lossGainWt', label: 'Loss/Gain WT', type: 'number', precision: 3, unit: 'MT' },
     ],
+
     calculate: (formData, rows) => {
-      let totalB = 0;
-      let totalW = 0;
+      const standardRollWt = Number(formData.standardRollWt) || 0;
+      const standardMoisture = Number(formData.standardMoisture) || 0;
+      const rollLength = Number(formData.rollLength) || 0;
+
+      let avgNetWtsummary = 0;
+      let avgConvertedNetWtsummary = 0;
+      let avgConvertedHYLTsummary = 0;
+      let totalProductionWtsummary = 0;
+      let lossGainWtsummary = 0;
+
       rows.forEach(r => {
-        const b = Number(r.baleCount) || 0;
-        const w = Number(r.totalWeightKg) || 0;
-        totalB += b;
-        totalW += w;
+        const grossWt = Number(r.grosswt) || 0;
+        const tareWt = Number(r.tarewt) || 0;
+        const avgObservedMoisture = Number(r.avgObservedMoisture) || 0;
+
+        // 1. Average Net Weight
+        const observedNetwt = grossWt - tareWt;
+
+        // 2. Moisture Converted Net Weight
+        const convertedNetWt = observedNetwt * ((100 + standardMoisture) / (100 + avgObservedMoisture));
+
+        // 2. Converted HY/LT Percentage
+        const convertedHYLT =
+          ((convertedNetWt - standardRollWt) / standardRollWt) * 100;
+
+        // 3. Total Production Weight (MT)
+        const totalProductionWt = convertedNetWt / 1000;
+
+        // 4. Loss / Gain Weight (MT)
+        const lossGainWt = (convertedNetWt - standardRollWt) / 1000;
+
+        // Assign calculated values
+        r.observedNetwt = observedNetwt.toFixed(3);
+        r.avgConvertedNetWt = convertedNetWt.toFixed(3);
+        r.avgConvertedHYLT = convertedHYLT.toFixed(2);
+        r.totalProductionWt = totalProductionWt.toFixed(3);
+        r.lossGainWt = lossGainWt.toFixed(3);
+
+        // Summary values
+        avgNetWtsummary = observedNetwt;
+        avgConvertedNetWtsummary = convertedNetWt;
+        avgConvertedHYLTsummary = convertedHYLT;
+        totalProductionWtsummary = totalProductionWt;
+        lossGainWtsummary = lossGainWt;
       });
-      const overallAvg = totalB > 0 ? totalW / totalB : 0;
 
       return {
         metrics: {
-          totalBalesInSummary: totalB,
-          totalWeightAccumulatedKg: Number(totalW.toFixed(2)),
-          overallAverageBaleWeightKg: Number(overallAvg.toFixed(2)),
+          avgNetWt: Number(avgNetWtsummary.toFixed(2)),
+          avgConvertedNetWt: Number(avgConvertedNetWtsummary.toFixed(2)),
+          avgConvertedHYLT: Number(avgConvertedHYLTsummary.toFixed(2)),
+          totalProductionWt: Number(totalProductionWtsummary.toFixed(2)),
+          lossGainWt: Number(lossGainWtsummary.toFixed(2)),
         },
-        result: totalB > 0 ? 'PASS' : 'WARNING',
+        result: 'PASS',
       };
-    },
+    }
   },
 
   'FORM-27': {
@@ -1886,16 +1972,15 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Soxhlet / Rapid Oil extraction test. Oil Content % = (Weight of Extracted Oil ÷ Oven Dry Weight of Specimen) × 100.',
     sourceStandardText: 'Standard Oil Content: Hessian & Sacking: 2.5% to 3.5%; Food Grade: Max 1.25% (Requires SQC/HOD Validation).',
     fields: [
-      { key: 'productCategory', label: 'Product Category', type: 'select', options: ['Standard Sacking / Hessian', 'Food Grade / Special Export', 'Raw Fiber'], defaultValue: 'Standard Sacking / Hessian' },
-      { key: 'minOilPct', label: 'Min Oil %', type: 'number', defaultValue: 2.5, unit: '%' },
-      { key: 'maxOilPct', label: 'Max Oil %', type: 'number', defaultValue: 3.5, unit: '%' },
+      { key: 'productCategory', label: 'Sample Tested', type: 'select', options: ['Raw Jute', 'Spd Sliver', 'B/C Sliver', 'F/C Sliver', 'Drg Sliver', 'Spg Yarn', 'WDG Yarn', 'Fabric', 'SEWING Yarn'], defaultValue: 'Raw Jute' },
+      { key: 'productCategory', label: 'Sample Tested', type: 'select', options: ['Oil Conten', 'PPM content'], defaultValue: 'Raw Jute' },
+      /*  { key: 'minOilPct', label: 'Min Oil %', type: 'number', defaultValue: 2.5, unit: '%' },
+      { key: 'maxOilPct', label: 'Max Oil %', type: 'number', defaultValue: 3.5, unit: '%' }, */
     ],
     columns: [
-      { key: 'sampleCode', label: 'Sample Mark / ID', type: 'text', width: '120px' },
-      { key: 'dishTareWeightGms', label: 'Dish Tare Wt (g)', type: 'number', precision: 4 },
-      { key: 'dishPlusOilGms', label: 'Dish + Oil Wt (g)', type: 'number', precision: 4 },
-      { key: 'ovenDrySampleGms', label: 'Oven Dry Wt (g)', type: 'number', precision: 4, required: true },
-      { key: 'calculatedOilPct', label: 'Oil % (Auto/Input)', type: 'number', precision: 2 },
+      { key: 'maxRequirment', label: 'Max Requirement', type: 'text', width: '120px' },
+      { key: 'observedValue', label: 'Observed value', type: 'number', precision: 4 },
+      { key: 'remarks', label: 'Remarks', type: 'text', precision: 4 }
     ],
     calculate: (formData, rows) => {
       const oilPcts: number[] = [];
@@ -2063,7 +2148,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'measuredWidthMm', label: 'Width (mm)', type: 'number', precision: 2, required: true },
       { key: 'measuredThicknessMm', label: 'Thickness (mm)', type: 'number', precision: 3, required: true },
       { key: 'sampleLengthMtr', label: 'Length (m)', type: 'number', precision: 2 },
-      { key: 'sampleWeightGms', label: 'Weight (g)', type: 'number', precision: 1, required: true },
+      { key: 'observedWeightGms', label: 'Observed Weight', type: 'number', precision: 1, required: true, unit: 'gm' },
+      { key: 'observed', label: 'Observed ', type: 'number', precision: 1, required: true, unit: 'GM/M' },
     ],
     calculate: (formData, rows) => {
       const widths = rows.map(r => Number(r.measuredWidthMm) || 0).filter(v => v > 0);
@@ -2071,8 +2157,11 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const gpms: number[] = [];
       rows.forEach(r => {
         const l = Number(r.sampleLengthMtr) || 1.0;
-        const w = Number(r.sampleWeightGms) || 0;
-        if (l > 0 && w > 0) gpms.push(w / l);
+        const w = Number(r.observedWeightGms) || 0;
+        if (l > 0 && w > 0) {
+          gpms.push(w / l);
+          r.observed = w / l;
+        }
       });
 
       const avgW = calcMean(widths);
