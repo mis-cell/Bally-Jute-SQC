@@ -478,153 +478,6 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     },
   },
 
-  /* 'FORM-08': {
-    code: 'FORM-08',
-    number: 8,
-    title: 'Inter Card – Sliver Weight Checking',
-    department: 'Carding',
-    departmentCode: 'CRD',
-    section: 'Breaker Card',
-    sampleUnit: 'lbs / 100 yds',
-    defaultRowCount: 10,
-    hasMoistureCorrection: true,
-    description: 'Breaker card sliver weight checking with moisture regain conversion and C.V.%.',
-    sourceStandardText: 'Standard Breaker Card Sliver Wt: Nominal ± 3.5%. Standard MR: 27%. Max C.V.%: 5.0%.',
-    fields: [
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 18.5, unit: 'lbs' },
-      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 27.0, unit: '%' },
-      { key: 'observedMR', label: 'Observed %MR', type: 'number', defaultValue: 26.8, unit: '%' },
-    ],
-    columns: [
-      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
-      { key: 'observedWeightLbs', label: 'Observed Weight (lbs)', type: 'number', precision: 2, required: true },
-    ],
-    calculate: (formData, rows) => {
-      const stdMR = Number(formData.standardMR) || 27.0;
-      const obsMR = Number(formData.observedMR) || 27.0;
-      const stdWt = Number(formData.standardSliverWeight) || 18.5;
-      const weights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
-      const converted = weights.map(w => moistureCorrect(w, obsMR, stdMR));
-      const avgConverted = calcMean(converted);
-      const cv = calcCV(converted);
-      const dev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0;
-
-      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-      if (weights.length === 0) result = 'WARNING';
-      else if (Math.abs(dev) > 5.5 || cv > 6.5) result = 'FAIL';
-      else if (Math.abs(dev) > 3.5 || cv > 5.0) result = 'WARNING';
-
-      return {
-        metrics: {
-          avgObserved: Number(calcMean(weights).toFixed(2)),
-          avgConverted: Number(avgConverted.toFixed(2)),
-          deviationPct: Number(dev.toFixed(2)),
-          cvPercent: Number(cv.toFixed(2)),
-          standardSliverWeight: stdWt,
-        },
-        result,
-      };
-    },
-  },
-
-  'FORM-07': {
-    code: 'FORM-07',
-    number: 7,
-    title: 'Inter Card – Sliver Weight Checking',
-    department: 'Carding',
-    departmentCode: 'CRD',
-    section: 'Inter Card',
-    sampleUnit: 'lbs / 100 yds',
-    defaultRowCount: 10,
-    hasMoistureCorrection: true,
-    description: 'Inter card sliver weight checking with moisture regain conversion and C.V.%.',
-    sourceStandardText: 'Standard Inter Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.',
-    fields: [
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 14.0, unit: 'lbs' },
-      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 25.0, unit: '%' },
-      { key: 'observedMR', label: 'Observed %MR', type: 'number', defaultValue: 25.0, unit: '%' },
-    ],
-    columns: [
-      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
-      { key: 'observedWeightLbs', label: 'Observed Weight (lbs)', type: 'number', precision: 2, required: true },
-    ],
-    calculate: (formData, rows) => {
-      const stdMR = Number(formData.standardMR) || 25.0;
-      const obsMR = Number(formData.observedMR) || 25.0;
-      const stdWt = Number(formData.standardSliverWeight) || 14.0;
-      const weights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
-      const converted = weights.map(w => moistureCorrect(w, obsMR, stdMR));
-      const avgConverted = calcMean(converted);
-      const cv = calcCV(converted);
-      const dev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0;
-
-      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-      if (weights.length === 0) result = 'WARNING';
-      else if (Math.abs(dev) > 5.0 || cv > 6.0) result = 'FAIL';
-      else if (Math.abs(dev) > 3.0 || cv > 4.5) result = 'WARNING';
-
-      return {
-        metrics: {
-          avgObserved: Number(calcMean(weights).toFixed(2)),
-          avgConverted: Number(avgConverted.toFixed(2)),
-          deviationPct: Number(dev.toFixed(2)),
-          cvPercent: Number(cv.toFixed(2)),
-          standardSliverWeight: stdWt,
-        },
-        result,
-      };
-    },
-  },
-
-  'FORM-08': {
-    code: 'FORM-08',
-    number: 8,
-    title: 'Finisher Card – Sliver Weight Checking',
-    department: 'Carding',
-    departmentCode: 'CRD',
-    section: 'Finisher Card',
-    sampleUnit: 'lbs / 100 yds',
-    defaultRowCount: 10,
-    hasMoistureCorrection: true,
-    description: 'Finisher card sliver weight checking with moisture regain conversion and C.V.%.',
-    sourceStandardText: 'Standard Finisher Card Sliver Wt: Nominal ± 3.0%. Standard MR: 24%. Max C.V.%: 4.0%.',
-    fields: [
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 11.5, unit: 'lbs' },
-      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 24.0, unit: '%' },
-      { key: 'observedMR', label: 'Observed %MR', type: 'number', defaultValue: 24.0, unit: '%' },
-    ],
-    columns: [
-      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
-      { key: 'observedWeightLbs', label: 'Observed Weight (lbs)', type: 'number', precision: 2, required: true },
-    ],
-    calculate: (formData, rows) => {
-      const stdMR = Number(formData.standardMR) || 24.0;
-      const obsMR = Number(formData.observedMR) || 24.0;
-      const stdWt = Number(formData.standardSliverWeight) || 11.5;
-      const weights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
-      const converted = weights.map(w => moistureCorrect(w, obsMR, stdMR));
-      const avgConverted = calcMean(converted);
-      const cv = calcCV(converted);
-      const dev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0;
-
-      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-      if (weights.length === 0) result = 'WARNING';
-      else if (Math.abs(dev) > 4.5 || cv > 5.0) result = 'FAIL';
-      else if (Math.abs(dev) > 3.0 || cv > 4.0) result = 'WARNING';
-
-      return {
-        metrics: {
-          avgObserved: Number(calcMean(weights).toFixed(2)),
-          avgConverted: Number(avgConverted.toFixed(2)),
-          deviationPct: Number(dev.toFixed(2)),
-          cvPercent: Number(cv.toFixed(2)),
-          standardSliverWeight: stdWt,
-        },
-        result,
-      };
-    },
-  }, */
-
   'FORM-06': {
     code: 'FORM-06',
     number: 6,
@@ -805,7 +658,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       };
     },
   },
-  'FORM-09': {
+  /* 'FORM-09': {
     code: 'FORM-09',
     number: 9,
     title: 'Finisher Drawing – Sliver Weight Checking',
@@ -847,6 +700,67 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           avgObserved: Number(calcMean(weights).toFixed(3)),
           avgConverted: Number(avgConverted.toFixed(3)),
           deviationPct: Number(dev.toFixed(2)),
+          cvPercent: Number(cv.toFixed(2)),
+          standardSliverWeight: stdWt,
+        },
+        result,
+      };
+    },
+  }, */
+  'FORM-09': {
+    code: 'FORM-09',
+    number: 9,
+    title: 'Inter Card – Sliver Weight Checking',
+    department: 'Carding',
+    departmentCode: 'CRD',
+    section: 'Inter Card',
+    sampleUnit: 'lbs / 100 yds',
+    defaultRowCount: 5,
+    hasMoistureCorrection: true,
+    description: 'Inter card sliver weight checking with moisture regain conversion and C.V.%.',
+    sourceStandardText: 'Standard Inter Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
+    fields: [
+      { key: 'drawingPassage', label: 'Drawing Passage', type: 'select', options: ['Drawing_1', 'Drawing_2', 'Inter Drawing', 'Draw Head'], defaultValue: 'Drawing_1' },
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 30.0, unit: '%' },
+      { key: 'observedMR', label: 'Observed %MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+    ],
+    columns: [
+      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
+      { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
+      { key: 'correctedWeightYds', label: 'Corrected Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+    ],
+    calculate: (formData, rows) => {
+      const stdMR = Number(formData.standardMR) || 30.0;
+      const obsMR = Number(formData.observedMR) || 30.0;
+      const stdWt = Number(formData.standardSliverWeight) || 34.0;
+      const stdtestlth = Number(formData.standardTestLength) || 100;
+      const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
+
+      const correctedWeights = rows.map(r => {
+        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
+        if (stdMR > 0 && obsMR > 0) return r.correctedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
+        return 0;
+      }).filter(v => v > 0);
+
+      const avgObs = calcMean(obsWeights);
+      const convertedWeights = obsWeights.map(w => moistureCorrect(w, obsMR, stdMR));
+      const avgConverted = calcMean(convertedWeights);
+      const cv = calcCV(convertedWeights);
+
+      const pctDev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0;
+      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
+      if (obsWeights.length === 0) result = 'WARNING';
+      else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
+      else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING';
+
+      return {
+        metrics: {
+          sampleCount: obsWeights.length,
+          avgObservedLbs: Number(avgObs.toFixed(2)),
+          avgConvertedLbs: Number(avgConverted.toFixed(2)),
+          percentDeviation: Number(pctDev.toFixed(2)),
           cvPercent: Number(cv.toFixed(2)),
           standardSliverWeight: stdWt,
         },
