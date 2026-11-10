@@ -727,7 +727,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     },
   }, */
   'FORM-09': {
-    code: 'FORM-09',
+    code: 'FORM-09 A',
     number: 9,
     title: 'Inter Card – Sliver Weight Checking',
     department: 'Carding',
@@ -749,6 +749,72 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
       { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
       { key: 'convertedWeightYds', label: 'Converted Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+    ],
+    calculate: (formData, rows) => {
+      const stdMR = Number(formData.standardMR) || 30.0;
+      const obsMR = Number(formData.observedMR) || 30.0;
+      const stdWt = Number(formData.standardSliverWeight) || 34.0;
+      const stdtestlth = Number(formData.standardTestLength) || 100;
+      const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
+
+      const convertedWeights = rows.map(r => {
+        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
+        if (stdMR > 0 && obsMR > 0) return r.convertedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
+        return 0;
+      }).filter(v => v > 0);
+
+      const avgObs = calcMean(obsWeights);
+      // Collect all valid converted weights
+      const allconverted = rows .map(r => Number(r.convertedWeightYds)) .filter(v => Number.isFinite(v) && v > 0);
+      const avgConverted = calcMean(allconverted);
+
+      // Find maximum and minimum
+      const maxMRc = allconverted.length > 0 ? Math.max(...allconverted) : 0;
+      const minMRc = allconverted.length > 0 ? Math.min(...allconverted) : 0;
+
+     /*  const pctDev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0; */
+      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
+      /* f (obsWeights.length === 0) result = 'WARNING';
+      else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
+      else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING'; */
+
+      return {
+        metrics: {
+          sampleCount: obsWeights.length,
+          avgobservedWeightLbs: Number(avgObs.toFixed(3)),
+          avgConvertedLbs: Number(avgConverted.toFixed(3)),
+          ConvertedWeightRange:minMRc +' - '+maxMRc,
+          standardSliverWeight: stdWt,
+        },
+        result,
+      };
+    },
+  },
+  'FORM-37': {
+    code: 'FORM-09 B',
+    number: 37,
+    title: 'Finisher Card – Sliver Weight Checking',
+    department: 'Carding',
+    departmentCode: 'CRD',
+    section: 'Finisher Card',
+    sampleUnit: 'lbs / 1440 yds',
+    defaultRowCount: 5,
+    hasMoistureCorrection: true,
+    description: 'Finisher card sliver weight checking with moisture regain conversion and C.V.%.',
+    sourceStandardText: 'Standard Finisher Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
+    fields: [
+      { key: 'drawingPassage', label: 'Drawing Passage', type: 'select', options: ['Finisher_Drawing'], defaultValue: 'Drawing_1' },
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/1440 yds)', type: 'number', defaultValue: 34.0, unit: 'LBS' },
+      { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
+      { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
+      { key: 'temperature', label: 'Temperature', type: 'number', defaultValue:'', unit: 'C' },
+      { key: 'rh', label: 'Relative Humidity', type: 'number', defaultValue:'', unit: '%' },
+    ],
+    columns: [
+      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
+      { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
+      { key: 'convertedWeightYds', label: 'Converted Weight in 1440 YDS', type: 'number', unit: 'LBS', precision: 2, required: true }
     ],
     calculate: (formData, rows) => {
       const stdMR = Number(formData.standardMR) || 30.0;
