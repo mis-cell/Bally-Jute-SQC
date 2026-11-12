@@ -385,7 +385,6 @@ async function initDatabase() {
         'FORM-19', 'FORM-20', 'FORM-21', 'FORM-22', 'FORM-23',
         'FORM-24', 'FORM-25', 'FORM-26', 'FORM-27', 'FORM-28',
         'FORM-29', 'FORM-30', 'FORM-31', 'FORM-32', 'FORM-33',
-        'FORM-34', 'FORM-35', 'FORM-36', 'FORM-37'
       ];
       for (const fc of allFormCodes) {
         await client.query(`
@@ -395,6 +394,86 @@ async function initDatabase() {
         `, [fc]);
       }
       console.log('✅ Default administrator created: admin / Admin@123456');
+    }
+
+    // Individual 38 form tables
+    const FORM_TABLE_MAP = {
+      'FORM-01': 'form_01_raw_jute_moisture',
+      'FORM-02': 'form_02_emulsion_test',
+      'FORM-03': 'form_03_breaker_card',
+      'FORM-04': 'form_04_finisher_card',
+      'FORM-05': 'form_05_drawing_1',
+      'FORM-06': 'form_06_drawing_2',
+      'FORM-07': 'form_07_drawing_3',
+      'FORM-08': 'form_08_spinning_quality_ratio',
+      'FORM-09': 'form_09_warp_winding',
+      'FORM-09 A': 'form_09a_weft_winding',
+      'FORM-09 B': 'form_09b_beaming',
+      'FORM-10': 'form_10_weaving_efficiency',
+      'FORM-11': 'form_11_hessian_quality',
+      'FORM-12': 'form_12_sacking_quality',
+      'FORM-13': 'form_13_damping_calendering',
+      'FORM-14': 'form_14_cutting_check',
+      'FORM-15': 'form_15_hemming_stitch',
+      'FORM-16': 'form_16_herackle_stitch',
+      'FORM-17': 'form_17_bag_inspection',
+      'FORM-18': 'form_18_baling_press',
+      'FORM-19': 'form_19_dispatch_container',
+      'FORM-20': 'form_20_central_testing_lab',
+      'FORM-21': 'form_21_moisture_meter_calibration',
+      'FORM-22': 'form_22_scale_calibration',
+      'FORM-23': 'form_23_warp_twist',
+      'FORM-24': 'form_24_weft_twist',
+      'FORM-25': 'form_25_jute_fineness',
+      'FORM-26': 'form_26_oil_droplet',
+      'FORM-27': 'form_27_waste_analysis',
+      'FORM-28': 'form_28_roller_slippage',
+      'FORM-29': 'form_29_tape_tension',
+      'FORM-30': 'form_30_warp_stop_motion',
+      'FORM-31': 'form_31_weft_feeler',
+      'FORM-32': 'form_32_seam_strength',
+      'FORM-33': 'form_33_drop_test',
+      'FORM-34': 'form_34_ash_content',
+      'FORM-35': 'form_35_oil_content',
+      'FORM-36': 'form_36_humidity_temperature',
+      'FORM-37': 'form_09b_beaming',
+    };
+
+    for (const [fCode, tblName] of Object.entries(FORM_TABLE_MAP)) {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS ${tblName} (
+          id VARCHAR(100) PRIMARY KEY,
+          inspection_no VARCHAR(100) UNIQUE NOT NULL,
+          form_code VARCHAR(30) DEFAULT '${fCode}',
+          department_id VARCHAR(100),
+          department_name VARCHAR(150),
+          section_id VARCHAR(100),
+          shift_id VARCHAR(50),
+          shift_name VARCHAR(100),
+          quality_id VARCHAR(100),
+          quality_name VARCHAR(150),
+          machine_no VARCHAR(100),
+          loom_no VARCHAR(100),
+          inspector_id VARCHAR(100),
+          inspector_name VARCHAR(150),
+          inspection_date VARCHAR(30),
+          inspection_time VARCHAR(30),
+          status VARCHAR(50) DEFAULT 'Draft',
+          result VARCHAR(30) DEFAULT 'PASS',
+          form_data JSONB DEFAULT '{}'::jsonb,
+          reading_rows JSONB DEFAULT '[]'::jsonb,
+          summary_metrics JSONB DEFAULT '{}'::jsonb,
+          remarks TEXT,
+          approval_remarks TEXT,
+          approved_by VARCHAR(150),
+          approved_at TIMESTAMP WITH TIME ZONE,
+          version INT DEFAULT 1,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_${tblName}_no ON ${tblName} (inspection_no);
+        CREATE INDEX IF NOT EXISTS idx_${tblName}_date ON ${tblName} (inspection_date);
+      `);
     }
 
     client.release();
