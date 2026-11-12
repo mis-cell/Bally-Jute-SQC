@@ -1,5 +1,4 @@
-// Bally Jute Company Limited - SQC System Types
-export type UserRole = 'Super Admin' | 'Admin' | 'HOD / Approver' | 'SQC Inspector / User' | 'Viewer / Auditor';
+export type UserRole = 'SuperAdmin' | 'Super Admin' | 'Admin' | 'QualityManager' | 'HOD' | 'HOD / Approver' | 'Inspector' | 'SQC Inspector / User' | 'Auditor' | 'Viewer / Auditor' | 'Operator';
 
 export type InspectionStatus = 'Draft' | 'Submitted' | 'Under Review' | 'Approved' | 'Rejected' | 'Returned';
 
@@ -8,6 +7,8 @@ export type InspectionResult = 'PASS' | 'WARNING' | 'FAIL';
 export interface UserProfile {
   id: string;
   email: string;
+  username?: string;
+  passwordHash?: string;
   displayName: string;
   role: UserRole;
   departmentId?: string;
@@ -15,6 +16,7 @@ export interface UserProfile {
   employeeCode?: string;
   phone?: string;
   isActive: boolean;
+  permittedForms?: string[]; // Array of form codes e.g. ['FORM-01', 'FORM-02', 'FORM-37']. Empty or undefined for Admins means full access.
   createdAt: string;
   lastLoginAt?: string;
 }

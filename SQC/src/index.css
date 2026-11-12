@@ -1,0 +1,376 @@
+
+@import "tailwindcss";
+
+/* ==========================================
+   BALLY JUTE SQC PORTAL
+   CORAL ROSE & SOFT BLUSH THEME
+   ========================================== */
+
+:root {
+  --sqc-primary: #D95F68;
+  --sqc-primary-hover: #C94E59;
+  --sqc-header: #E87578;
+  --sqc-header-light: #F5A5A5;
+  --sqc-blush: #FCE7E6;
+  --sqc-blush-light: #FFF4F3;
+  --sqc-background: #FFF9F9;
+  --sqc-sidebar: #FFFAFA;
+  --sqc-border: #F4C4C5;
+  --sqc-text: #393334;
+  --sqc-text-secondary: #806B6C;
+  --sqc-text-dark: #754D50;
+  --sqc-white: #FFFFFF;
+}
+
+/* ==========================================
+   GLOBAL APPLICATION
+   ========================================== */
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--sqc-background);
+  color: var(--sqc-text);
+}
+
+/* ==========================================
+   MAIN HEADER
+   ========================================== */
+
+#main-topbar {
+  background: linear-gradient(
+    110deg,
+    var(--sqc-header),
+    var(--sqc-header-light)
+  ) !important;
+
+  color: var(--sqc-white);
+  border-color: var(--sqc-border) !important;
+}
+
+#main-topbar .bg-emerald-950 {
+  background-color: #C95B65 !important;
+}
+
+#main-topbar .text-emerald-100,
+#main-topbar .text-emerald-200,
+#main-topbar .text-emerald-300 {
+  color: #FFFFFF !important;
+}
+
+#main-topbar .text-emerald-400 {
+  color: #FFE3E1 !important;
+}
+
+#main-topbar button {
+  transition: all 0.2s ease-in-out;
+}
+
+#main-topbar button:hover {
+  background-color: #D95F68 !important;
+  color: #FFFFFF !important;
+}
+
+#main-topbar button:hover svg {
+  color: #FFFFFF !important;
+}
+
+/* Header inputs */
+#main-topbar input {
+  background-color: rgba(115, 55, 60, 0.18);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+#main-topbar input::placeholder {
+  color: #FFE3E1;
+}
+
+/* ==========================================
+   MAIN APPLICATION BACKGROUND
+   ========================================== */
+
+#app-main-content {
+  background-color: var(--sqc-background) !important;
+}
+
+/* ==========================================
+   SIDEBAR
+   ========================================== */
+
+#main-sidebar {
+  background-color: var(--sqc-sidebar) !important;
+  color: var(--sqc-text-dark);
+  border-color: var(--sqc-border) !important;
+}
+
+/* Sidebar normal text */
+#main-sidebar .text-slate-900,
+#main-sidebar .text-slate-800 {
+  color: #574448 !important;
+}
+
+#main-sidebar .text-slate-700,
+#main-sidebar .text-slate-600 {
+  color: var(--sqc-text-secondary) !important;
+}
+
+/* Sidebar headings */
+#main-sidebar .font-black {
+  color: var(--sqc-text-dark);
+}
+
+/* Sidebar icons */
+#main-sidebar svg {
+  color: #D96870;
+  transition: color 0.2s ease;
+}
+
+/* Sidebar borders */
+#main-sidebar .border-slate-200,
+#main-sidebar .border-slate-300 {
+  border-color: var(--sqc-border) !important;
+}
+
+/* ==========================================
+   SIDEBAR NAVIGATION
+   ========================================== */
+
+/* Normal navigation */
+#main-sidebar a {
+  color: #574448;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Navigation hover */
+#main-sidebar a:not([aria-current="page"]):hover {
+  background-color: var(--sqc-blush) !important;
+  color: #C4515B !important;
+}
+
+#main-sidebar a:not([aria-current="page"]):hover svg {
+  color: var(--sqc-primary) !important;
+}
+
+/* Active navigation */
+#main-sidebar a.active,
+#main-sidebar a[aria-current="page"] {
+  background-color: var(--sqc-primary) !important;
+  color: #FFFFFF !important;
+}
+
+#main-sidebar a.active svg,
+#main-sidebar a[aria-current="page"] svg {
+  color: #FFFFFF !important;
+}
+
+/* Active navigation nested text */
+#main-sidebar a.active span,
+#main-sidebar a[aria-current="page"] span {
+  color: #FFFFFF !important;
+}
+
+/* Sidebar menu buttons */
+#main-sidebar button {
+  color: #574448;
+  transition: all 0.2s ease-in-out;
+}
+
+#main-sidebar button:hover {
+  background-color: var(--sqc-blush) !important;
+  color: #C4515B !important;
+}
+
+#main-sidebar button:hover svg {
+  color: var(--sqc-primary) !important;
+}
+
+/* Sidebar profile */
+#main-sidebar .bg-white {
+  background-color: #FFFFFF !important;
+}
+
+/* ==========================================
+   SIDEBAR BACKGROUND UTILITIES
+   ========================================== */
+
+#main-sidebar .bg-emerald-900,
+#main-sidebar .bg-emerald-800,
+#main-sidebar .bg-emerald-700,
+#main-sidebar .bg-emerald-600 {
+  background-color: var(--sqc-primary) !important;
+}
+
+#main-sidebar .bg-emerald-100 {
+  background-color: var(--sqc-blush) !important;
+}
+
+#main-sidebar .bg-emerald-50 {
+  background-color: var(--sqc-blush-light) !important;
+}
+
+/* ==========================================
+   GLOBAL EMERALD THEME REPLACEMENT
+   ========================================== */
+
+.bg-emerald-900,
+.bg-emerald-800 {
+  background-color: var(--sqc-primary) !important;
+}
+
+.bg-emerald-700,
+.bg-emerald-600 {
+  background-color: var(--sqc-header-light) !important;
+}
+
+.bg-emerald-100 {
+  background-color: var(--sqc-blush) !important;
+}
+
+.bg-emerald-50 {
+  background-color: var(--sqc-blush-light) !important;
+}
+
+/* Text replacements */
+.text-emerald-950,
+.text-emerald-900,
+.text-emerald-800 {
+  color: var(--sqc-text-dark) !important;
+}
+
+.text-emerald-700,
+.text-emerald-600 {
+  color: #D95F68 !important;
+}
+
+/* Border replacements */
+.border-emerald-800,
+.border-emerald-700,
+.border-emerald-600 {
+  border-color: var(--sqc-border) !important;
+}
+
+/* ==========================================
+   GLOBAL HOVER EFFECTS
+   ========================================== */
+
+.hover\:bg-emerald-50:hover {
+  background-color: var(--sqc-blush) !important;
+}
+
+.hover\:bg-emerald-800:hover,
+.hover\:bg-emerald-900:hover {
+  background-color: var(--sqc-primary-hover) !important;
+}
+
+.hover\:text-emerald-950:hover,
+.hover\:text-emerald-900:hover {
+  color: #C4515B !important;
+}
+
+/* ==========================================
+   BUTTONS
+   ========================================== */
+
+/* Primary buttons */
+button[class*="bg-emerald"]:hover {
+  background-color: var(--sqc-primary-hover) !important;
+  color: #FFFFFF !important;
+}
+
+/* General button transitions */
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+/* ==========================================
+   CARDS AND PANELS
+   ========================================== */
+
+.bg-white {
+  background-color: #FFFFFF !important;
+}
+
+/* Pink notification accent */
+.bg-rose-500 {
+  background-color: var(--sqc-primary) !important;
+}
+
+/* ==========================================
+   INPUTS AND FOCUS EFFECTS
+   ========================================== */
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--sqc-header) !important;
+  outline-color: var(--sqc-header-light) !important;
+
+  box-shadow: 0 0 0 3px
+    rgba(232, 117, 120, 0.12);
+}
+
+/* Selected dropdown option */
+select option:checked {
+  background-color: var(--sqc-blush);
+  color: var(--sqc-text-dark);
+}
+
+/* ==========================================
+   TABLES
+   ========================================== */
+
+table thead th {
+  background-color: var(--sqc-blush);
+  color: var(--sqc-text-dark);
+  border-color: var(--sqc-border);
+}
+
+table tbody tr:hover {
+  background-color: #FFF4F3;
+}
+
+table td {
+  border-color: #F6E3E2;
+}
+
+/* ==========================================
+   SCROLLBAR
+   ========================================== */
+
+* {
+  scrollbar-color: #E8A5A5 #FFF4F3;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF4F3;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E8A5A5;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D95F68;
+}
+
+/* ==========================================
+   SMOOTH TRANSITIONS
+   ========================================== */
+
+#main-sidebar a,
+#main-sidebar button,
+#main-topbar button {
+  transition: all 0.2s ease-in-out;
+}

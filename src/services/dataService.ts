@@ -797,6 +797,10 @@ class DataService {
     saveToStorage(STORAGE_KEYS.NOTIFICATIONS, list);
   }
 
+  logAudit(item: Omit<AuditLogItem, 'id' | 'timestamp'>): void {
+    this.addAuditLog(item);
+  }
+
   markNotificationRead(id: string): void {
     const list = this.getNotifications();
     const item = list.find(n => n.id === id);
@@ -804,6 +808,12 @@ class DataService {
       item.read = true;
       saveToStorage(STORAGE_KEYS.NOTIFICATIONS, list);
     }
+  }
+
+  markNotificationsAsRead(): void {
+    const list = this.getNotifications();
+    list.forEach(n => { n.read = true; });
+    saveToStorage(STORAGE_KEYS.NOTIFICATIONS, list);
   }
 
   // Sequence generator

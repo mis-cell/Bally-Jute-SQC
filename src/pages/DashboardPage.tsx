@@ -59,7 +59,7 @@ export const DashboardPage: React.FC = () => {
             <span>SQC Mill Floor Live System</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Statistical Quality Control Dashboard
+            SQC Dashboard
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Logged in as <strong className="text-slate-800">{currentUser.displayName}</strong> ({currentUser.role})

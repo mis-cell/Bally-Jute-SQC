@@ -9,6 +9,7 @@ export interface FormFieldDef {
   options?: string[];
   required?: boolean;
   helpText?: string;
+  precision?: number;
 }
 
 export interface ReadingColDef {
@@ -43,10 +44,11 @@ export interface FormMetadata {
   };
 }
 
-
-
-export async function getCurrentWeather() {
+export async function getCurrentWeather(): Promise<any> {
   return new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      return resolve({ temperature: 28, humidity: 65 });
+    }
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -115,40 +117,42 @@ export async function getCurrentWeather() {
           reject(error);
         }
       },
-
       (error) => {
-        reject(new Error("Location error: " + error.message));
+        // Fallback on geolocation error without throwing unhandled rejection
+        resolve({
+          temperature: 28,
+          humidity: 65,
+          city: 'Kolkata',
+          state: 'West Bengal',
+          country: 'India',
+        });
       },
-
       {
         enableHighAccuracy: false,
-        timeout: 15000,
+        timeout: 10000,
         maximumAge: 300000
       }
     );
   });
 }
 
-
-
 let temperature = '';
 let humidity = '';
 // Load weather
 const loadWeather = async () => {
   try {
-    const weather = await getCurrentWeather();
-
-    console.log("Temperature:", weather.temperature);
-    console.log("Humidity:", weather.humidity);
-
-    temperature = String(weather.temperature);
-    humidity = String(weather.humidity);
-
-  } catch (error) {
-    console.error("Weather Error:", error.message);
+    const weather: any = await getCurrentWeather();
+    if (weather) {
+      temperature = String(weather.temperature ?? '');
+      humidity = String(weather.humidity ?? '');
+    }
+  } catch (error: any) {
+    console.warn("Weather Error:", error?.message);
   }
 };
-loadWeather()
+if (typeof window !== 'undefined') {
+  loadWeather();
+}
 
 
 // Math helpers
@@ -255,14 +259,17 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
       { key: 'bundleWeightMg', label: 'Bundle Wt ', type: 'number', unit: 'gm' },
       { key: 'breakingLoadKg', label: 'Breaking Load', type: 'number', unit: 'gm' },
-      { key: 'tenacityGtex', label: 'Tenacity', type: 'readOnly', unit: 'g/tex', precision: 2 },
+      { key: 'tenacityGtex', label: 'Tenacity', type: 'readonly', unit: 'g/tex', precision: 2 },
     ],
     calculate: (formData, rows) => {
-      const tenacities = rows.map(r => {
-        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
+      const tenacities: number[] = rows.map(r => {
         const w = Number(r.bundleWeightMg);
         const l = Number(r.breakingLoadKg);
-        if (w > 0 && l > 0) return r.tenacityGtex = ((l/w)*0.125).toFixed(3); // 50mm gauge length standard
+        if (w > 0 && l > 0) {
+          const val = Number(((l / w) * 0.125).toFixed(3));
+          r.tenacityGtex = val;
+          return val;
+        }
         return 0;
       }).filter(v => v > 0);
 
@@ -317,11 +324,12 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const stdtestlth = Number(formData.standardTestLength) || 100;
       const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
 
-      const convertedWeights = rows.map(r => {
-        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
-        if (stdMR > 0 && obsMR > 0) return r.convertedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
-        return 0;
-      }).filter(v => v > 0);
+      rows.forEach(r => {
+        const obsW = Number(r.observedWeightLbs) || 0;
+        if (stdMR > 0 && obsMR > 0 && obsW > 0) {
+          r.convertedWeightYds = Number(((((0.22 * obsW) / stdtestlth) * (100 + stdMR)) / (100 + obsMR)).toFixed(3));
+        }
+      });
 
       const avgObs = calcMean(obsWeights);
       // Collect all valid converted weights
@@ -518,15 +526,16 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const stdtestlth = Number(formData.standardTestLength) || 100;
       const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
 
-      const convertedWeights = rows.map(r => {
-        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
-        if (stdMR > 0 && obsMR > 0) return r.convertedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
-        return 0;
-      }).filter(v => v > 0);
+      rows.forEach(r => {
+        const obsW = Number(r.observedWeightLbs) || 0;
+        if (stdMR > 0 && obsMR > 0 && obsW > 0) {
+          r.convertedWeightYds = Number(((((0.22 * obsW) / stdtestlth) * (100 + stdMR)) / (100 + obsMR)).toFixed(3));
+        }
+      });
 
       const avgObs = calcMean(obsWeights);
       // Collect all valid converted weights
-      const allconverted = rows .map(r => Number(r.convertedWeightYds)) .filter(v => Number.isFinite(v) && v > 0);
+      const allconverted = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
       const avgConverted = calcMean(allconverted);
 
       // Find maximum and minimum
@@ -581,15 +590,16 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const stdtestlth = Number(formData.standardTestLength) || 100;
       const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
 
-      const convertedWeights = rows.map(r => {
-        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
-        if (stdMR > 0 && obsMR > 0) return r.convertedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
-        return 0;
-      }).filter(v => v > 0);
+      rows.forEach(r => {
+        const obsW = Number(r.observedWeightLbs) || 0;
+        if (stdMR > 0 && obsMR > 0 && obsW > 0) {
+          r.convertedWeightYds = Number(((((0.22 * obsW) / stdtestlth) * (100 + stdMR)) / (100 + obsMR)).toFixed(3));
+        }
+      });
 
       const avgObs = calcMean(obsWeights);
       // Collect all valid converted weights
-      const allconverted = rows .map(r => Number(r.convertedWeightYds)) .filter(v => Number.isFinite(v) && v > 0);
+      const allconverted = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
       const avgConverted = calcMean(allconverted);
 
       // Find maximum and minimum
@@ -644,15 +654,16 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const stdtestlth = Number(formData.standardTestLength) || 100;
       const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
 
-      const convertedWeights = rows.map(r => {
-        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
-        if (stdMR > 0 && obsMR > 0) return r.convertedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
-        return 0;
-      }).filter(v => v > 0);
+      rows.forEach(r => {
+        const obsW = Number(r.observedWeightLbs) || 0;
+        if (stdMR > 0 && obsMR > 0 && obsW > 0) {
+          r.convertedWeightYds = Number(((((0.22 * obsW) / stdtestlth) * (100 + stdMR)) / (100 + obsMR)).toFixed(3));
+        }
+      });
 
       const avgObs = calcMean(obsWeights);
       // Collect all valid converted weights
-      const allconverted = rows .map(r => Number(r.convertedWeightYds)) .filter(v => Number.isFinite(v) && v > 0);
+      const allconverted = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
       const avgConverted = calcMean(allconverted);
 
       // Find maximum and minimum
@@ -757,15 +768,16 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const stdtestlth = Number(formData.standardTestLength) || 100;
       const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
 
-      const convertedWeights = rows.map(r => {
-        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
-        if (stdMR > 0 && obsMR > 0) return r.convertedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
-        return 0;
-      }).filter(v => v > 0);
+      rows.forEach(r => {
+        const obsW = Number(r.observedWeightLbs) || 0;
+        if (stdMR > 0 && obsMR > 0 && obsW > 0) {
+          r.convertedWeightYds = Number(((((0.22 * obsW) / stdtestlth) * (100 + stdMR)) / (100 + obsMR)).toFixed(3));
+        }
+      });
 
       const avgObs = calcMean(obsWeights);
       // Collect all valid converted weights
-      const allconverted = rows .map(r => Number(r.convertedWeightYds)) .filter(v => Number.isFinite(v) && v > 0);
+      const allconverted = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
       const avgConverted = calcMean(allconverted);
 
       // Find maximum and minimum
@@ -823,15 +835,16 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const stdtestlth = Number(formData.standardTestLength) || 100;
       const obsWeights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
 
-      const convertedWeights = rows.map(r => {
-        /* if (r.tenacityGtex) return Number(r.tenacityGtex); */
-        if (stdMR > 0 && obsMR > 0) return r.convertedWeightYds = ((((.22*  r.observedWeightLbs)/stdtestlth)*(100+stdMR))/(100+obsMR)).toFixed(3); // 50mm gauge length standard
-        return 0;
-      }).filter(v => v > 0);
+      rows.forEach(r => {
+        const obsW = Number(r.observedWeightLbs) || 0;
+        if (stdMR > 0 && obsMR > 0 && obsW > 0) {
+          r.convertedWeightYds = Number(((((0.22 * obsW) / stdtestlth) * (100 + stdMR)) / (100 + obsMR)).toFixed(3));
+        }
+      });
 
       const avgObs = calcMean(obsWeights);
       // Collect all valid converted weights
-      const allconverted = rows .map(r => Number(r.convertedWeightYds)) .filter(v => Number.isFinite(v) && v > 0);
+      const allconverted = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
       const avgConverted = calcMean(allconverted);
 
       // Find maximum and minimum
