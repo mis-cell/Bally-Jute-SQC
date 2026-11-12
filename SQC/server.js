@@ -32,11 +32,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // 2. PostgreSQL Connection Pool
 // Configured for host "BJCL" and database "IT SQC"
 const pool = new Pool({
-  host: process.env.DB_HOST || 'BJCL',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'IT SQC',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  host: process.env.PGHOST || process.env.LOCAL_DB_HOST || process.env.DB_HOST || '127.0.0.1',
+  port: parseInt(process.env.PGPORT || process.env.LOCAL_DB_PORT || process.env.DB_PORT || '5432', 10),
+  database: process.env.PGDATABASE || process.env.LOCAL_DB_NAME || process.env.DB_NAME || 'SQC',
+  user: process.env.PGUSER || process.env.LOCAL_DB_USER || process.env.DB_USER || 'postgres',
+  password: process.env.PGPASSWORD || process.env.LOCAL_DB_PASSWORD || process.env.DB_PASSWORD || 'postgres',
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,

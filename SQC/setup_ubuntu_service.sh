@@ -47,7 +47,7 @@ Environment=NODE_ENV=production
 Environment=PORT=3001
 Environment=DB_HOST=127.0.0.1
 Environment=DB_PORT=5432
-Environment=DB_NAME=IT SQC
+Environment=DB_NAME=SQC
 Environment=DB_USER=postgres
 Environment=DB_PASSWORD=postgres
 

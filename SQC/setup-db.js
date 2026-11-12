@@ -10,11 +10,11 @@ const path = require('path');
 const { Client, Pool } = require('pg');
 require('dotenv').config();
 
-const DB_HOST = process.env.DB_HOST || 'BJCL';
-const DB_PORT = parseInt(process.env.DB_PORT || '5432', 10);
-const DB_USER = process.env.DB_USER || 'postgres';
-const DB_PASSWORD = process.env.DB_PASSWORD || 'postgres';
-const DB_NAME = process.env.DB_NAME || 'IT SQC';
+const DB_HOST = process.env.PGHOST || process.env.LOCAL_DB_HOST || process.env.DB_HOST || '127.0.0.1';
+const DB_PORT = parseInt(process.env.PGPORT || process.env.LOCAL_DB_PORT || process.env.DB_PORT || '5432', 10);
+const DB_USER = process.env.PGUSER || process.env.LOCAL_DB_USER || process.env.DB_USER || 'postgres';
+const DB_PASSWORD = process.env.PGPASSWORD || process.env.LOCAL_DB_PASSWORD || process.env.DB_PASSWORD || 'postgres';
+const DB_NAME = process.env.PGDATABASE || process.env.LOCAL_DB_NAME || process.env.DB_NAME || 'SQC';
 
 console.log('==================================================================');
 console.log('🏭 SQC - Statistical Quality Control Database Setup');
