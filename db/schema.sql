@@ -1,11 +1,11 @@
 -- ==============================================================================
 -- SQC - STATISTICAL QUALITY CONTROL SYSTEM
--- Target Server: BJCL
--- Target Database: "IT SQC"
+-- Target Server: BJCL / Local Server / Ubuntu
+-- Target Database: "SQC"
 -- ==============================================================================
 -- To create and connect to the database in PostgreSQL psql terminal:
---   CREATE DATABASE "IT SQC";
---   \c "IT SQC"
+--   CREATE DATABASE "SQC";
+--   \c "SQC"
 -- ==============================================================================
 
 -- 1. USERS & AUTHENTICATION TABLE
