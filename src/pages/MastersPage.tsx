@@ -171,13 +171,13 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
             <Database size={18} className="text-emerald-700" />
             <span>Master Data Management</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5 text-[#D95F68]">
             Full CRUD: Add, edit, update specifications, and configure mill departments, machine inventory, and factory standards
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          {/* <button
             id="btn-masters-pg-sync"
             onClick={() => setIsPgModalOpen(true)}
             className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs transition-colors border border-slate-700"
@@ -185,7 +185,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
           >
             <Database size={14} className="text-emerald-400" />
             <span>PostgreSQL Sync Hub</span>
-          </button>
+          </button> */}
 
           {canEdit && (
             <button

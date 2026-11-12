@@ -100,9 +100,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <div>
                 <h1 className="text-sm font-bold tracking-tight text-white flex items-center gap-2">
                   <span>{settings.companyName}</span>
-                  <span className="bg-emerald-700/80 text-emerald-200 text-[10px] px-2 py-0.5 rounded font-mono font-medium border border-emerald-600">
+                  {/* <span className="bg-emerald-700/80 text-emerald-200 text-[10px] px-2 py-0.5 rounded font-mono font-medium border border-emerald-600">
                     S.Q.C. PORTAL
-                  </span>
+                  </span> */}
                 </h1>
                 <p className="text-[11px] text-emerald-300 font-normal">
                   {settings.companySubtitle} • FY {settings.financialYear}
@@ -179,7 +179,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             </div>
 
             {/* Quick Multi-Role Switcher */}
-            <div className="flex items-center bg-emerald-950/70 rounded-lg p-1 border border-emerald-700/60">
+            {/* <div className="flex items-center bg-emerald-950/70 rounded-lg p-1 border border-emerald-700/60">
               <span className="text-[10px] text-emerald-300 uppercase px-2 font-semibold">Active Role:</span>
               <select
                 id="active-role-switcher"
@@ -194,7 +194,32 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   </option>
                 ))}
               </select>
+            </div> */}
+
+            <div className="flex items-center bg-[#500D28]/95 rounded-lg p-1 border border-[#9D174D]/70 shadow-sm">
+              <span className="text-[10px] text-[#F9C5D8] uppercase px-2 font-bold">
+                Active Role:
+              </span>
+
+              <select
+                id="active-role-switcher"
+                value={currentUser.id}
+                onChange={e => switchUser(e.target.value)}
+                aria-label="Switch User Persona / Role"
+                className="bg-[#831843] text-white text-xs rounded px-2 py-1 border border-[#BE185D] focus:outline-none focus:ring-1 focus:ring-[#F9A8D4] cursor-pointer font-semibold"
+              >
+                {allUsers.map(u => (
+                  <option
+                    key={u.id}
+                    value={u.id}
+                    className="bg-[#500D28] text-white"
+                  >
+                    {u.displayName} [{u.role}]
+                  </option>
+                ))}
+              </select>
             </div>
+
 
             {/* Notification Bell */}
             <div className="relative">
@@ -255,7 +280,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         >
           {/* Sidebar Header */}
           <div className="p-3.5 bg-white border-b-2 border-slate-200 flex items-center justify-between shadow-2xs">
-            <span className="text-xs font-black text-slate-900 uppercase tracking-wider">Navigation Menu</span>
+            {/* <span className="text-xs font-black text-slate-900 uppercase tracking-wider">Navigation Menu</span> */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-950 font-mono font-bold border border-emerald-300">
                 v2.6 Enterprise
@@ -328,23 +353,25 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                       }`
                     }
                   >
-                    <span className="w-2 h-2 rounded-full bg-emerald-700"></span>
-                    <span>+ New Inspection Entry</span>
+                    {/* <span className="w-2 h-2 rounded-full bg-emerald-700"></span>
+                    <span>+ New Inspection Entry</span> */}
                   </NavLink>
 
                   <div className="pt-2.5 pb-1 text-[11px] font-black text-slate-800 uppercase tracking-wider px-2">
                     Department Form Lists
                   </div>
-
                   {formGroups.map((group, gIdx) => (
                     <div key={gIdx} className="space-y-0.5 pt-1">
-                      <div className="text-[11px] font-black text-slate-900 px-2 pt-1 uppercase tracking-tight">
+                      <div className="text-[11px] font-black text-[#701638] px-2 pt-1 uppercase tracking-tight">
                         {group.title}
                       </div>
-                      {group.forms.map(fCode => {
+
+                      {group.forms.map((fCode) => {
                         const meta = FORM_REGISTRY[fCode];
                         if (!meta) return null;
+
                         const isMatch = location.search.includes(fCode);
+
                         return (
                           <NavLink
                             key={fCode}
@@ -352,25 +379,33 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                             id={`nav-form-${fCode.toLowerCase()}`}
                             onClick={() => setSidebarOpen(false)}
                             className={
-                              `flex items-center px-2 py-1.5 rounded text-xs font-semibold truncate transition-colors ${
+                              `flex items-center px-2 py-1.5 rounded-md text-xs font-semibold truncate transition-all duration-200 border ${
                                 isMatch
-                                  ? 'bg-emerald-800 text-white font-bold'
-                                  : 'text-slate-800 hover:bg-emerald-50 hover:text-emerald-950'
+                                  ? 'bg-gradient-to-r from-[#701638] to-[#9D174D] text-white font-bold border-[#701638] shadow-md'
+                                  : 'bg-transparent text-[#831843] border-transparent hover:bg-[#F8D7E5] hover:text-[#701638] hover:border-[#D98BAA]'
                               }`
                             }
                             title={`${meta.code}: ${meta.title}`}
                           >
-                            <span className={`font-mono mr-1.5 font-bold px-1 py-0.5 rounded text-[10px] shrink-0 border ${
-                              isMatch ? 'bg-white text-emerald-950 border-white' : 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                            }`}>
-                              {meta.code.replace('FORM-', 'F')}
+                          <span
+                            className={`inline-flex items-center justify-center font-mono font-black min-w-[42px] h-[24px] mr-2 px-2 rounded-md text-[11px] leading-none shrink-0 border transition-all duration-200 ${
+                              isMatch
+                                ? 'bg-[#500D28] !text-white border-[#500D28] shadow-sm'
+                                : 'bg-[#701638] !text-white border-[#701638] shadow-sm'
+                            }`}
+                          >
+                            {meta.code.replace('FORM-', 'F')}
+                          </span>
+                            <span className="truncate">
+                              {meta.title.split('–')[1]?.trim() || meta.title}
                             </span>
-                            <span className="truncate">{meta.title.split('–')[1]?.trim() || meta.title}</span>
                           </NavLink>
                         );
                       })}
                     </div>
                   ))}
+
+
                 </div>
               )}
             </div>
