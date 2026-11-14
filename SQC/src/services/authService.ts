@@ -8,6 +8,11 @@ import { dataService } from './dataService';
 import { postgresService } from './postgresService';
 import { hashPassword, verifyPassword, DEFAULT_ADMIN_PASSWORD_HASH } from '../utils/crypto';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
+import {
+  DEFAULT_MAINTENANCE_MESSAGE,
+  getCachedMaintenanceStatus,
+  setCachedMaintenanceStatus,
+} from './maintenanceService';
 
 const AUTH_STORAGE_KEYS = {
   CURRENT_USER: 'sqc_auth_current_user',
@@ -63,7 +68,10 @@ class AuthService {
   /**
    * Authenticate user against PostgreSQL backend first, with local fallback when offline
    */
-  public async login(identifier: string, password: string): Promise<{ success: boolean; user?: UserProfile; message?: string }> {
+  public async login(
+    identifier: string,
+    password: string
+  ): Promise<{ success: boolean; user?: UserProfile; message?: string; maintenanceMode?: boolean }> {
     const cleanRaw = (identifier || '').trim();
     const cleanId = cleanRaw.toLowerCase();
     if (!cleanId || !password) {
@@ -86,6 +94,20 @@ class AuthService {
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const json = await res.json();
+          if (json.maintenanceMode && typeof json.maintenanceMode === 'object') {
+            setCachedMaintenanceStatus(json.maintenanceMode);
+          }
+
+          if (res.status === 503 || json.maintenanceMode === true) {
+            const msg = json.message || DEFAULT_MAINTENANCE_MESSAGE;
+            setCachedMaintenanceStatus({ enabled: true, message: msg });
+            return {
+              success: false,
+              maintenanceMode: true,
+              message: msg,
+            };
+          }
+
           if (res.ok && json.success && json.user) {
             const loggedInUser: UserProfile = {
               ...json.user,
@@ -136,6 +158,15 @@ class AuthService {
 
     if (!isValid) {
       return { success: false, message: 'Invalid password. Please try again.' };
+    }
+
+    const cachedMaint = getCachedMaintenanceStatus();
+    if (cachedMaint.enabled && !isAdminRole(user.role as string)) {
+      return {
+        success: false,
+        maintenanceMode: true,
+        message: cachedMaint.message || DEFAULT_MAINTENANCE_MESSAGE,
+      };
     }
 
     const updatedUser: UserProfile = {

@@ -45,6 +45,14 @@ const pool = new Pool({
 
 let isDatabaseConnected = false;
 
+// Global Maintenance Mode state (persisted in PostgreSQL `system_settings`)
+let maintenanceState = {
+  enabled: false,
+  message: 'Server is under maintenance. We will be back shortly.',
+  activatedBy: null,
+  activatedAt: null,
+};
+
 // 3. Individual 38 Form Table Registry (module-level for ALL endpoints)
 const FORM_TABLE_MAP = {
   'FORM-01': 'form_01_raw_jute_moisture',
@@ -657,7 +665,35 @@ async function initDatabase() {
         timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         details JSONB DEFAULT '{}'::jsonb
       );
+
+      CREATE TABLE IF NOT EXISTS system_settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value JSONB DEFAULT '{}'::jsonb,
+        updated_by VARCHAR(150),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
     `);
+
+    // Load persisted Maintenance Mode setting from PostgreSQL
+    await client.query(`
+      INSERT INTO system_settings (key, value, updated_by)
+      VALUES (
+        'maintenance_mode',
+        '{"enabled": false, "message": "Server is under maintenance. We will be back shortly.", "activatedBy": null, "activatedAt": null}'::jsonb,
+        'SYSTEM'
+      )
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    const maintRes = await client.query(`SELECT value FROM system_settings WHERE key = 'maintenance_mode' LIMIT 1`);
+    if (maintRes.rows[0]?.value) {
+      const val = parseJsonSafe(maintRes.rows[0].value, {});
+      maintenanceState = {
+        enabled: !!val.enabled,
+        message: val.message || 'Server is under maintenance. We will be back shortly.',
+        activatedBy: val.activatedBy || null,
+        activatedAt: val.activatedAt || null,
+      };
+    }
 
     // Ensure default admin user exists & holds all form permissions (FORM-01..FORM-37 + 09A/09B)
     const adminCheck = await client.query(`SELECT id FROM users WHERE username = 'admin' LIMIT 1`);
@@ -803,6 +839,29 @@ async function authenticateToken(req, res, next) {
   req.user = user;
   next();
 }
+
+// Enforce Maintenance Mode globally on all protected /api/* routes for non-Admin users
+app.use('/api', async (req, res, next) => {
+  const openPaths = ['/health', '/maintenance/status', '/maintenance/toggle', '/auth/login'];
+  if (!maintenanceState.enabled || openPaths.includes(req.path)) {
+    return next();
+  }
+
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  const user = token ? await resolveUserFromToken(token) : null;
+
+  if (user && isAdminRole(user.role)) {
+    req.user = user;
+    return next();
+  }
+
+  return res.status(503).json({
+    success: false,
+    maintenanceMode: true,
+    message: maintenanceState.message || 'Server is under maintenance. We will be back shortly.',
+  });
+});
 
 async function verifyFormPermission(userId, userRole, formCode) {
   if (isAdminRole(userRole)) return true;
@@ -1112,8 +1171,85 @@ async function upsertUserRecord(client, u) {
 }
 
 // ==============================================================================
-// 9. AUTHENTICATION API ROUTES
+// 9. MAINTENANCE MODE & AUTHENTICATION API ROUTES
 // ==============================================================================
+
+app.get('/api/maintenance/status', async (req, res) => {
+  try {
+    if (isDatabaseConnected) {
+      const r = await pool.query(`SELECT value FROM system_settings WHERE key = 'maintenance_mode' LIMIT 1`);
+      if (r.rows[0]?.value) {
+        const val = parseJsonSafe(r.rows[0].value, {});
+        maintenanceState = {
+          enabled: !!val.enabled,
+          message: val.message || 'Server is under maintenance. We will be back shortly.',
+          activatedBy: val.activatedBy || null,
+          activatedAt: val.activatedAt || null,
+        };
+      }
+    }
+    res.json({ success: true, ...maintenanceState });
+  } catch (err) {
+    res.json({ success: true, ...maintenanceState });
+  }
+});
+
+app.post('/api/maintenance/toggle', attachUserIfPresent, async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key'];
+    const isAuthorized = (req.user && isAdminRole(req.user.role)) || (!req.user && apiKey === API_KEY);
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Administrators can activate or deactivate Maintenance Mode.',
+      });
+    }
+
+    const enabled = Boolean(req.body?.enabled);
+    const customMsg = (req.body?.message || '').trim();
+    const actor = req.body?.activatedBy || req.user?.display_name || req.user?.username || 'Administrator';
+
+    maintenanceState = {
+      enabled,
+      message: customMsg || 'Server is under maintenance. We will be back shortly.',
+      activatedBy: enabled ? actor : null,
+      activatedAt: enabled ? new Date().toISOString() : null,
+    };
+
+    if (isDatabaseConnected) {
+      await pool.query(
+        `INSERT INTO system_settings (key, value, updated_by, updated_at)
+         VALUES ('maintenance_mode', $1::jsonb, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET
+           value = EXCLUDED.value,
+           updated_by = EXCLUDED.updated_by,
+           updated_at = NOW()`,
+        [JSON.stringify(maintenanceState), actor]
+      );
+      await pool.query(
+        `INSERT INTO audit_logs (id, entity_type, entity_id, action, performed_by_id, performed_by_name, details)
+         VALUES ($1, 'SYSTEM', 'maintenance_mode', $2, $3, $4, $5)`,
+        [
+          `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          enabled ? 'MAINTENANCE_ON' : 'MAINTENANCE_OFF',
+          req.user?.id || 'ADMIN',
+          actor,
+          JSON.stringify(maintenanceState),
+        ]
+      );
+    }
+
+    res.json({
+      success: true,
+      ...maintenanceState,
+      notice: enabled
+        ? 'Maintenance Mode activated. All non-admin users have been locked out.'
+        : 'Maintenance Mode deactivated. Normal user access restored.',
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
@@ -1130,6 +1266,7 @@ app.post('/api/auth/login', async (req, res) => {
         return res.json({
           success: true,
           token,
+          maintenanceMode: maintenanceState,
           user: {
             id: 'usr-admin-01',
             username: 'admin',
@@ -1141,6 +1278,13 @@ app.post('/api/auth/login', async (req, res) => {
           },
         });
       }
+      if (maintenanceState.enabled) {
+        return res.status(503).json({
+          success: false,
+          maintenanceMode: true,
+          message: maintenanceState.message || 'Server is under maintenance. We will be back shortly.',
+        });
+      }
       return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
@@ -1150,6 +1294,13 @@ app.post('/api/auth/login', async (req, res) => {
     );
 
     if (userRes.rows.length === 0) {
+      if (maintenanceState.enabled) {
+        return res.status(503).json({
+          success: false,
+          maintenanceMode: true,
+          message: maintenanceState.message || 'Server is under maintenance. We will be back shortly.',
+        });
+      }
       return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
@@ -1160,7 +1311,23 @@ app.post('/api/auth/login', async (req, res) => {
 
     const isValid = verifyPassword(password, user.password_hash);
     if (!isValid) {
+      if (maintenanceState.enabled && !isAdminRole(user.role)) {
+        return res.status(503).json({
+          success: false,
+          maintenanceMode: true,
+          message: maintenanceState.message || 'Server is under maintenance. We will be back shortly.',
+        });
+      }
       return res.status(401).json({ success: false, message: 'Invalid password. Please try again.' });
+    }
+
+    // Block all non-admin logins immediately when Maintenance Mode is active
+    if (maintenanceState.enabled && !isAdminRole(user.role)) {
+      return res.status(503).json({
+        success: false,
+        maintenanceMode: true,
+        message: maintenanceState.message || 'Server is under maintenance. We will be back shortly.',
+      });
     }
 
     const permRes = await pool.query(
@@ -1173,6 +1340,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({
       success: true,
       token,
+      maintenanceMode: maintenanceState,
       user: mapUserRow(user, permittedForms),
     });
   } catch (err) {
@@ -1848,6 +2016,7 @@ app.get('/api/all-data', async (req, res) => {
       success: true,
       ...payload,
       data: payload,
+      maintenanceMode: maintenanceState,
       serverTime: new Date().toISOString(),
     });
   } catch (err) {
@@ -1973,6 +2142,7 @@ app.get('/api/health', async (req, res) => {
       user: infoRes.rows[0]?.usr || 'postgres',
       postgresVersion: infoRes.rows[0]?.ver || '',
       databaseConnected: true,
+      maintenanceMode: maintenanceState,
       stats: {
         inspections_count: Number(countIns.rows[0]?.cnt || 0),
         users_count: Number(countUsers.rows[0]?.cnt || 0),

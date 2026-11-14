@@ -110,6 +110,7 @@ async function runSetup() {
       'quality_standards',
       'inspections',
       'audit_logs',
+      'system_settings',
     ];
     for (const t of coreTables) {
       try {

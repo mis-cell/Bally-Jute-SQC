@@ -15,6 +15,11 @@ import {
   InspectionRecord,
   CustomerRecord,
 } from '../types';
+import {
+  emitMaintenanceLockout,
+  maintenanceService,
+  setCachedMaintenanceStatus,
+} from './maintenanceService';
 
 const STORAGE_KEYS = {
   API_URL: 'bj_sqc_pg_api_url',
@@ -96,6 +101,8 @@ class PostgresService {
   private syncEnabled: boolean;
   private cachedStatus: PostgresConnectionStatus | null = null;
   private listeners: Array<(status: PostgresConnectionStatus) => void> = [];
+  private backendApiDetected: boolean | null = null;
+  private probePromise: Promise<boolean> | null = null;
   
   // Real-Time Polling & Bi-Directional Synchronization
   private syncIntervalTimer: any = null;
@@ -189,8 +196,53 @@ class PostgresService {
     }, 350);
   }
 
+  private isJsonResponse(res: Response): boolean {
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    return ct.includes('application/json');
+  }
+
+  public async checkBackendApiAvailable(forceRecheck: boolean = false): Promise<boolean> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      this.backendApiDetected = false;
+      return false;
+    }
+    if (!forceRecheck && this.backendApiDetected !== null) {
+      return this.backendApiDetected;
+    }
+    if (this.probePromise && !forceRecheck) {
+      return this.probePromise;
+    }
+
+    this.probePromise = (async () => {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/health`, {
+          method: 'GET',
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+          cache: 'no-store',
+        });
+        const detected = this.isJsonResponse(res);
+        this.backendApiDetected = detected;
+        return detected;
+      } catch {
+        this.backendApiDetected = false;
+        return false;
+      } finally {
+        this.probePromise = null;
+      }
+    })();
+
+    return this.probePromise;
+  }
+
   public async triggerImmediateAutoPush(): Promise<boolean> {
     if (!this.isSyncEnabled() || !this.fullDataSupplier) {
+      return false;
+    }
+
+    const apiReady = await this.checkBackendApiAvailable(false);
+    if (!apiReady) {
       return false;
     }
 
@@ -293,6 +345,18 @@ class PostgresService {
   }> {
     if (!this.isSyncEnabled()) return { success: false, error: 'Sync is disabled or not configured.' };
     if (this.syncState.isSyncing && !isUserInitiated) return { success: false, error: 'Sync already in progress.' };
+
+    if (!isUserInitiated) {
+      const apiReady = await this.checkBackendApiAvailable(false);
+      if (!apiReady) {
+        this.notifySyncState({
+          isSyncing: false,
+          lastSyncStatus: 'idle',
+          lastSyncMessage: 'Local offline mode (waiting for PostgreSQL backend)',
+        });
+        return { success: false, error: 'PostgreSQL backend API not attached.' };
+      }
+    }
 
     this.notifySyncState({ isSyncing: true, lastSyncStatus: 'syncing' });
 
@@ -426,7 +490,6 @@ class PostgresService {
       broadcastDataChange('postgres_poll');
       return { success: true, totalItems };
     } catch (err: any) {
-      console.warn('[PostgresService] Realtime sync error:', err);
       this.notifySyncState({
         isSyncing: false,
         lastSyncStatus: 'error',
@@ -456,8 +519,16 @@ class PostgresService {
         headers: this.getHeaders(),
       });
 
-      if (res.ok) {
+      if (await this.handleMaintenanceResponse(res)) {
+        return null;
+      }
+
+      if (res.ok && this.isJsonResponse(res)) {
+        this.backendApiDetected = true;
         const json = await res.json();
+        if (json.maintenanceMode) {
+          setCachedMaintenanceStatus(json.maintenanceMode);
+        }
         if (json.success && json.data) {
           return json.data;
         }
@@ -475,9 +546,13 @@ class PostgresService {
         }
       }
 
-      // If /api/all-data is 404 (running an older server.js), fallback to pulling inspections and users individually
+      if (!this.isJsonResponse(res)) {
+        this.backendApiDetected = false;
+        return null;
+      }
+
+      // If /api/all-data returns JSON 404 (running an older server.js), fallback to individual endpoints
       if (res.status === 404) {
-        console.info('[PostgresService] /api/all-data returned 404. Falling back to individual endpoints...');
         const [inspections, users] = await Promise.all([
           this.loadInspections().catch(() => []),
           this.loadUsers().catch(() => []),
@@ -496,8 +571,7 @@ class PostgresService {
       }
 
       return null;
-    } catch (err) {
-      console.warn('[PostgresService] fetchAllDataFromPostgres network error:', err);
+    } catch {
       return null;
     }
   }
@@ -539,6 +613,8 @@ class PostgresService {
     this.apiUrl = (url || getDefaultApiUrl()).trim().replace(/\/+$/, '');
     this.apiKey = key.trim();
     this.syncEnabled = syncEnabled;
+    this.backendApiDetected = null;
+    maintenanceService.resetApiDetection();
 
     localStorage.setItem(STORAGE_KEYS.API_URL, this.apiUrl);
     localStorage.setItem(STORAGE_KEYS.API_KEY, this.apiKey);
@@ -566,11 +642,29 @@ class PostgresService {
     return headers;
   }
 
+  private async handleMaintenanceResponse(res: Response): Promise<boolean> {
+    if (res.status === 503 && this.isJsonResponse(res)) {
+      try {
+        const clone = res.clone();
+        const json = await clone.json();
+        if (json?.maintenanceMode) {
+          emitMaintenanceLockout(json.message);
+          return true;
+        }
+      } catch {
+        // Ignore parse failures
+      }
+    }
+    return false;
+  }
+
   // ==========================================
   // 1. CONNECTION TESTING
   // ==========================================
   public async testConnection(): Promise<PostgresConnectionStatus> {
     const checkedAt = new Date().toLocaleTimeString();
+    this.backendApiDetected = null;
+    maintenanceService.resetApiDetection();
 
     if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       const res: PostgresConnectionStatus = {
@@ -587,6 +681,17 @@ class PostgresService {
         method: 'GET',
         headers: this.getHeaders(),
       });
+
+      if (!this.isJsonResponse(healthRes)) {
+        this.backendApiDetected = false;
+        const res: PostgresConnectionStatus = {
+          isConnected: false,
+          message: `Express API server not attached at ${this.apiUrl}. Start server.cjs or verify Backend URL in Settings.`,
+          checkedAt,
+        };
+        this.notifyStatus(res);
+        return res;
+      }
 
       if (!healthRes.ok) {
         let errorMsg = `HTTP ${healthRes.status}`;
@@ -613,7 +718,11 @@ class PostgresService {
         return res;
       }
 
+      this.backendApiDetected = true;
       const healthData = await healthRes.json();
+      if (healthData.maintenanceMode) {
+        setCachedMaintenanceStatus(healthData.maintenanceMode);
+      }
       const dbName = healthData.database || 'SQC';
       const dbUser = healthData.user || 'postgres';
       const inspectionsCount = healthData.stats?.inspections_count !== undefined ? Number(healthData.stats.inspections_count) : undefined;
@@ -707,10 +816,13 @@ class PostgresService {
         return { success: false, message: cleanMsg };
       }
 
+      if (!this.isJsonResponse(response)) {
+        return { success: false, message: 'Express backend API not responding with JSON.' };
+      }
+
       const res = await response.json();
       return { success: true, message: 'User saved to PostgreSQL', data: res };
     } catch (err: any) {
-      console.error('[PostgresService] Failed to sync user to PostgreSQL:', err);
       return { success: false, message: err.message || 'Network error syncing user' };
     }
   }
@@ -723,8 +835,7 @@ class PostgresService {
         headers: this.getHeaders(),
       });
       return res.ok;
-    } catch (err) {
-      console.error('[PostgresService] Failed to delete user from PostgreSQL:', err);
+    } catch {
       return false;
     }
   }
@@ -736,7 +847,7 @@ class PostgresService {
         method: 'GET',
         headers: this.getHeaders(),
       });
-      if (res.ok) {
+      if (res.ok && this.isJsonResponse(res)) {
         const data = await res.json();
         return Array.isArray(data) ? data : [];
       }
@@ -1008,6 +1119,14 @@ class PostgresService {
         }),
       });
 
+      if (await this.handleMaintenanceResponse(response)) {
+        return {
+          success: false,
+          message: 'Server is under maintenance. We will be back shortly.',
+          error: 'MAINTENANCE_MODE',
+        };
+      }
+
       if (!response.ok) {
         const errorBody = await response.text();
         const cleanMsg = this.cleanErrorMessage(response.status, errorBody, '/api/inspections');
@@ -1015,6 +1134,13 @@ class PostgresService {
           success: false,
           message: cleanMsg,
           error: errorBody,
+        };
+      }
+
+      if (!this.isJsonResponse(response)) {
+        return {
+          success: false,
+          message: `Backend server at ${this.apiUrl} did not return JSON API response.`,
         };
       }
 
@@ -1026,7 +1152,6 @@ class PostgresService {
         data: saved.inspection || saved,
       };
     } catch (err: any) {
-      console.error('[PostgresService] Error while saving to PostgreSQL:', err);
       return {
         success: false,
         message: `Cannot reach backend server at ${this.apiUrl}. Ensure server is running.`,
@@ -1042,7 +1167,7 @@ class PostgresService {
         method: 'GET',
         headers: this.getHeaders(),
       });
-      if (!response.ok) return null;
+      if (!response.ok || !this.isJsonResponse(response)) return null;
       const data = await response.json();
       return data && data.inspectionNo ? data : null;
     } catch {
@@ -1062,7 +1187,7 @@ class PostgresService {
         headers: this.getHeaders(),
       });
 
-      if (!response.ok) return [];
+      if (!response.ok || !this.isJsonResponse(response)) return [];
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     } catch {
@@ -1099,7 +1224,7 @@ class PostgresService {
         headers: this.getHeaders(),
       });
 
-      if (response.ok) {
+      if (response.ok && this.isJsonResponse(response)) {
         const res = await response.json();
         return { success: true, message: res.message || 'All inspections cleared in PostgreSQL.' };
       } else {
@@ -1139,7 +1264,14 @@ class PostgresService {
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
+      if (await this.handleMaintenanceResponse(response)) {
+        return {
+          success: false,
+          message: 'Server is under maintenance. We will be back shortly.',
+        };
+      }
+
+      if (!response.ok || !this.isJsonResponse(response)) {
         const errText = await response.text();
         return { success: false, message: this.cleanErrorMessage(response.status, errText, '/api/sync-all') };
       }

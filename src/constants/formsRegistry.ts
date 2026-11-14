@@ -45,7 +45,7 @@ export interface FormMetadata {
 }
 
 export async function getCurrentWeather(): Promise<any> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       return resolve({ temperature: 28, humidity: 65 });
     }
@@ -56,22 +56,20 @@ export async function getCurrentWeather(): Promise<any> {
           const latitude = position.coords.latitude;
           const longitude = position.coords.longitude;
 
-          // 1. Get weather
           const weatherResponse = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&timezone=auto`
           );
 
           if (!weatherResponse.ok) {
-            throw new Error("Weather API failed: " + weatherResponse.status);
+            return resolve({ temperature: 28, humidity: 65 });
           }
 
           const weatherData = await weatherResponse.json();
           const current = weatherData.current;
 
-          // 2. Get city (optional)
-          let city = "Unknown";
-          let state = "";
-          let country = "";
+          let city = 'Kolkata';
+          let state = 'West Bengal';
+          let country = 'India';
 
           try {
             const locationResponse = await fetch(
@@ -88,37 +86,38 @@ export async function getCurrentWeather(): Promise<any> {
                 address.village ||
                 address.municipality ||
                 address.county ||
-                "Unknown";
+                city;
 
-              state = address.state || "";
-              country = address.country || "";
-            } else {
-              console.warn("City API status:", locationResponse.status);
+              state = address.state || state;
+              country = address.country || country;
             }
-          } catch (error) {
-            console.warn("City detection unavailable:", error);
+          } catch {
+            // Location reverse lookup optional
           }
 
-          // 3. Return weather
           resolve({
             city,
             state,
             country,
             latitude,
             longitude,
-            temperature: current.temperature_2m,
-            feelsLike: current.apparent_temperature,
-            humidity: current.relative_humidity_2m,
-            condition: current.weather_code,
-            timezone: weatherData.timezone
+            temperature: current?.temperature_2m ?? 28,
+            feelsLike: current?.apparent_temperature ?? 28,
+            humidity: current?.relative_humidity_2m ?? 65,
+            condition: current?.weather_code,
+            timezone: weatherData.timezone,
           });
-
-        } catch (error) {
-          reject(error);
+        } catch {
+          resolve({
+            temperature: 28,
+            humidity: 65,
+            city: 'Kolkata',
+            state: 'West Bengal',
+            country: 'India',
+          });
         }
       },
-      (error) => {
-        // Fallback on geolocation error without throwing unhandled rejection
+      () => {
         resolve({
           temperature: 28,
           humidity: 65,
@@ -130,28 +129,10 @@ export async function getCurrentWeather(): Promise<any> {
       {
         enableHighAccuracy: false,
         timeout: 10000,
-        maximumAge: 300000
+        maximumAge: 300000,
       }
     );
   });
-}
-
-let temperature = '';
-let humidity = '';
-// Load weather
-const loadWeather = async () => {
-  try {
-    const weather: any = await getCurrentWeather();
-    if (weather) {
-      temperature = String(weather.temperature ?? '');
-      humidity = String(weather.humidity ?? '');
-    }
-  } catch (error: any) {
-    console.warn("Weather Error:", error?.message);
-  }
-};
-if (typeof window !== 'undefined') {
-  loadWeather();
 }
 
 

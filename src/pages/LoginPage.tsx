@@ -11,15 +11,14 @@ import {
   AlertCircle,
   CheckCircle2,
   KeyRound,
-  Building2,
-  Sparkles,
+  Wrench,
   ArrowRight,
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, refreshUsers } = useAuth();
+  const { login, refreshUsers, maintenanceStatus, showMaintenanceModal } = useAuth();
 
   const [identifier, setIdentifier] = useState('admin');
   const [password, setPassword] = useState('Admin@123456');
@@ -118,6 +117,27 @@ export const LoginPage: React.FC = () => {
               v2.8
             </span>
           </div>
+
+          {maintenanceStatus.enabled && (
+            <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex items-start justify-between gap-2.5 shadow-2xs">
+              <div className="flex items-start gap-2">
+                <Wrench size={15} className="text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Maintenance Mode Active</p>
+                  <p className="text-[11px] text-amber-800 mt-0.5">
+                    Only Administrators can sign in right now.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={showMaintenanceModal}
+                className="text-[11px] font-bold text-[#701638] hover:underline shrink-0 cursor-pointer"
+              >
+                View Notice
+              </button>
+            </div>
+          )}
 
           {errorMessage && (
             <div className="mb-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 shadow-2xs">

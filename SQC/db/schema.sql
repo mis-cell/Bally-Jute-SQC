@@ -1634,3 +1634,20 @@ CREATE TABLE IF NOT EXISTS form_36_humidity_temperature (
 );
 CREATE INDEX IF NOT EXISTS idx_form_36_humidity_temperature_no ON form_36_humidity_temperature (inspection_no);
 CREATE INDEX IF NOT EXISTS idx_form_36_humidity_temperature_date ON form_36_humidity_temperature (inspection_date);
+
+-- SYSTEM SETTINGS & MAINTENANCE MODE CONFIGURATION TABLE
+CREATE TABLE IF NOT EXISTS system_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value JSONB DEFAULT '{}'::jsonb,
+    updated_by VARCHAR(150),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO system_settings (key, value, updated_by)
+VALUES (
+    'maintenance_mode',
+    '{"enabled": false, "message": "Server is under maintenance. We will be back shortly.", "activatedBy": null, "activatedAt": null}'::jsonb,
+    'SYSTEM'
+)
+ON CONFLICT (key) DO NOTHING;
+

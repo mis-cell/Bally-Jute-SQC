@@ -19,14 +19,26 @@ import {
   History,
   Shield,
   KeyRound,
+  Wrench,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dataService } from '../services/dataService';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, allUsers, switchUser, logout, canAccessForm, isRole, hasPermission } = useAuth();
+  const {
+    currentUser,
+    allUsers,
+    switchUser,
+    logout,
+    canAccessForm,
+    isRole,
+    hasPermission,
+    maintenanceStatus,
+    toggleMaintenanceMode,
+  } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [disablingMaintenance, setDisablingMaintenance] = useState(false);
   const [formsSubmenuOpen, setFormsSubmenuOpen] = useState(true);
   const [mastersSubmenuOpen, setMastersSubmenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -133,11 +145,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   aria-label="Switch User Persona / Role"
                   className="bg-[#831843] text-white text-xs rounded px-2 py-0.5 border border-[#BE185D] focus:outline-none cursor-pointer font-semibold"
                 >
-                  {allUsers.map(u => (
-                    <option key={u.id} value={u.id} className="bg-[#500D28] text-white">
-                      {u.displayName} [{u.role}]
-                    </option>
-                  ))}
+                  {allUsers.map(u => {
+                    const isOptionAdmin = u.role === 'Super Admin' || u.role === 'SuperAdmin' || u.role === 'Admin';
+                    const disabledOption = maintenanceStatus.enabled && !isOptionAdmin;
+                    return (
+                      <option
+                        key={u.id}
+                        value={u.id}
+                        disabled={disabledOption}
+                        className="bg-[#500D28] text-white"
+                      >
+                        {u.displayName} [{u.role}]{disabledOption ? ' (Locked)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}
@@ -209,6 +230,38 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </div>
         </div>
       </header>
+
+      {/* Admin Active Maintenance Mode Alert Bar */}
+      {isAdmin && maintenanceStatus.enabled && (
+        <div
+          id="admin-maintenance-banner"
+          className="bg-amber-600 text-white px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm border-b border-amber-700"
+        >
+          <div className="flex items-center gap-2 font-semibold">
+            <Wrench size={15} className="shrink-0" />
+            <span>
+              <strong>MAINTENANCE MODE ACTIVE:</strong> All non-admin users are automatically logged out and locked out (&quot;{maintenanceStatus.message}&quot;).
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={disablingMaintenance}
+              onClick={async () => {
+                setDisablingMaintenance(true);
+                try {
+                  await toggleMaintenanceMode(false, maintenanceStatus.message);
+                } finally {
+                  setDisablingMaintenance(false);
+                }
+              }}
+              className="px-3 py-1 rounded-md bg-white text-amber-900 hover:bg-amber-50 font-bold text-[11px] shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
+            >
+              {disablingMaintenance ? 'Restoring...' : 'Turn Off Maintenance Mode'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Workspace Frame */}
       <div className="flex-1 flex overflow-hidden">

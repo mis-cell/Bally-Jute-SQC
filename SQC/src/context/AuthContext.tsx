@@ -1,16 +1,28 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserProfile, UserRole } from '../types';
 import { dataService } from '../services/dataService';
 import { authService } from '../services/authService';
 import { postgresService } from '../services/postgresService';
+import {
+  maintenanceService,
+  MaintenanceStatus,
+  DEFAULT_MAINTENANCE_MESSAGE,
+} from '../services/maintenanceService';
+import { MaintenanceModal } from '../components/MaintenanceModal';
 import { hashPassword } from '../utils/crypto';
 import { INITIAL_USERS } from '../constants/initialData';
-import { FORM_REGISTRY } from '../constants/formsRegistry';
+
+function isAdminUserRole(role?: string): boolean {
+  return role === 'Super Admin' || role === 'SuperAdmin' || role === 'Admin';
+}
 
 interface AuthContextType {
   currentUser: UserProfile;
   isAuthenticated: boolean;
-  login: (identifier: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  login: (
+    identifier: string,
+    password: string
+  ) => Promise<{ success: boolean; message?: string; maintenanceMode?: boolean }>;
   logout: () => void;
   allUsers: UserProfile[];
   refreshUsers: () => void;
@@ -21,12 +33,18 @@ interface AuthContextType {
   isRole: (role: UserRole) => boolean;
   hasPermission: (action: 'CREATE' | 'EDIT_DRAFT' | 'SUBMIT' | 'APPROVE' | 'REJECT' | 'RETURN' | 'MANAGE_MASTERS' | 'SYSTEM_CONFIG') => boolean;
   switchUser: (userId: string) => void;
+  maintenanceStatus: MaintenanceStatus;
+  toggleMaintenanceMode: (
+    enabled: boolean,
+    message: string
+  ) => Promise<{ success: boolean; status: MaintenanceStatus; notice: string }>;
+  refreshMaintenanceStatus: () => Promise<MaintenanceStatus>;
+  showMaintenanceModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Check if a user session already exists, or default to initial admin
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     const existing = authService.getCurrentUser();
     if (existing) return existing;
@@ -38,6 +56,104 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => dataService.getUsers());
+
+  const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus>(() =>
+    maintenanceService.getCached()
+  );
+  const [adminBypassedOverlay, setAdminBypassedOverlay] = useState<boolean>(false);
+  const [wasForcedLogout, setWasForcedLogout] = useState<boolean>(false);
+
+  const applyMaintenanceStatus = useCallback(
+    (next: MaintenanceStatus, isAuthNow: boolean, activeUser: UserProfile) => {
+      setMaintenanceStatus(next);
+      if (next.enabled) {
+        if (isAuthNow && !isAdminUserRole(activeUser?.role)) {
+          authService.logout();
+          setIsAuthenticated(false);
+          setWasForcedLogout(true);
+          setAdminBypassedOverlay(false);
+        }
+      } else {
+        setWasForcedLogout(false);
+        setAdminBypassedOverlay(false);
+      }
+    },
+    []
+  );
+
+  // Enforce immediately on mount / auth changes if Maintenance Mode is active for a non-admin session
+  useEffect(() => {
+    if (maintenanceStatus.enabled && isAuthenticated && !isAdminUserRole(currentUser?.role)) {
+      authService.logout();
+      setIsAuthenticated(false);
+      setWasForcedLogout(true);
+      setAdminBypassedOverlay(false);
+    }
+  }, [maintenanceStatus.enabled, isAuthenticated, currentUser?.role]);
+
+  const refreshMaintenanceStatus = useCallback(async (): Promise<MaintenanceStatus> => {
+    const latest = await maintenanceService.fetchStatus();
+    applyMaintenanceStatus(latest, isAuthenticated, currentUser);
+    return latest;
+  }, [applyMaintenanceStatus, isAuthenticated, currentUser]);
+
+  // Poll Maintenance Mode continuously + react to cross-tab & 503 forced logout events
+  useEffect(() => {
+    refreshMaintenanceStatus();
+
+    const timer = setInterval(() => {
+      refreshMaintenanceStatus();
+    }, 4000);
+
+    const onForcedLogout = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const nextStatus: MaintenanceStatus = {
+        ...maintenanceService.getCached(),
+        enabled: true,
+        message: detail?.message || DEFAULT_MAINTENANCE_MESSAGE,
+      };
+      if (isAuthenticated && !isAdminUserRole(currentUser?.role)) {
+        authService.logout();
+        setIsAuthenticated(false);
+      }
+      setMaintenanceStatus(nextStatus);
+      setWasForcedLogout(true);
+      setAdminBypassedOverlay(false);
+    };
+
+    const onMaintenanceChanged = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail as MaintenanceStatus | undefined;
+      const next = detail || maintenanceService.getCached();
+      applyMaintenanceStatus(next, isAuthenticated, currentUser);
+    };
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'bj_sqc_maintenance_mode') {
+        applyMaintenanceStatus(maintenanceService.getCached(), isAuthenticated, currentUser);
+      }
+    };
+
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshMaintenanceStatus();
+      }
+    };
+
+    window.addEventListener('bj_sqc_maintenance_forced_logout', onForcedLogout);
+    window.addEventListener('bj_sqc_maintenance_changed', onMaintenanceChanged);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('bj_sqc_maintenance_forced_logout', onForcedLogout);
+      window.removeEventListener('bj_sqc_maintenance_changed', onMaintenanceChanged);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+    };
+  }, [refreshMaintenanceStatus, applyMaintenanceStatus, isAuthenticated, currentUser]);
 
   // Listen to data service events for real-time user updates
   useEffect(() => {
@@ -60,20 +176,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAllUsers(users);
   };
 
-  const login = async (identifier: string, password: string): Promise<{ success: boolean; message?: string }> => {
+  const login = async (
+    identifier: string,
+    password: string
+  ): Promise<{ success: boolean; message?: string; maintenanceMode?: boolean }> => {
     const res = await authService.login(identifier, password);
     if (res.success && res.user) {
       setCurrentUser(res.user);
       setIsAuthenticated(true);
+      setWasForcedLogout(false);
+      setAdminBypassedOverlay(false);
       refreshUsers();
       return { success: true };
     }
-    return { success: false, message: res.message || 'Login failed.' };
+    if (res.maintenanceMode) {
+      setMaintenanceStatus({
+        ...maintenanceService.getCached(),
+        enabled: true,
+        message: res.message || DEFAULT_MAINTENANCE_MESSAGE,
+      });
+      setAdminBypassedOverlay(false);
+    }
+    return {
+      success: false,
+      maintenanceMode: res.maintenanceMode,
+      message: res.message || 'Login failed.',
+    };
   };
 
   const logout = () => {
     authService.logout();
     setIsAuthenticated(false);
+  };
+
+  const toggleMaintenanceMode = async (enabled: boolean, message: string) => {
+    const res = await maintenanceService.setMaintenanceMode(enabled, message, currentUser);
+    if (res.success) {
+      setMaintenanceStatus(res.status);
+      if (!enabled) {
+        setWasForcedLogout(false);
+        setAdminBypassedOverlay(false);
+      }
+    }
+    return res;
   };
 
   const canAccessForm = (formCode: string): boolean => {
@@ -143,6 +288,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchUser = (userId: string) => {
     const target = allUsers.find(u => u.id === userId);
     if (target) {
+      if (maintenanceStatus.enabled && !isAdminUserRole(target.role)) {
+        return;
+      }
       setCurrentUser(target);
       setIsAuthenticated(true);
       localStorage.setItem('sqc_auth_current_user', JSON.stringify(target));
@@ -174,6 +322,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isAdminSession = isAuthenticated && isAdminUserRole(currentUser?.role);
+  const maintenancePopupVisible =
+    maintenanceStatus.enabled && !isAdminSession && !adminBypassedOverlay;
+
   return (
     <AuthContext.Provider
       value={{
@@ -190,9 +342,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isRole,
         hasPermission,
         switchUser,
+        maintenanceStatus,
+        toggleMaintenanceMode,
+        refreshMaintenanceStatus,
+        showMaintenanceModal: () => setAdminBypassedOverlay(false),
       }}
     >
       {children}
+      <MaintenanceModal
+        isOpen={maintenancePopupVisible}
+        message={maintenanceStatus.message}
+        activatedBy={maintenanceStatus.activatedBy}
+        activatedAt={maintenanceStatus.activatedAt}
+        wasForcedLogout={wasForcedLogout}
+        onRefreshStatus={async () => {
+          await refreshMaintenanceStatus();
+        }}
+        onAdminBypassToLogin={() => setAdminBypassedOverlay(true)}
+      />
     </AuthContext.Provider>
   );
 };
