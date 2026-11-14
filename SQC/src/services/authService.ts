@@ -1,10 +1,11 @@
 // ==============================================================================
 // SQC - Authentication & Authorization Service
-// Enforces Per-Form Permissions, Password Hashing, and Session Management
+// Enforces Per-Form Permissions, Password Hashing, and PostgreSQL Session Auth
 // ==============================================================================
 
-import { UserProfile, UserRole } from '../types';
+import { UserProfile } from '../types';
 import { dataService } from './dataService';
+import { postgresService } from './postgresService';
 import { hashPassword, verifyPassword, DEFAULT_ADMIN_PASSWORD_HASH } from '../utils/crypto';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
 
@@ -12,6 +13,24 @@ const AUTH_STORAGE_KEYS = {
   CURRENT_USER: 'sqc_auth_current_user',
   AUTH_TOKEN: 'sqc_auth_token',
 };
+
+function isAdminRole(role?: string): boolean {
+  return role === 'SuperAdmin' || role === 'Super Admin' || role === 'Admin';
+}
+
+function expandFormAliases(code: string): string[] {
+  const c = (code || '').trim().toUpperCase();
+  const out = new Set<string>([c]);
+  if (c === 'FORM-09' || c === 'FORM-09 A' || c === 'FORM-09A') {
+    out.add('FORM-09');
+    out.add('FORM-09 A');
+  }
+  if (c === 'FORM-37' || c === 'FORM-09 B' || c === 'FORM-09B') {
+    out.add('FORM-37');
+    out.add('FORM-09 B');
+  }
+  return Array.from(out);
+}
 
 class AuthService {
   /**
@@ -23,10 +42,11 @@ class AuthService {
       const stored = localStorage.getItem(AUTH_STORAGE_KEYS.CURRENT_USER);
       if (!stored) return null;
       const parsed: UserProfile = JSON.parse(stored);
-      
-      // Always get latest version from dataService to reflect permission changes immediately
+
       const users = dataService.getUsers();
-      const fresh = users.find(u => u.id === parsed.id || u.email.toLowerCase() === parsed.email.toLowerCase());
+      const fresh = users.find(
+        u => u.id === parsed.id || (u.email && parsed.email && u.email.toLowerCase() === parsed.email.toLowerCase())
+      );
       if (fresh) {
         if (!fresh.isActive) {
           this.logout();
@@ -41,19 +61,62 @@ class AuthService {
   }
 
   /**
-   * Authenticate user with Username or Email + Password
+   * Authenticate user against PostgreSQL backend first, with local fallback when offline
    */
   public async login(identifier: string, password: string): Promise<{ success: boolean; user?: UserProfile; message?: string }> {
-    const cleanId = (identifier || '').trim().toLowerCase();
+    const cleanRaw = (identifier || '').trim();
+    const cleanId = cleanRaw.toLowerCase();
     if (!cleanId || !password) {
       return { success: false, message: 'Please enter both username/email and password.' };
     }
 
+    // 1. Attempt PostgreSQL backend authentication
+    const pgConfig = postgresService.getConfig();
+    if (pgConfig.apiUrl && !pgConfig.isDefaultPlaceholder) {
+      try {
+        const res = await fetch(`${pgConfig.apiUrl}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': pgConfig.apiKey,
+          },
+          body: JSON.stringify({ username: cleanRaw, password }),
+        });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const json = await res.json();
+          if (res.ok && json.success && json.user) {
+            const loggedInUser: UserProfile = {
+              ...json.user,
+              isActive: json.user.isActive !== false,
+              lastLoginAt: new Date().toISOString(),
+            };
+            dataService.saveUser(loggedInUser, undefined, true);
+            localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(loggedInUser));
+            if (json.token) {
+              localStorage.setItem(AUTH_STORAGE_KEYS.AUTH_TOKEN, json.token);
+            }
+            dataService.setCurrentUser(loggedInUser);
+            return { success: true, user: loggedInUser };
+          }
+          // If server explicitly rejected password/inactive user (401/403), return its exact message
+          if (res.status === 401 || res.status === 403) {
+            return { success: false, message: json.message || 'Invalid username or password.' };
+          }
+        }
+      } catch {
+        // Network unreachable — fall through to local offline verification
+      }
+    }
+
+    // 2. Offline / fallback local verification
     const users = dataService.getUsers();
-    const user = users.find(u => 
-      (u.username && u.username.toLowerCase() === cleanId) ||
-      (u.email && u.email.toLowerCase() === cleanId) ||
-      (u.employeeCode && u.employeeCode.toLowerCase() === cleanId)
+    const user = users.find(
+      u =>
+        (u.username && u.username.toLowerCase() === cleanId) ||
+        (u.email && u.email.toLowerCase() === cleanId) ||
+        (u.employeeCode && u.employeeCode.toLowerCase() === cleanId)
     );
 
     if (!user) {
@@ -64,41 +127,29 @@ class AuthService {
       return { success: false, message: 'This user account is currently deactivated. Please contact an SQC administrator.' };
     }
 
-    // Check password
     let isValid = false;
     if (user.passwordHash) {
       isValid = await verifyPassword(password, user.passwordHash);
-    } else {
-      // Fallback for default admin
-      if (user.role === 'Super Admin' || user.role === 'Admin') {
-        isValid = await verifyPassword(password, DEFAULT_ADMIN_PASSWORD_HASH) || password === 'Admin@123456';
-      }
+    } else if (isAdminRole(user.role)) {
+      isValid = (await verifyPassword(password, DEFAULT_ADMIN_PASSWORD_HASH)) || password === 'Admin@123456' || password === 'Admin@1234';
     }
 
     if (!isValid) {
       return { success: false, message: 'Invalid password. Please try again.' };
     }
 
-    // Update lastLoginAt
     const updatedUser: UserProfile = {
       ...user,
       lastLoginAt: new Date().toISOString(),
     };
-    dataService.saveUser(updatedUser);
+    dataService.saveUser(updatedUser, undefined, true);
 
-    // Save session
     localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
-    localStorage.setItem(AUTH_STORAGE_KEYS.AUTH_TOKEN, `sqc_token_${Date.now()}_${updatedUser.id}`);
+    localStorage.setItem(
+      AUTH_STORAGE_KEYS.AUTH_TOKEN,
+      btoa(JSON.stringify({ userId: updatedUser.id, username: updatedUser.username, role: updatedUser.role }))
+    );
     dataService.setCurrentUser(updatedUser);
-
-    dataService.logAudit({
-      userId: updatedUser.id,
-      userEmail: updatedUser.email,
-      userRole: updatedUser.role,
-      action: 'LOGIN',
-      module: 'Authentication',
-      details: `User ${updatedUser.displayName} logged in successfully.`,
-    });
 
     return { success: true, user: updatedUser };
   }
@@ -129,19 +180,13 @@ class AuthService {
    */
   public canAccessForm(user: UserProfile | null, formCode: string): boolean {
     if (!user || !user.isActive) return false;
-    
-    // Admins and Super Admins have universal access to all forms
-    const roleStr = user.role as string;
-    if (roleStr === 'SuperAdmin' || roleStr === 'Super Admin' || roleStr === 'Admin') {
-      return true;
-    }
+    if (isAdminRole(user.role as string)) return true;
 
-    // If permittedForms is explicitly defined, check membership
     if (Array.isArray(user.permittedForms)) {
-      if (user.permittedForms.length === 0 && (roleStr === 'SuperAdmin' || roleStr === 'Super Admin' || roleStr === 'Admin')) {
-        return true;
-      }
-      return user.permittedForms.includes(formCode);
+      if (user.permittedForms.includes('*')) return true;
+      const aliases = expandFormAliases(formCode);
+      const userSet = new Set(user.permittedForms.map(f => f.trim().toUpperCase()));
+      return aliases.some(a => userSet.has(a));
     }
 
     return false;
@@ -154,12 +199,13 @@ class AuthService {
     if (!user || !user.isActive) return [];
     const allFormCodes = Object.keys(FORM_REGISTRY);
 
-    if (user.role === 'Super Admin' || user.role === 'Admin') {
+    if (isAdminRole(user.role as string)) {
       return allFormCodes;
     }
 
     if (Array.isArray(user.permittedForms) && user.permittedForms.length > 0) {
-      return user.permittedForms.filter(code => allFormCodes.includes(code));
+      if (user.permittedForms.includes('*')) return allFormCodes;
+      return allFormCodes.filter(code => this.canAccessForm(user, code));
     }
 
     return [];
@@ -170,7 +216,7 @@ class AuthService {
    */
   public async initializeAdmin(password: string): Promise<UserProfile> {
     const users = dataService.getUsers();
-    let admin = users.find(u => u.role === 'Super Admin' || u.role === 'Admin');
+    let admin = users.find(u => isAdminRole(u.role as string));
 
     const passwordHash = await hashPassword(password);
 

@@ -200,7 +200,7 @@ export const UsersPage: React.FC = () => {
   const handleConfirmDelete = () => {
     if (!deleteCandidate) return;
     if (deleteCandidate.id === currentUser.id) {
-      alert('You cannot delete your own currently active account!');
+      setStatusNotice({ isError: true, message: 'You cannot delete your own currently active account!' });
       setDeleteCandidate(null);
       return;
     }
@@ -341,7 +341,7 @@ export const UsersPage: React.FC = () => {
                 </tr>
               ) : (
                 filteredUsers.map(user => {
-                  const isUserAdmin = user.role === 'Super Admin' || user.role === 'Admin';
+                  const isUserAdmin = user.role === 'Super Admin' || user.role === 'SuperAdmin' || user.role === 'Admin';
                   const formCount = isUserAdmin
                     ? allFormCodes.length
                     : (user.permittedForms?.length || 0);
@@ -370,7 +370,7 @@ export const UsersPage: React.FC = () => {
                       <td className="py-3 px-4">
                         <span
                           className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
-                            user.role === 'Super Admin'
+                            user.role === 'Super Admin' || user.role === 'SuperAdmin'
                               ? 'bg-purple-100 text-purple-900 border border-purple-300'
                               : user.role === 'Admin'
                               ? 'bg-blue-100 text-blue-900 border border-blue-300'
@@ -622,7 +622,7 @@ export const UsersPage: React.FC = () => {
                       <span>Individual Form Permissions ({formData.permittedForms?.length || 0} / {allFormCodes.length} Selected)</span>
                     </h4>
                     <p className="text-[10px] text-[#806B6C]">
-                      {formData.role === 'Super Admin' || formData.role === 'Admin'
+                      {formData.role === 'Super Admin' || formData.role === 'SuperAdmin' || formData.role === 'Admin'
                         ? 'Administrators have universal access to all forms by role.'
                         : 'Select which floor inspection forms this user is allowed to access and submit.'}
                     </p>
@@ -756,7 +756,7 @@ export const UsersPage: React.FC = () => {
               </button>
             </div>
 
-            {viewPermsCandidate.role === 'Super Admin' || viewPermsCandidate.role === 'Admin' ? (
+            {viewPermsCandidate.role === 'Super Admin' || viewPermsCandidate.role === 'SuperAdmin' || viewPermsCandidate.role === 'Admin' ? (
               <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
                 ✅ As an Administrator, this user has full, unrestricted access to all 37 floor inspection forms.
               </div>

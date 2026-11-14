@@ -23,11 +23,29 @@ const STORAGE_KEYS = {
   LAST_STATUS: 'bj_sqc_pg_last_status',
 };
 
-// Default fallback configuration
-export const DEFAULT_API_URL =
-  (import.meta as any).env?.VITE_API_URL || 'https://curtis-references-approximately-authorization.trycloudflare.com';
+// Default configuration: use VITE_API_URL if set, else same-origin when served by Express (e.g. http://192.168.1.6:3001)
+function getDefaultApiUrl(): string {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  if (envUrl && !String(envUrl).includes('trycloudflare.com')) {
+    return String(envUrl).trim().replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return 'http://127.0.0.1:3001';
+}
+
+export const DEFAULT_API_URL = getDefaultApiUrl();
 export const DEFAULT_API_KEY =
   (import.meta as any).env?.VITE_API_KEY || 'change-this-to-a-long-secret-key-123456';
+
+function isPlaceholderOrDeadUrl(url: string | null | undefined): boolean {
+  if (!url) return true;
+  return (
+    url.includes('blue-example.trycloudflare.com') ||
+    url.includes('curtis-references-approximately-authorization.trycloudflare.com')
+  );
+}
 
 export interface PostgresConnectionStatus {
   isConnected: boolean;
@@ -44,6 +62,7 @@ export interface PostgresSyncResult {
   success: boolean;
   message: string;
   error?: string;
+  formTable?: string;
   data?: any;
 }
 
@@ -103,7 +122,15 @@ class PostgresService {
   };
 
   constructor() {
-    this.apiUrl = localStorage.getItem(STORAGE_KEYS.API_URL) || DEFAULT_API_URL;
+    const storedUrl = localStorage.getItem(STORAGE_KEYS.API_URL);
+    if (storedUrl && !isPlaceholderOrDeadUrl(storedUrl)) {
+      this.apiUrl = storedUrl.trim().replace(/\/+$/, '');
+    } else {
+      this.apiUrl = getDefaultApiUrl();
+      if (storedUrl && isPlaceholderOrDeadUrl(storedUrl)) {
+        localStorage.removeItem(STORAGE_KEYS.API_URL);
+      }
+    }
     this.apiKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || DEFAULT_API_KEY;
     const storedSync = localStorage.getItem(STORAGE_KEYS.SYNC_ENABLED);
     this.syncEnabled = storedSync !== null ? storedSync === 'true' : true;
@@ -419,7 +446,7 @@ class PostgresService {
     standards: StandardDefinition[];
     inspections: InspectionRecord[];
   } | null> {
-    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       return null;
     }
 
@@ -433,6 +460,18 @@ class PostgresService {
         const json = await res.json();
         if (json.success && json.data) {
           return json.data;
+        }
+        if (json.success && (json.users || json.inspections)) {
+          return {
+            users: json.users || [],
+            departments: json.departments || [],
+            sections: json.sections || [],
+            machines: json.machines || [],
+            looms: json.looms || [],
+            qualities: json.qualities || [],
+            standards: json.standards || [],
+            inspections: json.inspections || [],
+          };
         }
       }
 
@@ -492,12 +531,12 @@ class PostgresService {
       apiUrl: this.apiUrl,
       apiKey: this.apiKey,
       syncEnabled: this.syncEnabled,
-      isDefaultPlaceholder: this.apiUrl.includes('blue-example.trycloudflare.com'),
+      isDefaultPlaceholder: isPlaceholderOrDeadUrl(this.apiUrl),
     };
   }
 
   public setConfig(url: string, key: string, syncEnabled: boolean) {
-    this.apiUrl = url.trim().replace(/\/+$/, '');
+    this.apiUrl = (url || getDefaultApiUrl()).trim().replace(/\/+$/, '');
     this.apiKey = key.trim();
     this.syncEnabled = syncEnabled;
 
@@ -507,15 +546,24 @@ class PostgresService {
   }
 
   public isSyncEnabled(): boolean {
-    return this.syncEnabled && !!this.apiUrl && !this.apiUrl.includes('blue-example.trycloudflare.com');
+    return this.syncEnabled && !!this.apiUrl && !isPlaceholderOrDeadUrl(this.apiUrl);
   }
 
-  private getHeaders() {
-    return {
+  private getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
       'x-api-key': this.apiKey,
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
     };
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('sqc_auth_token') : null;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch {
+      // ignore
+    }
+    return headers;
   }
 
   // ==========================================
@@ -524,10 +572,10 @@ class PostgresService {
   public async testConnection(): Promise<PostgresConnectionStatus> {
     const checkedAt = new Date().toLocaleTimeString();
 
-    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       const res: PostgresConnectionStatus = {
         isConnected: false,
-        message: 'No live Cloudflare Tunnel URL configured. Go to Settings or click Postgres Status to configure.',
+        message: 'No live PostgreSQL backend URL configured. Check Settings -> Backend URL.',
         checkedAt,
       };
       this.notifyStatus(res);
@@ -535,29 +583,23 @@ class PostgresService {
     }
 
     try {
-      const rootRes = await fetch(`${this.apiUrl}/`, {
+      const healthRes = await fetch(`${this.apiUrl}/api/health`, {
         method: 'GET',
-        headers: { 'ngrok-skip-browser-warning': 'true' },
+        headers: this.getHeaders(),
       });
 
-      if (!rootRes.ok) {
-        let errorMsg = `HTTP ${rootRes.status}`;
+      if (!healthRes.ok) {
+        let errorMsg = `HTTP ${healthRes.status}`;
         try {
-          const errorJson = await rootRes.json();
+          const errorJson = await healthRes.json();
           if (errorJson.error) {
-            if (errorJson.error.includes('password authentication failed')) {
-              errorMsg = `PostgreSQL Password Mismatch: The password in your .env file does not match your local PostgreSQL password. Open C:\\my-local-api\\.env, update PGPASSWORD with your actual PostgreSQL password, and restart node server.js.`;
-            } else if (errorJson.error.toLowerCase().includes('does not exist') && errorJson.error.includes('SQC')) {
-              errorMsg = `Database "SQC" does not exist yet in PostgreSQL. Create it in pgAdmin or DBeaver using: CREATE DATABASE "SQC";`;
-            } else {
-              errorMsg = errorJson.error;
-            }
+            errorMsg = errorJson.error;
           } else if (errorJson.message) {
             errorMsg = errorJson.message;
           }
         } catch {
           try {
-            errorMsg = await rootRes.text();
+            errorMsg = await healthRes.text();
           } catch {
             // ignore
           }
@@ -571,19 +613,22 @@ class PostgresService {
         return res;
       }
 
-      const rootData = await rootRes.json();
-      const dbName = rootData.database || 'SQC';
-      const dbUser = rootData.user || 'postgres';
-      const inspectionsCount = rootData.stats?.inspections_count ? Number(rootData.stats.inspections_count) : undefined;
-      const usersCount = rootData.stats?.users_count ? Number(rootData.stats.users_count) : undefined;
+      const healthData = await healthRes.json();
+      const dbName = healthData.database || 'SQC';
+      const dbUser = healthData.user || 'postgres';
+      const inspectionsCount = healthData.stats?.inspections_count !== undefined ? Number(healthData.stats.inspections_count) : undefined;
+      const usersCount = healthData.stats?.users_count !== undefined ? Number(healthData.stats.users_count) : undefined;
 
+      const isOk = healthData.databaseConnected !== false;
       const res: PostgresConnectionStatus = {
-        isConnected: true,
-        message: `Connected to PostgreSQL database "${dbName}" (User: ${dbUser})!`,
+        isConnected: isOk,
+        message: isOk
+          ? `Connected to PostgreSQL database "${dbName}" (User: ${dbUser})!`
+          : healthData.error || 'PostgreSQL database is not connected.',
         checkedAt,
         database: dbName,
         user: dbUser,
-        postgresVersion: rootData.postgresVersion,
+        postgresVersion: healthData.postgresVersion,
         inspectionsCount,
         usersCount,
       };
@@ -592,7 +637,7 @@ class PostgresService {
     } catch (err: any) {
       const res: PostgresConnectionStatus = {
         isConnected: false,
-        message: err.message || 'Tunnel unreachable. Ensure node server.js and cloudflared tunnel are running.',
+        message: err.message || 'Backend unreachable. Ensure server is running.',
         checkedAt,
       };
       this.notifyStatus(res);
@@ -601,9 +646,7 @@ class PostgresService {
   }
 
   private cleanErrorMessage(status: number, rawText: string, endpoint: string): string {
-    if (!rawText) return `Local server returned HTTP ${status}`;
-    
-    // Check if the running server.js is an older version missing the route
+    if (!rawText) return `Backend server returned HTTP ${status}`;
     if (
       rawText.includes('Cannot POST') ||
       rawText.includes('Cannot GET') ||
@@ -611,41 +654,51 @@ class PostgresService {
       rawText.includes('Cannot PUT') ||
       status === 404
     ) {
-      return `Your local server.js (on your computer) is running an older version missing the '${endpoint}' route. Please download/copy the updated server.js from the PostgreSQL Sync Hub, replace C:\\my-local-api\\server.js, and restart 'node server.js' (Ctrl+C then node server.js).`;
+      return `Backend route '${endpoint}' returned HTTP 404. Restart the updated backend server (pm2 restart bjcl-sqc).`;
     }
-
-    // Strip HTML markup if any (e.g. Express error page)
+    try {
+      const parsed = JSON.parse(rawText);
+      if (parsed?.message) return parsed.message;
+    } catch {
+      // not JSON
+    }
     if (rawText.includes('<!DOCTYPE html>') || rawText.includes('<html')) {
       const stripped = rawText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
       return stripped.slice(0, 180);
     }
-
     return rawText;
   }
 
   // ==========================================
   // 2. USER SYNCHRONIZATION
   // ==========================================
-  public async syncUserToPostgres(user: UserProfile): Promise<PostgresSyncResult> {
+  public async syncUserToPostgres(user: UserProfile, plainPassword?: string): Promise<PostgresSyncResult> {
     if (!this.isSyncEnabled()) {
-      return { success: false, message: 'PostgreSQL sync disabled or tunnel URL not set.' };
+      return { success: false, message: 'PostgreSQL sync disabled or backend URL not set.' };
     }
 
     const url = `${this.apiUrl}/api/users`;
     try {
+      const payload: Record<string, any> = {
+        id: user.id,
+        username: user.username || (user.email ? user.email.split('@')[0] : user.id),
+        employeeCode: user.employeeCode || '',
+        displayName: user.displayName,
+        email: user.email,
+        role: user.role,
+        departmentId: user.departmentId || '',
+        departmentName: user.departmentName || '',
+        phone: user.phone || '',
+        isActive: user.isActive,
+        permittedForms: Array.isArray(user.permittedForms) ? user.permittedForms : [],
+      };
+      if (user.passwordHash) payload.passwordHash = user.passwordHash;
+      if (plainPassword && plainPassword.trim()) payload.password = plainPassword.trim();
+
       const response = await fetch(url, {
         method: 'POST',
         headers: this.getHeaders(),
-        body: JSON.stringify({
-          id: user.id,
-          employeeCode: user.employeeCode,
-          displayName: user.displayName,
-          email: user.email,
-          role: user.role,
-          departmentId: user.departmentId || '',
-          departmentName: user.departmentName || '',
-          isActive: user.isActive,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -655,8 +708,7 @@ class PostgresService {
       }
 
       const res = await response.json();
-      console.log(`👤 [PostgresService] User ${user.displayName} synced to PostgreSQL`);
-      return { success: true, message: `User saved to local PostgreSQL`, data: res };
+      return { success: true, message: 'User saved to PostgreSQL', data: res };
     } catch (err: any) {
       console.error('[PostgresService] Failed to sync user to PostgreSQL:', err);
       return { success: false, message: err.message || 'Network error syncing user' };
@@ -902,10 +954,10 @@ class PostgresService {
       return { success: false, message: 'PostgreSQL auto-sync is disabled in Settings.' };
     }
 
-    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       return {
         success: false,
-        message: 'Cloudflare Tunnel URL not configured yet. Go to Settings and enter your actual trycloudflare.com URL.',
+        message: 'Backend PostgreSQL URL not configured. Open System Settings to check connection.',
         error: 'Placeholder URL detected',
       };
     }
@@ -916,22 +968,43 @@ class PostgresService {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
-          inspection_no: inspection.inspectionNo,
-          form_id: inspection.formId,
-          form_code: inspection.formCode,
-          form_title: inspection.formTitle,
-          department_id: inspection.departmentId || 'dept-general',
-          shift_id: inspection.shiftId || 'A',
-          shift_name: inspection.shiftName || 'General',
-          inspector_id: inspection.inspectorId || 'u1',
-          inspector_name: inspection.inspectorName || 'SQC Inspector',
-          inspection_date: inspection.inspectionDate || new Date().toISOString().split('T')[0],
+          id: inspection.id,
+          inspectionNo: inspection.inspectionNo,
+          formId: inspection.formId || inspection.formCode,
+          formCode: inspection.formCode,
+          formTitle: inspection.formTitle,
+          departmentId: inspection.departmentId || '',
+          departmentName: inspection.departmentName || '',
+          sectionId: inspection.sectionId || '',
+          shiftId: inspection.shiftId || 'Shift-A',
+          shiftName: inspection.shiftName || 'Shift A',
+          qualityId: inspection.qualityId || '',
+          qualityName: inspection.qualityName || '',
+          productSpecId: inspection.productSpecId || '',
+          productSpecName: inspection.productSpecName || '',
+          machineId: inspection.machineId || '',
+          machineNo: inspection.machineNo || '',
+          loomId: inspection.loomId || '',
+          loomNo: inspection.loomNo || '',
+          godownId: inspection.godownId || '',
+          godownName: inspection.godownName || '',
+          inspectorId: inspection.inspectorId || '',
+          inspectorName: inspection.inspectorName || 'SQC Inspector',
+          inspectionDate: inspection.inspectionDate || new Date().toISOString().split('T')[0],
+          inspectionTime: inspection.inspectionTime || '',
           status: inspection.status || 'Draft',
           result: inspection.result || 'PASS',
-          form_data: inspection.formData || {},
-          reading_rows: inspection.readingRows || [],
-          summary_metrics: inspection.summaryMetrics || {},
+          formData: inspection.formData || {},
+          readingRows: inspection.readingRows || [],
+          summaryMetrics: inspection.summaryMetrics || {},
           remarks: inspection.remarks || '',
+          correctionRemarks: inspection.correctionRemarks || '',
+          approvalRemarks: inspection.approvalRemarks || '',
+          approvedBy: inspection.approvedBy || null,
+          approvedAt: inspection.approvedAt || null,
+          version: inspection.version || 1,
+          createdBy: inspection.createdBy || inspection.inspectorName || '',
+          updatedBy: inspection.updatedBy || inspection.inspectorName || '',
         }),
       });
 
@@ -946,24 +1019,39 @@ class PostgresService {
       }
 
       const saved = await response.json();
-      console.log('✅ [PostgresService] Inspection saved to local PostgreSQL:', saved);
       return {
         success: true,
-        message: `Saved to local PostgreSQL (Inspection #${inspection.inspectionNo})`,
-        data: saved,
+        message: saved.message || `Saved to PostgreSQL (${inspection.inspectionNo})`,
+        formTable: saved.formTable,
+        data: saved.inspection || saved,
       };
     } catch (err: any) {
-      console.error('[PostgresService] Tunnel Error while saving to PostgreSQL:', err);
+      console.error('[PostgresService] Error while saving to PostgreSQL:', err);
       return {
         success: false,
-        message: `Cannot reach local server at ${this.apiUrl}. Ensure 'node server.js' and 'cloudflared tunnel' are running.`,
+        message: `Cannot reach backend server at ${this.apiUrl}. Ensure server is running.`,
         error: err.message,
       };
     }
   }
 
+  public async fetchInspectionById(idOrNo: string): Promise<InspectionRecord | null> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) return null;
+    try {
+      const response = await fetch(`${this.apiUrl}/api/inspections/${encodeURIComponent(idOrNo)}`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data && data.inspectionNo ? data : null;
+    } catch {
+      return null;
+    }
+  }
+
   public async loadInspections(): Promise<any[]> {
-    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       return [];
     }
 
@@ -983,7 +1071,7 @@ class PostgresService {
   }
 
   public async deleteInspectionFromPostgres(inspectionNo: string): Promise<boolean> {
-    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       return false;
     }
 
@@ -1000,8 +1088,8 @@ class PostgresService {
   }
 
   public async clearAllInspectionsFromPostgres(): Promise<{ success: boolean; message: string }> {
-    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
-      return { success: false, message: 'Tunnel URL not configured.' };
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend URL not configured.' };
     }
 
     const url = `${this.apiUrl}/api/inspections/truncate`;
@@ -1013,13 +1101,13 @@ class PostgresService {
 
       if (response.ok) {
         const res = await response.json();
-        return { success: true, message: res.message || 'All inspections cleared in local PostgreSQL.' };
+        return { success: true, message: res.message || 'All inspections cleared in PostgreSQL.' };
       } else {
         const errText = await response.text();
         return { success: false, message: `Failed to truncate: ${errText}` };
       }
     } catch (err: any) {
-      return { success: false, message: err.message || 'Network error connecting to local server.' };
+      return { success: false, message: err.message || 'Network error connecting to backend server.' };
     }
   }
 
@@ -1036,10 +1124,10 @@ class PostgresService {
     standards: StandardDefinition[];
     inspections: InspectionRecord[];
   }): Promise<PostgresSyncResult> {
-    if (!this.apiUrl || this.apiUrl.includes('blue-example.trycloudflare.com')) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       return {
         success: false,
-        message: 'Please configure your live Cloudflare Tunnel URL in Settings first.',
+        message: 'Please configure your backend server URL in Settings first.',
       };
     }
 
@@ -1052,27 +1140,20 @@ class PostgresService {
       });
 
       if (!response.ok) {
-        let errText = await response.text();
-        if (response.status === 404 || errText.includes('Cannot POST /api/sync-all')) {
-          return {
-            success: false,
-            message:
-              '⚠️ Local server.js needs to be updated: The running server.js file is an older version that does not have the /api/sync-all route. Please download or copy the updated server.js from the "Tunnel Config & Commands" tab, replace C:\\my-local-api\\server.js, and restart node server.js.',
-          };
-        }
-        return { success: false, message: `Bulk Sync Error: ${errText}` };
+        const errText = await response.text();
+        return { success: false, message: this.cleanErrorMessage(response.status, errText, '/api/sync-all') };
       }
 
       const res = await response.json();
       return {
         success: true,
-        message: res.message || 'Successfully synchronized all data to local PostgreSQL!',
+        message: res.message || 'Successfully synchronized all data to PostgreSQL!',
         data: res,
       };
     } catch (err: any) {
       return {
         success: false,
-        message: `Failed to reach local server: ${err.message}. Make sure server.js and cloudflared tunnel are running.`,
+        message: `Failed to reach backend server: ${err.message}.`,
       };
     }
   }

@@ -68,7 +68,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     }))
     .filter(group => group.forms.length > 0);
 
-  const isAdmin = isRole('Super Admin') || isRole('Admin');
+  const roleStr = currentUser?.role as string;
+  const isAdmin = roleStr === 'Super Admin' || roleStr === 'SuperAdmin' || roleStr === 'Admin';
 
   return (
     <div className="min-h-screen bg-[#FFF9F9] flex flex-col font-sans text-[#393334]">
@@ -298,7 +299,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                           const meta = FORM_REGISTRY[fCode];
                           if (!meta) return null;
 
-                          const isMatch = location.search.includes(fCode);
+                          const isMatch = new URLSearchParams(location.search).get('form') === fCode;
 
                           return (
                             <NavLink

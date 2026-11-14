@@ -458,27 +458,39 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     ],
     
     calculate: (formData, rows) => {
-      const temp = temperature || 0;
-      const hum = humidity || 0;
-      formData.temperature = temp;
-      formData.roomHumidity = hum;
-      const apps = rows.map(r => Number(r.applicationPct) || 0).filter(v => v > 0);
-      const oils = rows.map(r => Number(r.oilPct) || 0).filter(v => v > 0);
-      const avgApp = calcMean(apps);
-      const avgOil = calcMean(oils);
       const stdApp = Number(formData.standardEmulsionPct) || 24.0;
+      const apps: number[] = [];
+      const chemApps: number[] = [];
+      const prods: number[] = [];
 
       rows.forEach(r => {
-        if(r.machineDeliveryRpm >0) {
-           r.production = (0.172*Number(r.machineDeliveryRpm)).toFixed(3);
+        const rpm = Number(r.machineDeliveryRpm) || 0;
+        if (rpm > 0) {
+          r.production = Number((0.172 * rpm).toFixed(3));
         }
-        if(r.flowRateEmulsion > 0 && r.production > 0) {
-           r.calApplicationEml = ((Number(r.flowRateEmulsion)/Number(r.production))*100).toFixed(3);
+        const prod = Number(r.production) || 0;
+        if (prod > 0) prods.push(prod);
+
+        const flowEml = Number(r.flowRateEmulsion) || 0;
+        if (flowEml > 0 && prod > 0) {
+          r.calApplicationEml = Number(((flowEml / prod) * 100).toFixed(3));
         }
-        if(r.flowRateChemical > 0 && r.production > 0) {
-           r.calApplicationChem = ((Number(r.flowRateChemical)/Number(r.production))*100).toFixed(3);
+
+        const flowChem = Number(r.flowRateChemical) || 0;
+        if (flowChem > 0 && prod > 0) {
+          r.calApplicationChem = Number(((flowChem / prod) * 100).toFixed(3));
         }
-      }); 
+
+        const appVal = Number(r.calApplicationEml || r.applicationPct) || 0;
+        if (appVal > 0) apps.push(appVal);
+
+        const chemVal = Number(r.calApplicationChem) || 0;
+        if (chemVal > 0) chemApps.push(chemVal);
+      });
+
+      const avgApp = calcMean(apps);
+      const avgChem = calcMean(chemApps);
+      const avgProd = calcMean(prods);
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (apps.length === 0) result = 'WARNING';
@@ -487,9 +499,10 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          /* avgApplicationPct: Number(avgApp.toFixed(2)),
-          avgOilInEmulsionPct: Number(avgOil.toFixed(2)),
-          targetApplicationPct: stdApp, */
+          avgProductionKgMin: Number(avgProd.toFixed(3)),
+          avgApplicationEmulsionPct: Number(avgApp.toFixed(2)),
+          avgApplicationChemicalPct: Number(avgChem.toFixed(2)),
+          targetApplicationPct: stdApp,
         },
         result,
       };
@@ -901,29 +914,33 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       {key: 'convertedWt', label: 'Converted Weight in 14400 YDS', unit: 'LBS', type: 'number', precision: 2, required: true },
     ],
     calculate: (formData, rows) => {
-      
+      const testLen = Number(formData.standardTestLength) || 75;
+      const stdMR = Number(formData.standardMR) || 30.0;
+      const obsMR = Number(formData.observedMR) || 29.5;
+
       rows.forEach(r => {
-        if(r.observedWt >0) {
-           r.observedCountLbs = ((31.75/formData.standardTestLength)*r.observedWt).toFixed(3);
+        const obsWt = Number(r.observedWt) || 0;
+        if (obsWt > 0 && testLen > 0) {
+          r.observedCountLbs = Number(((31.75 / testLen) * obsWt).toFixed(3));
         }
-        if(r.observedCountLbs > 0 ) {
-           r.convertedWt = (Number(r.observedCountLbs)*(100+Number(formData.standardMR))/(100+Number(formData.observedMR))).toFixed(3);
+        const obsCount = Number(r.observedCountLbs) || 0;
+        if (obsCount > 0 && (100 + obsMR) > 0) {
+          r.convertedWt = Number(((obsCount * (100 + stdMR)) / (100 + obsMR)).toFixed(3));
         }
-        
-      }); 
+      });
+
       const nominal = Number(formData.nominalCountLbs) || 8.0;
       const counts = rows.map(r => Number(r.observedCountLbs) || 0).filter(v => v > 0);
       const avg = calcMean(counts);
       const cv = calcCV(counts);
       const pctDev = nominal > 0 ? ((avg - nominal) / nominal) * 100 : 0;
 
-      const allf10converted = rows .map(r => Number(r.convertedWt)) .filter(v => Number.isFinite(v) && v > 0);
+      const allf10converted = rows.map(r => Number(r.convertedWt)).filter(v => Number.isFinite(v) && v > 0);
       const avgf10Converted = calcMean(allf10converted);
-      
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (counts.length === 0) result = 'WARNING';
-      else if (Math.abs(pctDev) > 5.0) result = 'FAIL'; // Source rule: ±5%
+      else if (Math.abs(pctDev) > 5.0) result = 'FAIL';
       else if (Math.abs(pctDev) > 3.0 || cv > 7.0) result = 'WARNING';
 
       return {
@@ -931,7 +948,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           sampleCount: counts.length,
           nominalCount: nominal,
           observedCount: Number(avg.toFixed(2)),
-          avgConvertedWt: Number(avgf10Converted.toFixed(2))
+          avgConvertedWt: Number(avgf10Converted.toFixed(2)),
         },
         result,
       };
@@ -1095,26 +1112,27 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const width = Number(formData.fabricWidthInch) || 40;
       const epi = Number(formData.endsPerInch) || 11;
       const selvedge = Number(formData.selvedgeEnds) || 24;
-      const stdEnds = Math.round(width * epi + selvedge);
+      const stdEnds = Number(formData.totalNoEnds) || Math.round(width * epi + selvedge);
       const actualEnds = Number(formData.actualObservedEnds) || stdEnds;
-      const totalMissing = rows.reduce((s, r) => s + (Number(r.missingEnds) || 0), 0);
-      const diff = actualEnds - stdEnds;
 
       rows.forEach(r => {
-        r.standard = formData.totalNoEnds || 0;
-        r.diffends = (Number(r.standard) || 0) - (Number(r.observed) || 0);
+        const rowStd = Number(formData.totalNoEnds) || Number(r.standard) || stdEnds;
+        r.standard = rowStd;
+        const obs = Number(r.observed) || 0;
+        r.diffends = obs > 0 ? rowStd - obs : 0;
       });
 
+      const diff = actualEnds - stdEnds;
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-      if (Math.abs(diff) > 4 || totalMissing > 4) result = 'FAIL';
-      else if (Math.abs(diff) > 0 || totalMissing > 0) result = 'WARNING';
+      if (!formData.actualObservedEnds && rows.every(r => !Number(r.observed))) result = 'WARNING';
+      else if (Math.abs(diff) > 4) result = 'FAIL';
+      else if (Math.abs(diff) > 0) result = 'WARNING';
 
       return {
         metrics: {
-          /* standardCalculatedEnds: stdEnds,
+          standardEnds: stdEnds,
           actualCountedEnds: actualEnds,
           differenceEnds: diff,
-          totalMissingEndsReported: totalMissing, */
         },
         result,
       };
@@ -1148,24 +1166,24 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'averageMR', label: 'Average %MR', type: 'number', precision: 1, required: true },
     ],
     calculate: (formData, rows) => {
-      const mrs = rows.map(r => Number(r.averageMR) || 0).filter(v => v > 0);
-      let avg = calcMean(mrs);
       const minStd = Number(formData.minMR) || 16.0;
       const maxStd = Number(formData.maxMR) || 18.0;
 
       rows.forEach(r => {
-        const mrs = [
+        const readings = [
           Number(r.leftSideMoisture) || 0,
           Number(r.middle1) || 0,
           Number(r.middle2) || 0,
           Number(r.rightSideMoisture) || 0,
         ].filter(v => v > 0);
 
-        r.averageMR = mrs.length
-          ? Number((mrs.reduce((sum, v) => sum + v, 0) / mrs.length).toFixed(1))
-          : 0;
-          avg = r.averageMR;
+        if (readings.length > 0) {
+          r.averageMR = Number((readings.reduce((sum, v) => sum + v, 0) / readings.length).toFixed(1));
+        }
       });
+
+      const mrs = rows.map(r => Number(r.averageMR) || 0).filter(v => v > 0);
+      const avg = calcMean(mrs);
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (mrs.length === 0) result = 'WARNING';
@@ -1484,26 +1502,26 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     ],
     calculate: (formData, rows) => {
       const bagLen = Number(formData.specifiedBagLengthCm) || 94.0;
-      const stdCut = bagLen * 2 + 10.0; // Source formula: (Bag Length × 2) + 10 cm
-      const standardCutLength = formData.standardCutLength || 0
+      const stdCut = bagLen * 2 + 10.0;
+      const standardCutLength = Number(formData.standardCutLength) || stdCut;
       const tol = Number(formData.toleranceCm) || 1.5;
       const lens = rows.map(r => Number(r.observedCutLengthCm) || 0).filter(v => v > 0);
       const avg = calcMean(lens);
-      /* const dev = avg - stdCut; */
+      const dev = avg - standardCutLength;
       const maxMRcl = lens.length > 0 ? Math.max(...lens) : 0;
       const minMRcl = lens.length > 0 ? Math.min(...lens) : 0;
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-      /* if (lens.length === 0) result = 'WARNING';
+      if (lens.length === 0) result = 'WARNING';
       else if (Math.abs(dev) > tol * 1.5) result = 'FAIL';
-      else if (Math.abs(dev) > tol) result = 'WARNING'; */
+      else if (Math.abs(dev) > tol) result = 'WARNING';
 
       return {
         metrics: {
           specifiedBagLengthCm: bagLen,
           standardCuttingLengthInch: Number(standardCutLength.toFixed(2)),
           averageObservedLengthInch: Number(avg.toFixed(1)),
-          observedCutLengthRange: minMRcl + ' - ' + maxMRcl
+          observedCutLengthRange: `${minMRcl} - ${maxMRcl}`,
         },
         result,
       };
@@ -1825,61 +1843,66 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     ],
 
     calculate: (formData, rows) => {
-      formData.standardRollWt = (formData.Gsm * formData.width * formData.rollLength) / 100000;
-      const standardRollWt = Number(formData.standardRollWt) || 0;
+      const gsm = Number(formData.Gsm) || 0;
+      const width = Number(formData.width) || 0;
+      const rollLength = Number(formData.rollLength) || 0;
+      const computedStdWt = (gsm * width * rollLength) / 100000;
+      const standardRollWt = Number(formData.standardRollWt) || computedStdWt;
       const standardMoisture = Number(formData.standardMoisture) || 0;
-      const rollLength = Number(formData.rollLength) || 0; 
-      let avgNetWtsummary = 0;
-      let avgConvertedNetWtsummary = 0;
-      let avgConvertedHYLTsummary = 0;
-      let totalProductionWtsummary = 0;
-      let lossGainWtsummary = 0;
+
+      const netWts: number[] = [];
+      const convNetWts: number[] = [];
+      const hylts: number[] = [];
+      let totalProd = 0;
+      let totalLossGain = 0;
 
       rows.forEach(r => {
         const grossWt = Number(r.grosswt) || 0;
         const tareWt = Number(r.tarewt) || 0;
         const avgObservedMoisture = Number(r.avgObservedMoisture) || 0;
 
-        // 1. Average Net Weight
-        const observedNetwt = grossWt - tareWt;
-
-        // 2. Moisture Converted Net Weight
-        const convertedNetWt = observedNetwt * ((100 + standardMoisture) / (100 + avgObservedMoisture));
-
-        // 2. Converted HY/LT Percentage
+        const observedNetwt = Math.max(0, grossWt - tareWt);
+        const denom = 100 + avgObservedMoisture;
+        const convertedNetWt = denom > 0 ? observedNetwt * ((100 + standardMoisture) / denom) : observedNetwt;
         const convertedHYLT =
-          ((convertedNetWt - standardRollWt) / standardRollWt) * 100;
-
-        // 3. Total Production Weight (MT)
+          standardRollWt > 0 ? ((convertedNetWt - standardRollWt) / standardRollWt) * 100 : 0;
         const totalProductionWt = convertedNetWt / 1000;
-
-        // 4. Loss / Gain Weight (MT)
         const lossGainWt = (convertedNetWt - standardRollWt) / 1000;
 
-        // Assign calculated values
-        r.observedNetwt = observedNetwt.toFixed(3);
-        r.avgConvertedNetWt = convertedNetWt.toFixed(3);
-        r.avgConvertedHYLT = convertedHYLT.toFixed(2);
-        r.totalProductionWt = totalProductionWt.toFixed(3);
-        r.lossGainWt = lossGainWt.toFixed(3);
+        r.observedNetwt = Number(observedNetwt.toFixed(3));
+        r.avgConvertedNetWt = Number(convertedNetWt.toFixed(3));
+        r.avgConvertedHYLT = Number(convertedHYLT.toFixed(2));
+        r.totalProductionWt = Number(totalProductionWt.toFixed(3));
+        r.lossGainWt = Number(lossGainWt.toFixed(3));
 
-        // Summary values
-        avgNetWtsummary = observedNetwt;
-        avgConvertedNetWtsummary = convertedNetWt;
-        avgConvertedHYLTsummary = convertedHYLT;
-        totalProductionWtsummary = totalProductionWt;
-        lossGainWtsummary = lossGainWt;
+        if (grossWt > 0) {
+          netWts.push(observedNetwt);
+          convNetWts.push(convertedNetWt);
+          hylts.push(convertedHYLT);
+          totalProd += totalProductionWt;
+          totalLossGain += lossGainWt;
+        }
       });
+
+      const avgNet = calcMean(netWts);
+      const avgConv = calcMean(convNetWts);
+      const avgHylt = calcMean(hylts);
+
+      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
+      if (netWts.length === 0) result = 'WARNING';
+      else if (Math.abs(avgHylt) > 2.5) result = 'FAIL';
+      else if (Math.abs(avgHylt) > 1.5) result = 'WARNING';
 
       return {
         metrics: {
-          avgNetWt: Number(avgNetWtsummary.toFixed(2)),
-          avgConvertedNetWt: Number(avgConvertedNetWtsummary.toFixed(2)),
-          avgConvertedHYLT: Number(avgConvertedHYLTsummary.toFixed(2)),
-          totalProductionWt: Number(totalProductionWtsummary.toFixed(2)),
-          lossGainWt: Number(lossGainWtsummary.toFixed(2)),
+          standardRollWtKg: Number(standardRollWt.toFixed(2)),
+          avgNetWt: Number(avgNet.toFixed(2)),
+          avgConvertedNetWt: Number(avgConv.toFixed(2)),
+          avgConvertedHYLT: Number(avgHylt.toFixed(2)),
+          totalProductionWt: Number(totalProd.toFixed(3)),
+          lossGainWt: Number(totalLossGain.toFixed(3)),
         },
-        result: 'PASS',
+        result,
       };
     }
   },
@@ -1993,9 +2016,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Oil Content: Hessian & Sacking: 2.5% to 3.5%; Food Grade: Max 1.25% (Requires SQC/HOD Validation).',
     fields: [
       { key: 'productCategory', label: 'Sample Tested', type: 'select', options: ['Raw Jute', 'Spd Sliver', 'B/C Sliver', 'F/C Sliver', 'Drg Sliver', 'Spg Yarn', 'WDG Yarn', 'Fabric', 'SEWING Yarn'], defaultValue: 'Raw Jute' },
-      { key: 'productCategory', label: 'Sample Tested', type: 'select', options: ['Oil Conten', 'PPM content'], defaultValue: 'Raw Jute' },
-      /*  { key: 'minOilPct', label: 'Min Oil %', type: 'number', defaultValue: 2.5, unit: '%' },
-      { key: 'maxOilPct', label: 'Max Oil %', type: 'number', defaultValue: 3.5, unit: '%' }, */
+      { key: 'testParameter', label: 'Test Parameter', type: 'select', options: ['Oil Content %', 'PPM Content'], defaultValue: 'Oil Content %' },
     ],
     columns: [
       { key: 'maxRequirment', label: 'Max Requirement', type: 'text', width: '120px' },
@@ -2004,8 +2025,19 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     ],
     calculate: (formData, rows) => {
       const oilPcts: number[] = [];
+      let failCount = 0;
+
       rows.forEach(r => {
-        if (r.calculatedOilPct) {
+        if (r.observedValue !== undefined && r.observedValue !== '') {
+          const obs = Number(r.observedValue);
+          if (Number.isFinite(obs) && obs > 0) {
+            oilPcts.push(obs);
+            const maxReq = Number(r.maxRequirment);
+            if (Number.isFinite(maxReq) && maxReq > 0 && obs > maxReq) {
+              failCount++;
+            }
+          }
+        } else if (r.calculatedOilPct) {
           oilPcts.push(Number(r.calculatedOilPct));
         } else {
           const tare = Number(r.dishTareWeightGms) || 0;
@@ -2018,20 +2050,18 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       });
 
       const avg = calcMean(oilPcts);
-      const minStd = Number(formData.minOilPct) || 2.5;
+      const minStd = Number(formData.minOilPct) || 0;
       const maxStd = Number(formData.maxOilPct) || 3.5;
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (oilPcts.length === 0) result = 'WARNING';
-      else if (avg < minStd - 0.5 || avg > maxStd + 0.5) result = 'FAIL';
+      else if (failCount > 0 || avg > maxStd + 0.5) result = 'FAIL';
       else if (avg < minStd || avg > maxStd) result = 'WARNING';
 
       return {
         metrics: {
-          /* samplesTested: oilPcts.length,
-          avgOilContentPct: Number(avg.toFixed(2)),
-          standardMinPct: minStd,
-          standardMaxPct: maxStd, */
+          samplesTested: oilPcts.length,
+          avgObservedValue: Number(avg.toFixed(3)),
         },
         result,
       };
@@ -2439,3 +2469,18 @@ export const DEPARTMENT_LIST = [
   { id: 'DEP-SPD', code: 'SPD', name: 'Machine Speed Checking', hod: 'R. N. Mondal' },
   { id: 'DEP-PRD', code: 'PRD', name: 'Productivity Study', hod: 'V. K. Sharma' },
 ];
+
+export function normalizeFormKey(code?: string): string {
+  const c = (code || 'FORM-01').trim().toUpperCase();
+  if (FORM_REGISTRY[c]) return c;
+  if (c === 'FORM-09 A' || c === 'FORM-09A') return 'FORM-09';
+  if (c === 'FORM-09 B' || c === 'FORM-09B') return 'FORM-37';
+  const foundEntry = Object.entries(FORM_REGISTRY).find(([, meta]) => meta.code.toUpperCase() === c);
+  return foundEntry ? foundEntry[0] : 'FORM-01';
+}
+
+export function resolveFormByCode(code?: string): FormMetadata {
+  const key = normalizeFormKey(code);
+  return FORM_REGISTRY[key] || FORM_REGISTRY['FORM-01'];
+}
+

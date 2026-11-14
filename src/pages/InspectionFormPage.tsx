@@ -1,77 +1,69 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Save,
   Send,
   CheckCircle2,
   XCircle,
   RotateCcw,
-  Printer,
-  FileText,
   Plus,
   Trash2,
   ArrowLeft,
   AlertTriangle,
   Info,
-  Layers,
   Sparkles,
   Lock,
+  Loader2,
+  Database,
 } from 'lucide-react';
-import { FORM_REGISTRY, FormMetadata } from '../constants/formsRegistry';
+import {
+  FORM_REGISTRY,
+  FormMetadata,
+  normalizeFormKey,
+  resolveFormByCode,
+} from '../constants/formsRegistry';
 import { dataService } from '../services/dataService';
 import { postgresService } from '../services/postgresService';
 import { useAuth } from '../context/AuthContext';
 import { InspectionRecord, InspectionStatus, InspectionResult } from '../types';
 import { StatusBadge, ResultBadge } from '../components/common/Badges';
 
+interface SaveFeedbackState {
+  type: 'success' | 'warning' | 'error';
+  title: string;
+  message: string;
+}
+
 export const InspectionFormPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser, hasPermission, canAccessForm } = useAuth();
 
   const [existingRecord, setExistingRecord] = useState<InspectionRecord | null>(null);
-  const [selectedFormCode, setSelectedFormCode] = useState<string>('FORM-01');
-
-  // Load existing or new
-  useEffect(() => {
-    if (id) {
-      const rec = dataService.getInspectionById(id);
-      if (rec) {
-        setExistingRecord(rec);
-        setSelectedFormCode(rec.formCode);
-        setFormData(rec.formData || {});
-        setReadingRows(rec.readingRows || []);
-        setRemarks(rec.remarks || '');
-        setGeneralInfo({
-          inspectionNo: rec.inspectionNo,
-          inspectionDate: rec.inspectionDate,
-          inspectionTime: rec.inspectionTime,
-          shiftId: rec.shiftId,
-          shiftName: rec.shiftName,
-          qualityId: rec.qualityId,
-          qualityName: rec.qualityName,
-          departmentId: rec.departmentId,
-          departmentName: rec.departmentName,
-          machineNo: rec.machineNo || '',
-          loomNo: rec.loomNo || '',
-        });
-      }
-    } else {
-      const qCode = searchParams.get('form') || 'FORM-01';
-      if (FORM_REGISTRY[qCode]) {
-        setSelectedFormCode(qCode);
-      }
-    }
-  }, [id, searchParams]);
-
-  const formMeta: FormMetadata = FORM_REGISTRY[selectedFormCode] || FORM_REGISTRY['FORM-01'];
+  const [selectedFormCode, setSelectedFormCode] = useState<string>(() =>
+    normalizeFormKey(searchParams.get('form') || 'FORM-01')
+  );
+  const [isLoadingRecord, setIsLoadingRecord] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveFeedback, setSaveFeedback] = useState<SaveFeedbackState | null>(null);
+  const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState<boolean>(false);
 
   // Master options
-  const departments = dataService.getDepartments();
   const qualities = dataService.getQualities();
-  const machines = dataService.getMachines();
-  const looms = dataService.getLooms();
+
+  // Dynamic form fields & rows
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [readingRows, setReadingRows] = useState<Record<string, any>[]>([]);
+  const [remarks, setRemarks] = useState('');
+  const [approvalActionModal, setApprovalActionModal] = useState<'approve' | 'reject' | 'return' | null>(null);
+  const [workflowRemarks, setWorkflowRemarks] = useState('');
+
+  const formMeta: FormMetadata = useMemo(
+    () => resolveFormByCode(selectedFormCode),
+    [selectedFormCode]
+  );
 
   // General form metadata
   const [generalInfo, setGeneralInfo] = useState({
@@ -88,50 +80,129 @@ export const InspectionFormPage: React.FC = () => {
     loomNo: '',
   });
 
-  // Dynamic form fields
-  const [formData, setFormData] = useState<Record<string, any>>({});
-  const [readingRows, setReadingRows] = useState<Record<string, any>[]>([]);
-  const [remarks, setRemarks] = useState('');
-  const [approvalActionModal, setApprovalActionModal] = useState<'approve' | 'reject' | 'return' | null>(null);
-  const [workflowRemarks, setWorkflowRemarks] = useState('');
-
-  // Initialize fields and rows for new record
+  // Read any feedback passed through navigation state after creating a record
   useEffect(() => {
-    if (!id) {
-      // Default form fields
-      const initFields: Record<string, any> = {};
-      formMeta.fields.forEach(f => {
-        if (f.defaultValue !== undefined) initFields[f.key] = f.defaultValue;
-      });
-      setFormData(initFields);
-
-      // Default rows
-      const initRows: Record<string, any>[] = [];
-      for (let i = 1; i <= formMeta.defaultRowCount; i++) {
-        /* const row: Record<string, any> = { sampleNo: i, rollNo: i, pieceNo: i, bagNo: i, bagSampleNo: i }; */
-        const row: Record<string, any> = { sampleNo: i };
-        formMeta.columns.forEach(c => {
-          if (c.type === 'number') row[c.key] = '';
-          else if (c.type === 'select' && c.options) row[c.key] = c.options[0];
-          else row[c.key] = '';
-        });
-        initRows.push(row);
-      }
-      setReadingRows(initRows);
-
-      setGeneralInfo(prev => ({
-        ...prev,
-        inspectionNo: dataService.generateInspectionNumber(formMeta.code),
-        departmentId: formMeta.departmentCode,
-        departmentName: formMeta.department,
-      }));
+    const navState = location.state as { saveFeedback?: SaveFeedbackState } | null;
+    if (navState?.saveFeedback) {
+      setSaveFeedback(navState.saveFeedback);
     }
+  }, [location.state]);
+
+  // Load existing record (localStorage or PostgreSQL) or prepare new form from ?form=
+  useEffect(() => {
+    let isCancelled = false;
+
+    const populateFromRecord = (rec: InspectionRecord) => {
+      const normalizedKey = normalizeFormKey(rec.formCode || rec.formId);
+      setExistingRecord(rec);
+      setSelectedFormCode(normalizedKey);
+      setFormData(rec.formData || {});
+      setReadingRows(Array.isArray(rec.readingRows) ? rec.readingRows : []);
+      setRemarks(rec.remarks || '');
+      setGeneralInfo({
+        inspectionNo: rec.inspectionNo,
+        inspectionDate: rec.inspectionDate || new Date().toISOString().split('T')[0],
+        inspectionTime: rec.inspectionTime || '',
+        shiftId: rec.shiftId || 'Shift-A',
+        shiftName: rec.shiftName || 'Shift A (06:00 - 14:00)',
+        qualityId: rec.qualityId || qualities[0]?.id || 'q-1',
+        qualityName: rec.qualityName || qualities[0]?.name || 'Standard Quality',
+        departmentId: rec.departmentId || resolveFormByCode(normalizedKey).departmentCode,
+        departmentName: rec.departmentName || resolveFormByCode(normalizedKey).department,
+        machineNo: rec.machineNo || '',
+        loomNo: rec.loomNo || '',
+      });
+    };
+
+    if (id) {
+      const localRec = dataService.getInspectionById(id);
+      if (localRec) {
+        populateFromRecord(localRec);
+      } else {
+        setIsLoadingRecord(true);
+        postgresService
+          .fetchInspectionById(id)
+          .then(pgRec => {
+            if (isCancelled) return;
+            if (pgRec) {
+              dataService.saveInspection(pgRec, currentUser, true);
+              populateFromRecord(pgRec);
+            } else {
+              setSaveFeedback({
+                type: 'error',
+                title: 'Inspection Not Found',
+                message: `Could not locate inspection record "${id}" locally or in PostgreSQL.`,
+              });
+            }
+          })
+          .finally(() => {
+            if (!isCancelled) setIsLoadingRecord(false);
+          });
+      }
+    } else {
+      const qCode = searchParams.get('form') || 'FORM-01';
+      const normalizedKey = normalizeFormKey(qCode);
+      setExistingRecord(null);
+      setRemarks('');
+      if (!(location.state as any)?.saveFeedback) {
+        setSaveFeedback(null);
+      }
+      setSelectedFormCode(normalizedKey);
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [id, searchParams]);
+
+  // Initialize default fields & reading rows for new records
+  useEffect(() => {
+    if (id) return;
+
+    const meta = resolveFormByCode(selectedFormCode);
+    const initFields: Record<string, any> = {};
+    meta.fields.forEach(f => {
+      if (f.defaultValue !== undefined) initFields[f.key] = f.defaultValue;
+    });
+    setFormData(initFields);
+
+    const initRows: Record<string, any>[] = [];
+    for (let i = 1; i <= meta.defaultRowCount; i++) {
+      const row: Record<string, any> = {
+        sampleNo: i,
+        rollNo: i,
+        pieceNo: i,
+        bagNo: i,
+        bagSampleNo: i,
+      };
+      meta.columns.forEach(c => {
+        if (c.type === 'select' && c.options && c.options.length > 0) {
+          row[c.key] = c.options[0];
+        } else if (c.type === 'readonly') {
+          row[c.key] = row[c.key] ?? i;
+        } else if (c.type === 'text' && (c.key === 'rollNo' || c.key === 'bagNo' || c.key === 'pieceNo')) {
+          row[c.key] = String(i);
+        } else if (row[c.key] === undefined) {
+          row[c.key] = '';
+        }
+      });
+      initRows.push(row);
+    }
+    setReadingRows(initRows);
+
+    setGeneralInfo(prev => ({
+      ...prev,
+      inspectionNo: dataService.generateInspectionNumber(meta.code),
+      departmentId: meta.departmentCode,
+      departmentName: meta.department,
+    }));
   }, [selectedFormCode, id]);
 
   // Recalculate metrics on each change
   const calculationResult = useMemo(() => {
     try {
-      return formMeta.calculate(formData, readingRows);
+      const clonedRows = readingRows.map(r => ({ ...r }));
+      return formMeta.calculate(formData, clonedRows);
     } catch (e) {
       console.warn('Calculation error:', e);
       return { metrics: {}, result: 'WARNING' as InspectionResult };
@@ -140,15 +211,36 @@ export const InspectionFormPage: React.FC = () => {
 
   const isApproved = existingRecord?.status === 'Approved';
   const isSubmitted = existingRecord?.status === 'Submitted';
-  const isReadOnly = isApproved || (isSubmitted && currentUser.role === 'SQC Inspector / User');
+  const canEditRole = hasPermission('CREATE') || hasPermission('EDIT');
+  const isReadOnly =
+    !canEditRole ||
+    isApproved ||
+    (isSubmitted &&
+      (currentUser.role === 'SQC Inspector / User' ||
+        currentUser.role === 'Inspector' ||
+        currentUser.role === 'Viewer / Auditor' ||
+        currentUser.role === 'Auditor'));
 
   // Row operations
   const handleAddRow = () => {
     const newIdx = readingRows.length + 1;
-    /* const row: Record<string, any> = { sampleNo: newIdx, rollNo: newIdx, pieceNo: newIdx, bagNo: newIdx, bagSampleNo: newIdx }; */
-    const row: Record<string, any> = { sampleNo: newIdx };
+    const row: Record<string, any> = {
+      sampleNo: newIdx,
+      rollNo: newIdx,
+      pieceNo: newIdx,
+      bagNo: newIdx,
+      bagSampleNo: newIdx,
+    };
     formMeta.columns.forEach(c => {
-      row[c.key] = '';
+      if (c.type === 'select' && c.options && c.options.length > 0) {
+        row[c.key] = c.options[0];
+      } else if (c.type === 'readonly') {
+        row[c.key] = row[c.key] ?? newIdx;
+      } else if (c.type === 'text' && (c.key === 'rollNo' || c.key === 'bagNo' || c.key === 'pieceNo')) {
+        row[c.key] = String(newIdx);
+      } else if (row[c.key] === undefined) {
+        row[c.key] = '';
+      }
     });
     setReadingRows([...readingRows, row]);
   };
@@ -167,111 +259,211 @@ export const InspectionFormPage: React.FC = () => {
   };
 
   const handleFieldChange = (key: string, val: any) => {
-    setFormData({ ...formData, [key]: val });
+    setFormData(prev => ({ ...prev, [key]: val }));
   };
 
-  // Save Draft
+  // Validate required header fields before final submission
+  const validateForSubmit = (): string | null => {
+    const missingFields: string[] = [];
+    formMeta.fields.forEach(f => {
+      if (f.required) {
+        const val = formData[f.key] ?? f.defaultValue;
+        if (val === undefined || val === null || String(val).trim() === '') {
+          missingFields.push(f.label);
+        }
+      }
+    });
+    if (missingFields.length > 0) {
+      return `Please fill required header field(s): ${missingFields.join(', ')}.`;
+    }
+    if (!readingRows || readingRows.length === 0) {
+      return 'At least one sample reading row is required before submitting.';
+    }
+    return null;
+  };
+
+  // Core save & sync handler for both Draft and Submitted
+  const buildAndSyncRecord = async (targetStatus: 'Draft' | 'Submitted') => {
+    if (isSaving) return;
+
+    if (targetStatus === 'Submitted') {
+      const validationErr = validateForSubmit();
+      if (validationErr) {
+        setSaveFeedback({
+          type: 'error',
+          title: 'Required Information Missing',
+          message: validationErr,
+        });
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    setSaveFeedback(null);
+
+    try {
+      const computedRows = readingRows.map(r => ({ ...r }));
+      const finalCalc = formMeta.calculate(formData, computedRows);
+      setReadingRows(computedRows);
+
+      const nowIso = new Date().toISOString();
+      const baseRecord: InspectionRecord = {
+        id: existingRecord?.id || `rec-${Date.now()}`,
+        inspectionNo:
+          generalInfo.inspectionNo || dataService.generateInspectionNumber(formMeta.code),
+        formId: formMeta.code,
+        formCode: formMeta.code,
+        formTitle: formMeta.title,
+        departmentId: generalInfo.departmentId || formMeta.departmentCode,
+        departmentName: generalInfo.departmentName || formMeta.department,
+        shiftId: generalInfo.shiftId,
+        shiftName: generalInfo.shiftName,
+        qualityId: generalInfo.qualityId,
+        qualityName: generalInfo.qualityName,
+        machineNo: generalInfo.machineNo,
+        loomNo: generalInfo.loomNo,
+        inspectorId: existingRecord?.inspectorId || currentUser.id,
+        inspectorName: existingRecord?.inspectorName || currentUser.displayName,
+        inspectionDate: generalInfo.inspectionDate,
+        inspectionTime: generalInfo.inspectionTime,
+        status: targetStatus as InspectionStatus,
+        result: finalCalc.result,
+        summaryMetrics: finalCalc.metrics,
+        formData,
+        readingRows: computedRows,
+        remarks,
+        version: existingRecord ? existingRecord.version + 1 : 1,
+        createdBy: existingRecord?.createdBy || currentUser.displayName,
+        createdAt: existingRecord?.createdAt || nowIso,
+        updatedBy: currentUser.displayName,
+        updatedAt: nowIso,
+      };
+
+      let finalRecord: InspectionRecord;
+      if (targetStatus === 'Submitted') {
+        const saved = dataService.saveInspection({ ...baseRecord, status: 'Draft' }, currentUser, true);
+        const submitted = dataService.submitInspection(saved.id, currentUser, true);
+        finalRecord = submitted || { ...saved, status: 'Submitted' };
+      } else {
+        finalRecord = dataService.saveInspection(baseRecord, currentUser, true);
+      }
+
+      setExistingRecord(finalRecord);
+
+      const pgRes = await postgresService.syncInspectionToPostgres(finalRecord);
+      const feedback: SaveFeedbackState = pgRes.success
+        ? {
+            type: 'success',
+            title:
+              targetStatus === 'Submitted'
+                ? 'Submitted & Saved to PostgreSQL'
+                : 'Draft Saved to PostgreSQL',
+            message: `${finalRecord.inspectionNo} saved cleanly to PostgreSQL (inspections${
+              pgRes.formTable ? ` + ${pgRes.formTable}` : ''
+            }).`,
+          }
+        : {
+            type: 'warning',
+            title: 'Saved Locally — PostgreSQL Sync Failed',
+            message:
+              pgRes.message ||
+              'Could not reach PostgreSQL backend. Verify server status in System Settings.',
+          };
+
+      setSaveFeedback(feedback);
+
+      if (!id) {
+        navigate(`/inspection/${finalRecord.id}`, {
+          replace: true,
+          state: { saveFeedback: feedback },
+        });
+      }
+    } catch (err: any) {
+      setSaveFeedback({
+        type: 'error',
+        title: 'Save Failed',
+        message: err?.message || 'Unexpected error while saving inspection record.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveDraft = () => {
-    const record: InspectionRecord = {
-      id: existingRecord?.id || `rec-${Date.now()}`,
-      inspectionNo: generalInfo.inspectionNo || dataService.generateInspectionNumber(formMeta.code),
-      formId: formMeta.code,
-      formCode: formMeta.code,
-      formTitle: formMeta.title,
-      departmentId: generalInfo.departmentId,
-      departmentName: generalInfo.departmentName,
-      shiftId: generalInfo.shiftId,
-      shiftName: generalInfo.shiftName,
-      qualityId: generalInfo.qualityId,
-      qualityName: generalInfo.qualityName,
-      machineNo: generalInfo.machineNo,
-      loomNo: generalInfo.loomNo,
-      inspectorId: currentUser.id,
-      inspectorName: currentUser.displayName,
-      inspectionDate: generalInfo.inspectionDate,
-      inspectionTime: generalInfo.inspectionTime,
-      status: 'Draft',
-      result: calculationResult.result,
-      summaryMetrics: calculationResult.metrics,
-      formData,
-      readingRows,
-      remarks,
-      version: existingRecord ? existingRecord.version + 1 : 1,
-      createdBy: existingRecord?.createdBy || currentUser.displayName,
-      createdAt: existingRecord?.createdAt || new Date().toISOString(),
-      updatedBy: currentUser.displayName,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const saved = dataService.saveInspection(record, currentUser);
-    setExistingRecord(saved);
-    // Background sync to database
-    postgresService.syncInspectionToPostgres(saved).catch(() => {});
-    navigate(`/inspection/${saved.id}`);
+    void buildAndSyncRecord('Draft');
   };
 
-  // Submit Inspection
-  const handleSubmitInspection = () => {
-    if (!confirm('Are you sure you want to submit this inspection report for HOD approval? Once submitted, it will be locked for editing.')) {
+  const handleSubmitInspectionClick = () => {
+    const validationErr = validateForSubmit();
+    if (validationErr) {
+      setSaveFeedback({
+        type: 'error',
+        title: 'Required Information Missing',
+        message: validationErr,
+      });
       return;
     }
+    setShowSubmitConfirmModal(true);
+  };
 
-    const record: InspectionRecord = {
-      id: existingRecord?.id || `rec-${Date.now()}`,
-      inspectionNo: generalInfo.inspectionNo || dataService.generateInspectionNumber(formMeta.code),
-      formId: formMeta.code,
-      formCode: formMeta.code,
-      formTitle: formMeta.title,
-      departmentId: generalInfo.departmentId,
-      departmentName: generalInfo.departmentName,
-      shiftId: generalInfo.shiftId,
-      shiftName: generalInfo.shiftName,
-      qualityId: generalInfo.qualityId,
-      qualityName: generalInfo.qualityName,
-      machineNo: generalInfo.machineNo,
-      loomNo: generalInfo.loomNo,
-      inspectorId: currentUser.id,
-      inspectorName: currentUser.displayName,
-      inspectionDate: generalInfo.inspectionDate,
-      inspectionTime: generalInfo.inspectionTime,
-      status: 'Draft',
-      result: calculationResult.result,
-      summaryMetrics: calculationResult.metrics,
-      formData,
-      readingRows,
-      remarks,
-      version: existingRecord ? existingRecord.version + 1 : 1,
-      createdBy: existingRecord?.createdBy || currentUser.displayName,
-      createdAt: existingRecord?.createdAt || new Date().toISOString(),
-      updatedBy: currentUser.displayName,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const saved = dataService.saveInspection(record, currentUser);
-    const submitted = dataService.submitInspection(saved.id, currentUser);
-    if (submitted) {
-      setExistingRecord(submitted);
-      // Background sync to database
-      postgresService.syncInspectionToPostgres(submitted).catch(() => {});
-      navigate(`/inspection/${submitted.id}`);
-    }
+  const handleConfirmSubmit = () => {
+    setShowSubmitConfirmModal(false);
+    void buildAndSyncRecord('Submitted');
   };
 
   // Approver actions
-  const handleConfirmWorkflow = () => {
+  const handleConfirmWorkflow = async () => {
     if (!existingRecord) return;
-    if (approvalActionModal === 'approve') {
-      const res = dataService.approveInspection(existingRecord.id, workflowRemarks, currentUser);
-      if (res) setExistingRecord(res);
-    } else if (approvalActionModal === 'reject') {
-      const res = dataService.rejectInspection(existingRecord.id, workflowRemarks, currentUser);
-      if (res) setExistingRecord(res);
-    } else if (approvalActionModal === 'return') {
-      const res = dataService.returnInspectionForCorrection(existingRecord.id, workflowRemarks, currentUser);
-      if (res) setExistingRecord(res);
+    setIsSaving(true);
+    try {
+      let updated: InspectionRecord | null = null;
+      if (approvalActionModal === 'approve') {
+        updated = dataService.approveInspection(
+          existingRecord.id,
+          workflowRemarks,
+          currentUser,
+          true
+        );
+      } else if (approvalActionModal === 'reject') {
+        updated = dataService.rejectInspection(
+          existingRecord.id,
+          workflowRemarks,
+          currentUser,
+          true
+        );
+      } else if (approvalActionModal === 'return') {
+        updated = dataService.returnInspectionForCorrection(
+          existingRecord.id,
+          workflowRemarks,
+          currentUser,
+          true
+        );
+      }
+
+      if (updated) {
+        setExistingRecord(updated);
+        const pgRes = await postgresService.syncInspectionToPostgres(updated);
+        setSaveFeedback(
+          pgRes.success
+            ? {
+                type: 'success',
+                title: `Inspection ${updated.status} in PostgreSQL`,
+                message: `${updated.inspectionNo} updated in inspections${
+                  pgRes.formTable ? ` and ${pgRes.formTable}` : ''
+                }.`,
+              }
+            : {
+                type: 'warning',
+                title: `Updated Locally (${updated.status}) — PostgreSQL Sync Failed`,
+                message: pgRes.message || 'Could not update PostgreSQL backend.',
+              }
+        );
+      }
+    } finally {
+      setIsSaving(false);
+      setApprovalActionModal(null);
+      setWorkflowRemarks('');
     }
-    setApprovalActionModal(null);
-    setWorkflowRemarks('');
   };
 
   // Enforce per-form permissions
@@ -286,10 +478,14 @@ export const InspectionFormPage: React.FC = () => {
           <h2 className="text-base font-bold text-[#393334]">Form Access Restricted</h2>
           <p className="text-xs text-[#806B6C] mt-1.5 leading-relaxed">
             Your user account is not currently authorized to access or submit inspections for{' '}
-            <strong className="text-[#393334]">{formMeta.code} ({formMeta.title})</strong>.
+            <strong className="text-[#393334]">
+              {formMeta.code} ({formMeta.title})
+            </strong>
+            .
           </p>
           <p className="text-[11px] text-[#806B6C] mt-1">
-            Please ask an SQC Administrator to assign permission for this form in the <strong>Users & Form Permissions</strong> panel.
+            Please ask an SQC Administrator to assign permission for this form in the{' '}
+            <strong>Users &amp; Form Permissions</strong> panel.
           </p>
         </div>
         <div className="pt-2">
@@ -304,15 +500,67 @@ export const InspectionFormPage: React.FC = () => {
     );
   }
 
+  if (isLoadingRecord) {
+    return (
+      <div className="bg-white rounded-xl p-10 border border-[#DFA2BA] text-center max-w-md mx-auto my-12 shadow-sm flex flex-col items-center gap-3">
+        <Loader2 size={28} className="animate-spin text-[#701638]" />
+        <p className="text-xs font-semibold text-[#701638]">
+          Loading inspection record from PostgreSQL...
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
+      {/* Save / PostgreSQL Sync Status Banner */}
+      {saveFeedback && (
+        <div
+          role="status"
+          className={`rounded-xl p-3.5 border shadow-sm flex items-start justify-between gap-3 text-xs ${
+            saveFeedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+              : saveFeedback.type === 'warning'
+              ? 'bg-amber-50 border-amber-300 text-amber-950'
+              : 'bg-rose-50 border-rose-300 text-rose-950'
+          }`}
+        >
+          <div className="flex items-start gap-2.5">
+            {saveFeedback.type === 'success' ? (
+              <Database size={18} className="text-emerald-700 shrink-0 mt-0.5" />
+            ) : (
+              <AlertTriangle
+                size={18}
+                className={
+                  saveFeedback.type === 'warning'
+                    ? 'text-amber-700 shrink-0 mt-0.5'
+                    : 'text-rose-700 shrink-0 mt-0.5'
+                }
+              />
+            )}
+            <div>
+              <p className="font-bold">{saveFeedback.title}</p>
+              <p className="text-[11px] mt-0.5 opacity-90">{saveFeedback.message}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSaveFeedback(null)}
+            className="text-xs font-bold opacity-60 hover:opacity-100 px-1.5 py-0.5"
+            aria-label="Dismiss message"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header bar */}
       <div className="bg-gradient-to-r from-[#FFF8FA] via-[#FCEAF1] to-[#F8E1EA] rounded-xl p-4 border border-[#DFA2BA] shadow-sm flex flex-col gap-4">
-
         {/* Header Section */}
         <div className="flex items-start gap-3">
           <button
             id="back-to-inspections-btn"
+            type="button"
             onClick={() => navigate('/inspections')}
             className="p-2 rounded-lg border border-[#DFA2BA] hover:bg-[#F5D5E2] bg-white text-[#701638] transition-colors shrink-0"
           >
@@ -325,12 +573,9 @@ export const InspectionFormPage: React.FC = () => {
                 {formMeta.code}
               </span>
 
-              <h2 className="text-base font-bold text-[#D95F68]">
-                {formMeta.title}
-              </h2>
+              <h2 className="text-base font-bold text-[#D95F68]">{formMeta.title}</h2>
 
               {existingRecord && <StatusBadge status={existingRecord.status} />}
-              {/* <ResultBadge result={calculationResult.result} /> */}
             </div>
 
             <p className="text-xs text-[#D95F68] mt-2">
@@ -343,64 +588,57 @@ export const InspectionFormPage: React.FC = () => {
 
         {/* Action Toolbar */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pt-3 border-t border-[#DFA2BA]">
-
-          {/* Left: Form Switcher */}
-          {/* <div className="flex items-center gap-2 flex-wrap">
-            {!id && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {!id && Object.keys(FORM_REGISTRY).length > 1 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#831843] font-semibold whitespace-nowrap">
-                  Switch Form:
+                  Form:
                 </span>
-
                 <select
                   id="select-active-form-code"
                   value={selectedFormCode}
-                  onChange={e => setSelectedFormCode(e.target.value)}
+                  onChange={e =>
+                    navigate(`/new-inspection?form=${encodeURIComponent(e.target.value)}`)
+                  }
                   aria-label="Select Active Form Code"
-                  className="text-xs bg-white border border-[#DFA2BA] rounded-lg px-3 py-2 font-semibold text-[#500D28] focus:outline-none focus:ring-1 focus:ring-[#BE185D]"
+                  className="text-xs bg-white border border-[#DFA2BA] rounded-lg px-2.5 py-1.5 font-semibold text-[#500D28] focus:outline-none focus:ring-1 focus:ring-[#BE185D] max-w-[340px]"
                 >
-                  {Object.values(FORM_REGISTRY).map(f => (
-                    <option key={f.code} value={f.code}>
-                      {f.code} - {f.title.split('–')[1]?.trim() || f.title}
-                    </option>
-                  ))}
+                  {Object.entries(FORM_REGISTRY)
+                    .filter(([, meta]) => canAccessForm(meta.code))
+                    .map(([key, f]) => (
+                      <option key={key} value={key}>
+                        {f.code} - {f.title}
+                      </option>
+                    ))}
                 </select>
               </div>
             )}
-          </div> */}
+          </div>
 
           {/* Right: Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-
-            {/* <button
-              id="print-form-btn"
-              onClick={() => window.print()}
-              className="px-3 py-2 rounded-lg border border-[#DFA2BA] bg-white hover:bg-[#F5D5E2] text-[#701638] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-            >
-              <Printer size={14} />
-              <span>Print Report</span>
-            </button> */}
-
-
-
             {!isReadOnly && (
               <>
-                {/* <button
+                <button
                   id="save-draft-btn"
+                  type="button"
+                  disabled={isSaving}
                   onClick={handleSaveDraft}
-                  className="px-3.5 py-2 rounded-lg border border-[#831843] bg-[#F8E1EA] text-[#701638] hover:bg-[#F5D5E2] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                  className="px-3.5 py-2 rounded-lg border border-[#831843] bg-white text-[#701638] hover:bg-[#F5D5E2] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
-                  <Save size={14} />
+                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   <span>Save Draft</span>
-                </button> */}
+                </button>
 
                 <button
                   id="submit-inspection-btn"
-                  onClick={handleSubmitInspection}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#701638] to-[#9D174D] text-white hover:from-[#500D28] hover:to-[#831843] text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all"
+                  type="button"
+                  disabled={isSaving}
+                  onClick={handleSubmitInspectionClick}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#701638] to-[#9D174D] text-white hover:from-[#500D28] hover:to-[#831843] text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
                 >
-                  <Send size={14} />
-                  <span>Submit to HOD</span>
+                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                  <span>{isSaving ? 'Saving to PostgreSQL...' : 'Submit to HOD'}</span>
                 </button>
               </>
             )}
@@ -408,14 +646,15 @@ export const InspectionFormPage: React.FC = () => {
             {/* Approver Actions */}
             {isSubmitted && hasPermission('APPROVE') && (
               <div className="flex items-center gap-2 pl-2 border-l border-[#DFA2BA]">
-
                 <button
                   id="btn-approve-inspection"
+                  type="button"
+                  disabled={isSaving}
                   onClick={() => {
                     setApprovalActionModal('approve');
                     setWorkflowRemarks('Conforms to SQC standards. Approved for production lot.');
                   }}
-                  className="px-3 py-2 rounded-lg bg-[#701638] text-white text-xs font-bold hover:bg-[#500D28] inline-flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-2 rounded-lg bg-[#701638] text-white text-xs font-bold hover:bg-[#500D28] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <CheckCircle2 size={14} />
                   <span>Approve</span>
@@ -423,11 +662,13 @@ export const InspectionFormPage: React.FC = () => {
 
                 <button
                   id="btn-return-inspection"
+                  type="button"
+                  disabled={isSaving}
                   onClick={() => {
                     setApprovalActionModal('return');
                     setWorkflowRemarks('Please verify the reading deviation.');
                   }}
-                  className="px-3 py-2 rounded-lg bg-[#9D174D] text-white text-xs font-bold hover:bg-[#701638] inline-flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-2 rounded-lg bg-[#9D174D] text-white text-xs font-bold hover:bg-[#701638] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <RotateCcw size={14} />
                   <span>Return</span>
@@ -435,23 +676,22 @@ export const InspectionFormPage: React.FC = () => {
 
                 <button
                   id="btn-reject-inspection"
+                  type="button"
+                  disabled={isSaving}
                   onClick={() => {
                     setApprovalActionModal('reject');
                     setWorkflowRemarks('Readings severely out of specification limit.');
                   }}
-                  className="px-3 py-2 rounded-lg bg-[#500D28] text-white text-xs font-bold hover:bg-[#35081B] inline-flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-2 rounded-lg bg-[#500D28] text-white text-xs font-bold hover:bg-[#35081B] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <XCircle size={14} />
                   <span>Reject</span>
                 </button>
-
               </div>
             )}
           </div>
         </div>
       </div>
-
-
 
       {/* Lock Notice if approved */}
       {isApproved && (
@@ -462,7 +702,9 @@ export const InspectionFormPage: React.FC = () => {
               <span className="font-bold">Permanent Inspection Lock:</span> Approved by{' '}
               <strong>{existingRecord.approvedBy}</strong> on{' '}
               {new Date(existingRecord.approvedAt || '').toLocaleString()}.
-              {existingRecord.approvalRemarks && <span> Remarks: "{existingRecord.approvalRemarks}"</span>}
+              {existingRecord.approvalRemarks && (
+                <span> Remarks: &quot;{existingRecord.approvalRemarks}&quot;</span>
+              )}
             </div>
           </div>
           <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-mono font-bold">
@@ -470,44 +712,35 @@ export const InspectionFormPage: React.FC = () => {
           </span>
         </div>
       )}
+
       <div className="bg-[#FFF4F3] text-[#574448] rounded-xl p-3.5 shadow-sm border border-[#F4C4C5] text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-1.5 text-[#D95F68] font-bold uppercase tracking-wider text-[11px]">
             <Info size={14} />
             <span>Controlled Factory Standard Specification</span>
           </div>
-
-          <p className="text-[#754D50] mt-1 font-medium">
-            {formMeta.sourceStandardText}
-          </p>
+          <p className="text-[#754D50] mt-1 font-medium">{formMeta.sourceStandardText}</p>
         </div>
 
         <div className="bg-white px-3 py-2 rounded-lg border border-[#F4C4C5] text-right min-w-[200px] shadow-sm">
           <span className="text-[10px] text-[#A47779] uppercase tracking-wider block">
             Live Evaluation
           </span>
-
           <div className="flex items-center justify-end gap-2 mt-0.5">
             <ResultBadge result={calculationResult.result} />
           </div>
         </div>
       </div>
 
-
       {/* General Inspection Context Fields */}
-      
       <div className="bg-gradient-to-br from-[#FFF8FA] via-[#FCEAF1] to-[#F8E1EA] rounded-xl p-4 border border-[#DFA2BA] shadow-sm">
-
         <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider mb-3 border-b border-[#E8B4C8] pb-2">
           1. Common Inspection Context
         </h3>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-
           <div>
-            <label className="block text-[11px] font-bold text-[#831843] mb-1">
-              Inspection #
-            </label>
+            <label className="block text-[11px] font-bold text-[#831843] mb-1">Inspection #</label>
             <input
               type="text"
               readOnly
@@ -530,9 +763,7 @@ export const InspectionFormPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-[#831843] mb-1">
-              Shift
-            </label>
+            <label className="block text-[11px] font-bold text-[#831843] mb-1">Shift</label>
             <select
               disabled={isReadOnly}
               value={generalInfo.shiftId}
@@ -593,9 +824,7 @@ export const InspectionFormPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-[#831843] mb-1">
-              Inspector
-            </label>
+            <label className="block text-[11px] font-bold text-[#831843] mb-1">Inspector</label>
             <input
               type="text"
               readOnly
@@ -603,10 +832,8 @@ export const InspectionFormPage: React.FC = () => {
               className="w-full bg-[#F5D5E2] border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs font-bold text-[#500D28]"
             />
           </div>
-
         </div>
       </div>
-
 
       {/* Form Specific Header Parameters */}
       {formMeta.fields.length > 0 && (
@@ -619,7 +846,8 @@ export const InspectionFormPage: React.FC = () => {
             {formMeta.fields.map(field => (
               <div key={field.key}>
                 <label className="block text-[11px] font-semibold text-[#831843] mb-1">
-                  {field.label} {field.unit && <span className="text-[#BE185D]">({field.unit})</span>}
+                  {field.label}{' '}
+                  {field.unit && <span className="text-[#BE185D]">({field.unit})</span>}
                   {field.required && <span className="text-[#BE123C] ml-0.5">*</span>}
                 </label>
 
@@ -639,16 +867,39 @@ export const InspectionFormPage: React.FC = () => {
                   </select>
                 ) : (
                   <input
-                    type={field.type === 'number' ? 'number' : 'text'}
+                    type={
+                      field.type === 'number'
+                        ? 'number'
+                        : field.type === 'date'
+                        ? 'date'
+                        : field.type === 'time'
+                        ? 'time'
+                        : 'text'
+                    }
                     step={field.type === 'number' ? 'any' : undefined}
+                    readOnly={field.type === 'readonly'}
                     disabled={isReadOnly}
                     value={formData[field.key] ?? field.defaultValue ?? ''}
-                    onChange={e => handleFieldChange(field.key, field.type === 'number' ? parseFloat(e.target.value) || '' : e.target.value)}
+                    onChange={e => {
+                      if (field.type === 'number') {
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          handleFieldChange(field.key, '');
+                        } else {
+                          const parsed = parseFloat(raw);
+                          handleFieldChange(field.key, Number.isNaN(parsed) ? '' : parsed);
+                        }
+                      } else {
+                        handleFieldChange(field.key, e.target.value);
+                      }
+                    }}
                     className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-medium placeholder:text-[#B78398] focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
                   />
                 )}
 
-                {field.helpText && <p className="text-[10px] text-[#A16B82] mt-0.5">{field.helpText}</p>}
+                {field.helpText && (
+                  <p className="text-[10px] text-[#A16B82] mt-0.5">{field.helpText}</p>
+                )}
               </div>
             ))}
           </div>
@@ -660,7 +911,7 @@ export const InspectionFormPage: React.FC = () => {
         <div className="p-3.5 bg-[#FFF1F1] border-b border-[#F2D9D9] flex items-center justify-between flex-wrap gap-2">
           <div>
             <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider">
-              3. Sample Readings & Measurements Grid ({readingRows.length} Samples)
+              3. Sample Readings &amp; Measurements Grid ({readingRows.length} Samples)
             </h3>
             <p className="text-[11px] text-[#98777B]">
               Unit: <strong className="text-[#A34F5B]">{formMeta.sampleUnit}</strong>
@@ -670,6 +921,7 @@ export const InspectionFormPage: React.FC = () => {
           {!isReadOnly && (
             <button
               id="add-reading-row-btn"
+              type="button"
               onClick={handleAddRow}
               className="px-2.5 py-1 bg-white border border-[#E8BFC3] hover:border-[#C56B78] hover:bg-[#FFF0F1] hover:text-[#9F4654] text-[#79535A] rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-colors"
             >
@@ -690,7 +942,8 @@ export const InspectionFormPage: React.FC = () => {
                     style={{ width: col.width }}
                     className="py-2.5 px-3 font-semibold text-[#D95F68]"
                   >
-                    {col.label} {col.unit && <span className="text-[#D95F68] font-normal">({col.unit})</span>}
+                    {col.label}{' '}
+                    {col.unit && <span className="text-[#D95F68] font-normal">({col.unit})</span>}
                   </th>
                 ))}
                 {!isReadOnly && <th className="py-2.5 px-3 w-12 text-center">Action</th>}
@@ -700,20 +953,20 @@ export const InspectionFormPage: React.FC = () => {
             <tbody className="divide-y divide-[#F5E5E6]">
               {readingRows.map((row, idx) => (
                 <tr key={idx} className="hover:bg-[#FFF6F6] transition-colors">
-                  <td className="py-2 px-3 text-center text-[#B58D92] font-mono">
-                    {idx + 1}
-                  </td>
+                  <td className="py-2 px-3 text-center text-[#B58D92] font-mono">{idx + 1}</td>
 
                   {formMeta.columns.map(col => (
                     <td key={col.key} className="py-1.5 px-2">
                       {col.type === 'readonly' ? (
                         <span className="font-mono text-[#815D63] font-semibold px-2 py-1 block">
-                          {row[col.key] || idx + 1}
+                          {row[col.key] !== undefined && row[col.key] !== ''
+                            ? row[col.key]
+                            : idx + 1}
                         </span>
                       ) : col.type === 'select' ? (
                         <select
                           disabled={isReadOnly}
-                          value={row[col.key] ?? ''}
+                          value={row[col.key] ?? col.options?.[0] ?? ''}
                           onChange={e => handleRowChange(idx, col.key, e.target.value)}
                           aria-label={`${col.label} Row ${idx + 1}`}
                           className="w-full bg-white border border-[#E8CBCD] rounded px-2 py-1 text-xs text-[#633F46] font-medium focus:border-[#C56B78] focus:ring-1 focus:ring-[#EBC1C6] outline-none"
@@ -730,14 +983,20 @@ export const InspectionFormPage: React.FC = () => {
                           step="any"
                           disabled={isReadOnly}
                           value={row[col.key] ?? ''}
-                          placeholder="0.00"
-                          onChange={e =>
-                            handleRowChange(
-                              idx,
-                              col.key,
-                              col.type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value
-                            )
-                          }
+                          placeholder={col.type === 'number' ? '0.00' : ''}
+                          onChange={e => {
+                            if (col.type === 'number') {
+                              const raw = e.target.value;
+                              const parsed = raw === '' ? '' : parseFloat(raw);
+                              handleRowChange(
+                                idx,
+                                col.key,
+                                raw === '' || Number.isNaN(parsed as number) ? '' : parsed
+                              );
+                            } else {
+                              handleRowChange(idx, col.key, e.target.value);
+                            }
+                          }}
                           className="w-full bg-white border border-[#E8CBCD] rounded px-2 py-1 text-xs text-[#633F46] font-medium font-mono focus:border-[#C56B78] focus:bg-[#FFF1F2] focus:ring-1 focus:ring-[#EBC1C6] outline-none"
                         />
                       )}
@@ -747,6 +1006,7 @@ export const InspectionFormPage: React.FC = () => {
                   {!isReadOnly && (
                     <td className="py-1.5 px-2 text-center">
                       <button
+                        type="button"
                         onClick={() => handleRemoveRow(idx)}
                         disabled={readingRows.length <= 1}
                         className="text-[#C49A9F] hover:text-[#C43D50] hover:bg-[#FCE4E7] rounded p-1 disabled:opacity-30 transition-colors"
@@ -764,57 +1024,12 @@ export const InspectionFormPage: React.FC = () => {
       </div>
 
       {/* Automatic System Calculations & Statistical Summary */}
-      {/* <div className="bg-emerald-950 text-emerald-50 rounded-xl p-4 shadow-sm border border-emerald-900">
-        <div className="flex items-center justify-between mb-3 border-b border-emerald-800 pb-2">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-emerald-400" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-              4. System-Calculated Statistical Outputs & Acceptance Result
-            </h3>
-          </div>
-          <span className="text-[10px] bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded font-mono">
-            Source Mathematical Standards Engine
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-          {Object.entries(calculationResult.metrics).map(([key, val]) => (
-            <div key={key} className="bg-emerald-900/60 p-2.5 rounded-lg border border-emerald-800/80">
-              <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider block">
-                {key.replace(/([A-Z])/g, ' $1').trim()}
-              </span>
-              <span className="text-base font-bold font-mono text-white mt-1 block">
-                {typeof val === 'number' ? val.toLocaleString() : String(val)}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 pt-3 border-t border-emerald-800/80 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-emerald-300 font-semibold">Evaluation Verdict:</span>
-            <ResultBadge result={calculationResult.result} />
-            <span className="text-slate-300 text-[11px]">
-              {calculationResult.result === 'PASS'
-                ? 'All sampled readings conform to SQC tolerances.'
-                : calculationResult.result === 'WARNING'
-                ? 'Readings approach limit boundary. Close process monitoring required.'
-                : 'Defect or deviation exceeds allowable mill standard.'}
-            </span>
-          </div>
-
-          <span className="text-[11px] text-emerald-400 font-medium">
-            Read-only verified calculations • Cannot be manually altered
-          </span>
-        </div>
-      </div> */}
-      
       <div className="bg-gradient-to-br from-[#FFF8F7] via-[#FCEDEC] to-[#F8DDDC] text-[#574448] rounded-xl p-4 shadow-md border border-[#EABFC0]">
         <div className="flex items-center justify-between mb-3 border-b border-[#E8C1C1] pb-2">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-[#C94F5B]" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#D95F68]">
-              4. System-Calculated Statistical Outputs & Acceptance Result
+              4. System-Calculated Statistical Outputs &amp; Acceptance Result
             </h3>
           </div>
 
@@ -842,12 +1057,8 @@ export const InspectionFormPage: React.FC = () => {
 
         <div className="mt-4 pt-3 border-t border-[#E8C1C1] flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-[#D95F68] font-bold">
-              Evaluation Verdict:
-            </span>
-
+            <span className="text-[#D95F68] font-bold">Evaluation Verdict:</span>
             <ResultBadge result={calculationResult.result} />
-
             <span className="text-[#765C60] text-[11px]">
               {calculationResult.result === 'PASS'
                 ? 'All sampled readings conform to SQC tolerances.'
@@ -863,11 +1074,10 @@ export const InspectionFormPage: React.FC = () => {
         </div>
       </div>
 
-
       {/* Inspector Remarks */}
       <div className="bg-white rounded-xl p-4 border border-[#F2D9D9] shadow-sm">
         <label className="block text-xs font-bold text-[#D95F68] uppercase tracking-wider mb-2">
-          5. Inspector Observations & Floor Remarks
+          5. Inspector Observations &amp; Floor Remarks
         </label>
 
         <textarea
@@ -880,15 +1090,57 @@ export const InspectionFormPage: React.FC = () => {
         ></textarea>
       </div>
 
+      {/* Inline Submit Confirmation Modal (No native window.confirm) */}
+      {showSubmitConfirmModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#DFA2BA] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#FCEAF1] pb-2">
+              <h4 className="text-sm font-bold text-[#701638]">
+                Confirm Submit Inspection Report
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowSubmitConfirmModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Submit <strong className="font-mono text-[#701638]">{generalInfo.inspectionNo}</strong>{' '}
+              (<strong>{formMeta.code}</strong>) for HOD approval and save directly to PostgreSQL?
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowSubmitConfirmModal(false)}
+                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs rounded-lg hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                className="px-4 py-1.5 bg-[#701638] hover:bg-[#500D28] text-white text-xs font-bold rounded-lg shadow-xs inline-flex items-center gap-1.5"
+              >
+                <Send size={13} />
+                <span>Confirm &amp; Save to PostgreSQL</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Approval / Workflow Dialog Modal */}
       {approvalActionModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h4 className="text-sm font-bold text-slate-900 capitalize">
                 Confirm Action: {approvalActionModal} Inspection
               </h4>
               <button
+                type="button"
                 onClick={() => setApprovalActionModal(null)}
                 className="text-slate-400 hover:text-slate-600"
               >
@@ -911,14 +1163,17 @@ export const InspectionFormPage: React.FC = () => {
 
             <div className="flex justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setApprovalActionModal(null)}
                 className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs rounded-lg hover:bg-slate-100"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmWorkflow}
-                className={`px-4 py-1.5 text-white text-xs font-bold rounded-lg shadow-xs ${
+                disabled={isSaving}
+                className={`px-4 py-1.5 text-white text-xs font-bold rounded-lg shadow-xs disabled:opacity-50 ${
                   approvalActionModal === 'approve'
                     ? 'bg-emerald-700 hover:bg-emerald-800'
                     : approvalActionModal === 'reject'

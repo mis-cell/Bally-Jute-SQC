@@ -11,6 +11,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
+import { postgresService } from '../services/postgresService';
 import { useAuth } from '../context/AuthContext';
 import { InspectionRecord } from '../types';
 import { StatusBadge, ResultBadge } from '../components/common/Badges';
@@ -24,6 +25,9 @@ export const ApprovalsPage: React.FC = () => {
   const [remarks, setRemarks] = useState('');
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'return' | null>(null);
 
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const pendingList = inspections.filter(i => i.status === 'Submitted');
   const recentlyApproved = inspections
     .filter(i => i.status === 'Approved' || i.status === 'Rejected' || i.status === 'Returned')
@@ -31,23 +35,33 @@ export const ApprovalsPage: React.FC = () => {
 
   const canApprove = hasPermission('APPROVE');
 
-  const handleExecuteAction = () => {
-    if (!selectedRecord || !actionType) return;
+  const handleExecuteAction = async () => {
+    if (!selectedRecord || !actionType || submitting) return;
+    setSubmitting(true);
+    setFeedback(null);
 
     let updated: InspectionRecord | null = null;
     if (actionType === 'approve') {
-      updated = dataService.approveInspection(selectedRecord.id, remarks || 'Conforms to SQC standards.', currentUser);
+      updated = dataService.approveInspection(selectedRecord.id, remarks || 'Conforms to SQC standards.', currentUser, true);
     } else if (actionType === 'reject') {
-      updated = dataService.rejectInspection(selectedRecord.id, remarks || 'Out of specification limit.', currentUser);
+      updated = dataService.rejectInspection(selectedRecord.id, remarks || 'Out of specification limit.', currentUser, true);
     } else if (actionType === 'return') {
-      updated = dataService.returnInspectionForCorrection(selectedRecord.id, remarks || 'Requires sample re-test.', currentUser);
+      updated = dataService.returnInspectionForCorrection(selectedRecord.id, remarks || 'Requires sample re-test.', currentUser, true);
     }
 
     if (updated) {
+      const pgRes = await postgresService.syncInspectionToPostgres(updated);
+      setFeedback({
+        type: pgRes.success ? 'success' : 'error',
+        text: pgRes.success
+          ? `✅ ${updated.inspectionNo} (${updated.status}) saved to PostgreSQL.`
+          : `⚠️ Saved locally, but PostgreSQL sync failed: ${pgRes.message}`,
+      });
       setSelectedRecord(null);
       setActionType(null);
       setRemarks('');
     }
+    setSubmitting(false);
   };
 
   return (
@@ -75,6 +89,18 @@ export const ApprovalsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {feedback && (
+        <div
+          className={`p-3 rounded-xl text-xs font-medium border ${
+            feedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+              : 'bg-rose-50 border-rose-300 text-rose-900'
+          }`}
+        >
+          {feedback.text}
+        </div>
+      )}
 
       {/* Pending Approval Inbox */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">

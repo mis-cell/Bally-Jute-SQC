@@ -158,21 +158,19 @@ class DataService {
   }
 
   getInspectionById(id: string): InspectionRecord | undefined {
-    return this.getInspections().find(i => i.id === id);
+    return this.getInspections().find(i => i.id === id || i.inspectionNo === id);
   }
 
   deleteInspection(id: string, user: UserProfile): boolean {
     const records = this.getInspections();
-    const target = records.find(r => r.id === id);
+    const target = records.find(r => r.id === id || r.inspectionNo === id);
     if (!target) return false;
 
-    const remaining = records.filter(r => r.id !== id);
+    const remaining = records.filter(r => r.id !== target.id);
     saveToStorage(STORAGE_KEYS.INSPECTIONS, remaining);
     broadcastDataChange('local_delete');
 
-    // Also attempt deletion in local PostgreSQL and trigger auto-push
     postgresService.deleteInspectionFromPostgres(target.inspectionNo).catch(() => {});
-    this.triggerAutoSync();
 
     this.addAuditLog({
       userId: user.id,
@@ -206,10 +204,10 @@ class DataService {
     }
   }
 
-  saveInspection(record: InspectionRecord, user: UserProfile): InspectionRecord {
+  saveInspection(record: InspectionRecord, user: UserProfile, skipPgSync = false): InspectionRecord {
     const records = this.getInspections();
-    const idx = records.findIndex(r => r.id === record.id);
-    let updatedRecord = { ...record };
+    const idx = records.findIndex(r => r.id === record.id || r.inspectionNo === record.inspectionNo);
+    const updatedRecord = { ...record };
 
     if (idx >= 0) {
       updatedRecord.updatedAt = new Date().toISOString();
@@ -225,9 +223,9 @@ class DataService {
         details: `Updated inspection ${record.inspectionNo} (${record.formCode}). Status: ${record.status}.`,
       });
     } else {
-      updatedRecord.createdAt = new Date().toISOString();
-      updatedRecord.createdBy = user.displayName;
-      updatedRecord.version = 1;
+      updatedRecord.createdAt = updatedRecord.createdAt || new Date().toISOString();
+      updatedRecord.createdBy = updatedRecord.createdBy || user.displayName;
+      updatedRecord.version = updatedRecord.version || 1;
       records.unshift(updatedRecord);
       this.addAuditLog({
         userId: user.id,
@@ -243,14 +241,15 @@ class DataService {
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
     broadcastDataChange('local_save');
 
-    // Automatically replicate to PostgreSQL via debounced auto-push
-    this.triggerAutoSync();
-    postgresService.syncInspectionToPostgres(updatedRecord).catch(() => {});
+    if (!skipPgSync) {
+      this.triggerAutoSync();
+      postgresService.syncInspectionToPostgres(updatedRecord).catch(() => {});
+    }
 
     return updatedRecord;
   }
 
-  submitInspection(id: string, user: UserProfile): InspectionRecord | null {
+  submitInspection(id: string, user: UserProfile, skipPgSync = false): InspectionRecord | null {
     const records = this.getInspections();
     const record = records.find(r => r.id === id);
     if (!record) return null;
@@ -264,9 +263,10 @@ class DataService {
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
     broadcastDataChange('local_submit');
 
-    // Automatically replicate status change to local PostgreSQL
-    this.triggerAutoSync();
-    postgresService.syncInspectionToPostgres(record).catch(() => {});
+    if (!skipPgSync) {
+      this.triggerAutoSync();
+      postgresService.syncInspectionToPostgres(record).catch(() => {});
+    }
 
     this.addAuditLog({
       userId: user.id,
@@ -289,7 +289,7 @@ class DataService {
     return record;
   }
 
-  approveInspection(id: string, remarks: string, user: UserProfile): InspectionRecord | null {
+  approveInspection(id: string, remarks: string, user: UserProfile, skipPgSync = false): InspectionRecord | null {
     const records = this.getInspections();
     const record = records.find(r => r.id === id);
     if (!record) return null;
@@ -304,9 +304,10 @@ class DataService {
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
     broadcastDataChange('local_approve');
 
-    // Automatically replicate approval status to local PostgreSQL
-    this.triggerAutoSync();
-    postgresService.syncInspectionToPostgres(record).catch(() => {});
+    if (!skipPgSync) {
+      this.triggerAutoSync();
+      postgresService.syncInspectionToPostgres(record).catch(() => {});
+    }
 
     this.addAuditLog({
       userId: user.id,
@@ -329,7 +330,7 @@ class DataService {
     return record;
   }
 
-  rejectInspection(id: string, remarks: string, user: UserProfile): InspectionRecord | null {
+  rejectInspection(id: string, remarks: string, user: UserProfile, skipPgSync = false): InspectionRecord | null {
     const records = this.getInspections();
     const record = records.find(r => r.id === id);
     if (!record) return null;
@@ -344,9 +345,10 @@ class DataService {
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
     broadcastDataChange('local_reject');
 
-    // Automatically replicate rejection status to local PostgreSQL
-    this.triggerAutoSync();
-    postgresService.syncInspectionToPostgres(record).catch(() => {});
+    if (!skipPgSync) {
+      this.triggerAutoSync();
+      postgresService.syncInspectionToPostgres(record).catch(() => {});
+    }
 
     this.addAuditLog({
       userId: user.id,
@@ -369,7 +371,7 @@ class DataService {
     return record;
   }
 
-  returnInspectionForCorrection(id: string, remarks: string, user: UserProfile): InspectionRecord | null {
+  returnInspectionForCorrection(id: string, remarks: string, user: UserProfile, skipPgSync = false): InspectionRecord | null {
     const records = this.getInspections();
     const record = records.find(r => r.id === id);
     if (!record) return null;
@@ -381,8 +383,11 @@ class DataService {
 
     saveToStorage(STORAGE_KEYS.INSPECTIONS, records);
     broadcastDataChange('local_return');
-    this.triggerAutoSync();
-    postgresService.syncInspectionToPostgres(record).catch(() => {});
+
+    if (!skipPgSync) {
+      this.triggerAutoSync();
+      postgresService.syncInspectionToPostgres(record).catch(() => {});
+    }
 
     this.addAuditLog({
       userId: user.id,
@@ -690,18 +695,20 @@ class DataService {
     return getFromStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
   }
 
-  saveUser(userData: UserProfile, actorUser?: UserProfile): UserProfile[] {
+  saveUser(userData: UserProfile, actorUser?: UserProfile, skipPgSync = false): UserProfile[] {
     const list = this.getUsers();
-    const idx = list.findIndex(u => u.id === userData.id);
+    const idx = list.findIndex(u => u.id === userData.id || (u.email && userData.email && u.email.toLowerCase() === userData.email.toLowerCase()));
     if (idx >= 0) {
-      list[idx] = { ...userData };
+      list[idx] = { ...list[idx], ...userData };
     } else {
       list.push(userData);
     }
     saveToStorage(STORAGE_KEYS.USERS, list);
     broadcastDataChange('user_save');
-    this.triggerAutoSync();
-    postgresService.syncUserToPostgres(userData).catch(() => {});
+    if (!skipPgSync) {
+      this.triggerAutoSync();
+      postgresService.syncUserToPostgres(userData).catch(() => {});
+    }
     if (actorUser) {
       this.addAuditLog({
         userId: actorUser.id,

@@ -61,7 +61,8 @@ export const SettingsPage: React.FC = () => {
   const [activeSqlTab, setActiveSqlTab] = useState<'wipe' | 'schema' | 'server'>('wipe');
   const [copiedTab, setCopiedTab] = useState<string | null>(null);
 
-  const canEdit = currentUser.role === 'Super Admin';
+  const roleStr = currentUser?.role as string;
+  const canEdit = roleStr === 'Super Admin' || roleStr === 'SuperAdmin' || roleStr === 'Admin';
 
   const showNotice = (type: 'success' | 'error', text: string) => {
     setActionNotice({ type, text });
@@ -77,7 +78,7 @@ export const SettingsPage: React.FC = () => {
   // 2. Truncate all records in local PostgreSQL
   const handleTruncatePgData = async () => {
     if (!tunnelUrl || tunnelUrl.includes('blue-example.trycloudflare.com')) {
-      showNotice('error', '⚠️ Please configure your real Cloudflare Tunnel URL first.');
+      showNotice('error', '⚠️ Please enter your PostgreSQL backend server URL first.');
       return;
     }
 

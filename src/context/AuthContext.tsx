@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UserRole } from '../types';
 import { dataService } from '../services/dataService';
 import { authService } from '../services/authService';
+import { postgresService } from '../services/postgresService';
 import { hashPassword } from '../utils/crypto';
 import { INITIAL_USERS } from '../constants/initialData';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
@@ -87,10 +88,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (newPassword && newPassword.trim()) {
         toSave.passwordHash = await hashPassword(newPassword.trim());
       }
-      dataService.saveUser(toSave);
+      dataService.saveUser(toSave, currentUser, true);
       refreshUsers();
 
-      // If updating currently logged in user, refresh current user state
+      // Sync directly to PostgreSQL backend
+      if (postgresService.isSyncEnabled()) {
+        const pgRes = await postgresService.syncUserToPostgres(toSave, newPassword);
+        if (!pgRes.success) {
+          return { success: false, message: pgRes.message };
+        }
+      }
+
       if (currentUser && currentUser.id === toSave.id) {
         setCurrentUser(toSave);
         localStorage.setItem('sqc_auth_current_user', JSON.stringify(toSave));
@@ -145,18 +153,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isRole = (role: UserRole) => currentUser?.role === role;
 
   const hasPermission = (action: 'CREATE' | 'EDIT_DRAFT' | 'SUBMIT' | 'APPROVE' | 'REJECT' | 'RETURN' | 'MANAGE_MASTERS' | 'SYSTEM_CONFIG') => {
-    const role = currentUser?.role;
-    if (role === 'Super Admin') return true;
+    const role = currentUser?.role as string;
+    if (role === 'Super Admin' || role === 'SuperAdmin') return true;
 
     switch (action) {
       case 'CREATE':
       case 'EDIT_DRAFT':
       case 'SUBMIT':
-        return role === 'Admin' || role === 'SQC Inspector / User';
+        return role === 'Admin' || role === 'SQC Inspector / User' || role === 'Inspector';
       case 'APPROVE':
       case 'REJECT':
       case 'RETURN':
-        return role === 'Admin' || role === 'HOD / Approver';
+        return role === 'Admin' || role === 'HOD / Approver' || role === 'HOD';
       case 'MANAGE_MASTERS':
         return role === 'Admin';
       case 'SYSTEM_CONFIG':
