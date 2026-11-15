@@ -169,11 +169,11 @@ export const InspectionFormPage: React.FC = () => {
     const initRows: Record<string, any>[] = [];
     for (let i = 1; i <= meta.defaultRowCount; i++) {
       const row: Record<string, any> = {
-        sampleNo: i,
+        sampleNo: i/* ,
         rollNo: i,
         pieceNo: i,
         bagNo: i,
-        bagSampleNo: i,
+        bagSampleNo: i, */
       };
       meta.columns.forEach(c => {
         if (c.type === 'select' && c.options && c.options.length > 0) {
@@ -225,11 +225,11 @@ export const InspectionFormPage: React.FC = () => {
   const handleAddRow = () => {
     const newIdx = readingRows.length + 1;
     const row: Record<string, any> = {
-      sampleNo: newIdx,
+      sampleNo: newIdx/* ,
       rollNo: newIdx,
       pieceNo: newIdx,
       bagNo: newIdx,
-      bagSampleNo: newIdx,
+      bagSampleNo: newIdx, */
     };
     formMeta.columns.forEach(c => {
       if (c.type === 'select' && c.options && c.options.length > 0) {

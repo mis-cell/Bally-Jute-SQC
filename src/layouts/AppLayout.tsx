@@ -100,7 +100,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <span className="text-xs font-bold hidden sm:inline">Menu</span>
             </button>
 
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-[#D95F68] flex items-center justify-center font-black text-white text-sm shadow-inner border border-white/50">
                 SQC
               </div>
@@ -112,7 +112,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   SQC
                 </p>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Quick Search */}
@@ -133,7 +133,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           {/* User Account & Actions Menu */}
           <div className="flex items-center gap-3">
             {/* Admin Persona Quick Switcher (Available to Admins for Floor Verification) */}
-            {isAdmin && (
+            {/* {isAdmin && (
               <div className="hidden lg:flex items-center bg-[#500D28]/90 rounded-lg p-1 border border-[#9D174D]/70 shadow-2xs">
                 <span className="text-[10px] text-[#F9C5D8] uppercase px-1.5 font-bold">
                   Active User:
@@ -161,7 +161,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   })}
                 </select>
               </div>
-            )}
+            )} */}
 
             {/* Notification Bell */}
             <div className="relative">
@@ -274,9 +274,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         >
           {/* Sidebar Header */}
           <div className="p-3.5 bg-white border-b border-[#F4C4C5] flex items-center justify-between">
-            <span className="text-xs font-black text-[#574448] uppercase tracking-wider">
+           {/*  <span className="text-xs font-black text-[#574448] uppercase tracking-wider">
               SQC Navigation
-            </span>
+            </span> */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] px-2 py-0.5 rounded bg-[#FCE7E6] text-[#D95F68] font-mono font-bold border border-[#F4C4C5]">
                 SQC System

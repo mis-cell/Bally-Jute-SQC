@@ -169,11 +169,7 @@ export const InspectionFormPage: React.FC = () => {
     const initRows: Record<string, any>[] = [];
     for (let i = 1; i <= meta.defaultRowCount; i++) {
       const row: Record<string, any> = {
-        sampleNo: i,
-        rollNo: i,
-        pieceNo: i,
-        bagNo: i,
-        bagSampleNo: i,
+        sampleNo: i
       };
       meta.columns.forEach(c => {
         if (c.type === 'select' && c.options && c.options.length > 0) {
@@ -225,11 +221,11 @@ export const InspectionFormPage: React.FC = () => {
   const handleAddRow = () => {
     const newIdx = readingRows.length + 1;
     const row: Record<string, any> = {
-      sampleNo: newIdx,
+      sampleNo: newIdx/* ,
       rollNo: newIdx,
       pieceNo: newIdx,
       bagNo: newIdx,
-      bagSampleNo: newIdx,
+      bagSampleNo: newIdx, */
     };
     formMeta.columns.forEach(c => {
       if (c.type === 'select' && c.options && c.options.length > 0) {
@@ -588,7 +584,7 @@ export const InspectionFormPage: React.FC = () => {
 
         {/* Action Toolbar */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pt-3 border-t border-[#DFA2BA]">
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* <div className="flex items-center gap-2 flex-wrap">
             {!id && Object.keys(FORM_REGISTRY).length > 1 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#831843] font-semibold whitespace-nowrap">
@@ -613,13 +609,13 @@ export const InspectionFormPage: React.FC = () => {
                 </select>
               </div>
             )}
-          </div>
+          </div> */}
 
           {/* Right: Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
             {!isReadOnly && (
               <>
-                <button
+                {/* <button
                   id="save-draft-btn"
                   type="button"
                   disabled={isSaving}
@@ -628,7 +624,7 @@ export const InspectionFormPage: React.FC = () => {
                 >
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   <span>Save Draft</span>
-                </button>
+                </button> */}
 
                 <button
                   id="submit-inspection-btn"
@@ -644,7 +640,7 @@ export const InspectionFormPage: React.FC = () => {
             )}
 
             {/* Approver Actions */}
-            {isSubmitted && hasPermission('APPROVE') && (
+            {/* {isSubmitted && hasPermission('APPROVE') && (
               <div className="flex items-center gap-2 pl-2 border-l border-[#DFA2BA]">
                 <button
                   id="btn-approve-inspection"
@@ -657,7 +653,7 @@ export const InspectionFormPage: React.FC = () => {
                   className="px-3 py-2 rounded-lg bg-[#701638] text-white text-xs font-bold hover:bg-[#500D28] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <CheckCircle2 size={14} />
-                  <span>Approve</span>
+                  <span>Approve1</span>
                 </button>
 
                 <button
@@ -688,7 +684,7 @@ export const InspectionFormPage: React.FC = () => {
                   <span>Reject</span>
                 </button>
               </div>
-            )}
+            )} */}
           </div>
         </div>
       </div>
@@ -779,8 +775,8 @@ export const InspectionFormPage: React.FC = () => {
             >
               <option value="Shift-A">Shift A (06:00 - 14:00)</option>
               <option value="Shift-B">Shift B (14:00 - 22:00)</option>
-              <option value="Shift-C">Shift C (22:00 - 06:00)</option>
-              <option value="General">General Shift (08:00 - 17:00)</option>
+              <option value="Shift-C">Shift C (22:00 - 06:00)</option>{/* 
+              <option value="General">General Shift (08:00 - 17:00)</option> */}
             </select>
           </div>
 
@@ -1107,8 +1103,8 @@ export const InspectionFormPage: React.FC = () => {
               </button>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Submit <strong className="font-mono text-[#701638]">{generalInfo.inspectionNo}</strong>{' '}
-              (<strong>{formMeta.code}</strong>) for HOD approval and save directly to PostgreSQL?
+             {/*  Submit <strong className="font-mono text-[#701638]">{generalInfo.inspectionNo}</strong>{' '} */}
+              {/* (<strong>{formMeta.code}</strong>) a */}are you want to save this data?
             </p>
             <div className="flex justify-end gap-2 pt-1">
               <button
@@ -1124,7 +1120,7 @@ export const InspectionFormPage: React.FC = () => {
                 className="px-4 py-1.5 bg-[#701638] hover:bg-[#500D28] text-white text-xs font-bold rounded-lg shadow-xs inline-flex items-center gap-1.5"
               >
                 <Send size={13} />
-                <span>Confirm &amp; Save to PostgreSQL</span>
+                <span>Confirm &amp; Save Data</span>
               </button>
             </div>
           </div>
