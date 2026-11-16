@@ -15,15 +15,14 @@ INSERT INTO departments (id, code, name, hod_name, is_active) VALUES
 ON CONFLICT (code) DO UPDATE 
 SET name = EXCLUDED.name, hod_name = EXCLUDED.hod_name;
 
--- 2. SEED USERS & ROLES
-INSERT INTO users (id, email, display_name, employee_code, role, department_id, is_active) VALUES
-  ('b0000001-0000-0000-0000-000000000001', 'superadmin@ballyjute.com', 'Rajesh K. Agarwal', 'EMP-001', 'Super Admin', (SELECT id FROM departments WHERE code = 'DEPT-LAB' LIMIT 1), TRUE),
-  ('b0000001-0000-0000-0000-000000000002', 'admin.sqc@ballyjute.com', 'Sunil Mukherjee', 'EMP-002', 'Admin', (SELECT id FROM departments WHERE code = 'DEPT-LAB' LIMIT 1), TRUE),
-  ('b0000001-0000-0000-0000-000000000003', 'hod.weaving@ballyjute.com', 'B. K. Roy (HOD Weaving)', 'EMP-005', 'HOD / Approver', (SELECT id FROM departments WHERE code = 'DEPT-WEAV' LIMIT 1), TRUE),
-  ('b0000001-0000-0000-0000-000000000004', 'inspector.sqc@ballyjute.com', 'Animesh Das (SQC Tester)', 'EMP-014', 'SQC Inspector / User', (SELECT id FROM departments WHERE code = 'DEPT-LAB' LIMIT 1), TRUE),
-  ('b0000001-0000-0000-0000-000000000005', 'auditor.bis@ballyjute.com', 'Subrata Bose (BIS Auditor)', 'EMP-EXT-01', 'Viewer / Auditor', (SELECT id FROM departments WHERE code = 'DEPT-LAB' LIMIT 1), TRUE)
+-- 2. SEED USERS & ROLES (Standard users start with zero modules and OWN data scope)
+INSERT INTO users (id, username, password_hash, email, display_name, employee_code, role, department_id, is_active, can_edit_entries, can_delete_entries, permitted_modules, data_scope) VALUES
+  ('b0000001-0000-0000-0000-000000000002', 'admin.sqc', 'bjcl_sqc_salt_2026:5d5a621bd54309c980763fcb42e09fd15c0ad7b82994b1ff985b30475b42c2fc', 'admin.sqc@ballyjute.com', 'Sunil Mukherjee', 'EMP-002', 'Admin', (SELECT id FROM departments WHERE code = 'DEPT-LAB' LIMIT 1), TRUE, TRUE, TRUE, '["DASHBOARD","INSPECTIONS","APPROVALS","REPORTS","MASTERS","USERS","AUDIT_LOGS","SETTINGS"]'::jsonb, 'ALL'),
+  ('b0000001-0000-0000-0000-000000000003', 'hod.weaving', '', 'hod.weaving@ballyjute.com', 'B. K. Roy (HOD Weaving)', 'EMP-005', 'HOD / Approver', (SELECT id FROM departments WHERE code = 'DEPT-WEAV' LIMIT 1), TRUE, FALSE, FALSE, '[]'::jsonb, 'OWN'),
+  ('b0000001-0000-0000-0000-000000000004', 'inspector.sqc', '', 'inspector.sqc@ballyjute.com', 'Animesh Das (SQC Tester)', 'EMP-014', 'SQC Inspector / User', (SELECT id FROM departments WHERE code = 'DEPT-LAB' LIMIT 1), TRUE, FALSE, FALSE, '[]'::jsonb, 'OWN'),
+  ('b0000001-0000-0000-0000-000000000005', 'auditor.bis', '', 'auditor.bis@ballyjute.com', 'Subrata Bose (BIS Auditor)', 'EMP-EXT-01', 'Viewer / Auditor', (SELECT id FROM departments WHERE code = 'DEPT-LAB' LIMIT 1), TRUE, FALSE, FALSE, '[]'::jsonb, 'OWN')
 ON CONFLICT (email) DO UPDATE 
-SET display_name = EXCLUDED.display_name, role = EXCLUDED.role;
+SET display_name = EXCLUDED.display_name, role = EXCLUDED.role, data_scope = EXCLUDED.data_scope, permitted_modules = EXCLUDED.permitted_modules;
 
 -- 3. SEED JUTE QUALITY MASTERS
 INSERT INTO quality_masters (id, code, name, category, nominal_count, standard_mr, warp_count, weft_count) VALUES

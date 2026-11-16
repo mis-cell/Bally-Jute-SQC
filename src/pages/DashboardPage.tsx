@@ -1,17 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardCheck,
   Clock,
   CheckCircle2,
-  XCircle,
   AlertTriangle,
   RotateCcw,
   PlusCircle,
   ArrowUpRight,
   TrendingUp,
   Building,
-  Cpu,
   Layers,
   FileSpreadsheet,
 } from 'lucide-react';
@@ -22,10 +20,18 @@ import { FORM_REGISTRY } from '../constants/formsRegistry';
 import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 export const DashboardPage: React.FC = () => {
-  const { currentUser } = useAuth();
+  const {
+    currentUser,
+    isAdmin,
+    permittedForms,
+    canAccessModule,
+    canAccessForm,
+    canViewRecord,
+    hasPermission,
+  } = useAuth();
   const navigate = useNavigate();
-  const inspections = useRealtimeData(() => dataService.getInspections());
-  const settings = useRealtimeData(() => dataService.getSettings());
+  const rawInspections = useRealtimeData(() => dataService.getInspections());
+  const inspections = rawInspections.filter(rec => canViewRecord(rec));
 
   // Metric aggregates
   const total = inspections.length;
@@ -35,7 +41,6 @@ export const DashboardPage: React.FC = () => {
   const rejected = inspections.filter(i => i.status === 'Rejected').length;
   const returned = inspections.filter(i => i.status === 'Returned').length;
   const outOfStandard = inspections.filter(i => i.result === 'FAIL').length;
-  const warnings = inspections.filter(i => i.result === 'WARNING').length;
 
   // Department counts
   const deptMap: Record<string, number> = {};
@@ -44,46 +49,59 @@ export const DashboardPage: React.FC = () => {
   });
 
   // Recent inspections
-  const recentList = [...inspections].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 7);
+  const recentList = [...inspections]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 7);
 
-  // Quick form shortcuts
-  const popularForms = ['FORM-01', 'FORM-10', 'FORM-16', 'FORM-20', 'FORM-23', 'FORM-29'];
+  // Quick form shortcuts filtered to forms the user may access
+  const candidateForms = ['FORM-01', 'FORM-10', 'FORM-16', 'FORM-20', 'FORM-23', 'FORM-29'];
+  const popularForms = candidateForms.filter(f => canAccessForm(f));
+  const fallbackForms =
+    popularForms.length > 0 ? popularForms : permittedForms.slice(0, 6).filter(f => canAccessForm(f));
+  const canCreateEntry = hasPermission('CREATE') && permittedForms.length > 0;
+  const scopeLabel = isAdmin ? 'ALL (Admin)' : currentUser.dataScope || 'OWN';
 
   return (
     <div className="space-y-6">
       {/* Top Banner / Welcome */}
-      <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#FFFDF8] rounded-xl p-5 border border-[#E4D0A3] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>SQC Mill Floor Live System</span>
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 mt-1">
-            SQC Dashboard
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Logged in as <strong className="text-slate-800">{currentUser.displayName}</strong> ({currentUser.role})
-            • Mill: Bally Jute Co. Ltd.
+          <p className="text-[11px] font-bold text-[#9B6E14] uppercase tracking-wider">
+            SQC Mill Floor System · Bally Jute Co. Ltd.
+          </p>
+          <h2 className="text-xl font-bold text-[#2B1114] mt-1">SQC Dashboard</h2>
+          <p className="text-xs text-[#6E524B] mt-0.5 flex items-center gap-2 flex-wrap">
+            <span>
+              Logged in as <strong className="text-[#5C080E]">{currentUser.displayName}</strong> (
+              {currentUser.role})
+            </span>
+            <span className="px-2 py-0.5 rounded bg-[#FDF5DC] text-[#7A560B] border border-[#DFC378] text-[10px] font-bold font-mono">
+              Scope: {scopeLabel}
+            </span>
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            id="dash-new-inspection-btn"
-            onClick={() => navigate('/new-inspection')}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-800 text-white rounded-lg text-xs font-semibold hover:bg-emerald-900 transition-colors shadow-xs"
-          >
-            <PlusCircle size={15} />
-            <span>New Inspection Entry</span>
-          </button>
-          <button
-            id="dash-view-all-reports-btn"
-            onClick={() => navigate('/reports')}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-200 transition-colors"
-          >
-            <FileSpreadsheet size={15} />
-            <span>Generate Reports</span>
-          </button>
+          {canCreateEntry && (
+            <button
+              id="dash-new-inspection-btn"
+              onClick={() => navigate(`/new-inspection?form=${encodeURIComponent(permittedForms[0])}`)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] rounded-lg text-xs font-bold hover:from-[#68050B] hover:to-[#4E0308] border border-[#D4AF37]/40 transition-colors shadow-xs whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <PlusCircle size={15} />
+              <span>New Inspection Entry</span>
+            </button>
+          )}
+          {canAccessModule('REPORTS') && (
+            <button
+              id="dash-view-all-reports-btn"
+              onClick={() => navigate('/reports')}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#FBF4E1] border border-[#E4D0A3] text-[#5C080E] rounded-lg text-xs font-semibold hover:bg-[#FDF5DC] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <FileSpreadsheet size={15} />
+              <span>Generate Reports</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -145,28 +163,27 @@ export const DashboardPage: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Pending Approval Table if any */}
           {submitted > 0 && (
-            <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4 shadow-xs">
+            <div className="bg-[#FDF5DC]/75 border border-[#DFC378] rounded-xl p-4 shadow-xs">
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                  <h3 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
-                    Attention Required: Pending Inspection Approvals ({submitted})
-                  </h3>
-                </div>
-                <button
-                  id="dash-view-approvals-link"
-                  onClick={() => navigate('/approvals')}
-                  className="text-xs text-amber-800 hover:text-amber-950 font-semibold inline-flex items-center gap-1"
-                >
-                  <span>Review Workflow</span>
-                  <ArrowUpRight size={13} />
-                </button>
+                <h3 className="text-xs font-bold text-[#7A560B] uppercase tracking-wider">
+                  Attention Required: Pending Inspection Approvals ({submitted})
+                </h3>
+                {canAccessModule('APPROVALS') && (
+                  <button
+                    id="dash-view-approvals-link"
+                    onClick={() => navigate('/approvals')}
+                    className="text-xs text-[#8B0A12] hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Review Workflow</span>
+                    <ArrowUpRight size={13} />
+                  </button>
+                )}
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-amber-200 text-amber-900 font-semibold">
+                    <tr className="border-b border-[#DFC378] text-[#5C080E] font-semibold">
                       <th className="py-2 px-2">Inspection #</th>
                       <th className="py-2 px-2">Form</th>
                       <th className="py-2 px-2">Department</th>
@@ -175,16 +192,20 @@ export const DashboardPage: React.FC = () => {
                       <th className="py-2 px-2 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-amber-100">
+                  <tbody className="divide-y divide-[#EFE2C2]">
                     {inspections
                       .filter(i => i.status === 'Submitted')
                       .slice(0, 4)
                       .map(item => (
-                        <tr key={item.id} className="hover:bg-amber-100/50">
-                          <td className="py-2 px-2 font-mono font-bold text-amber-900">{item.inspectionNo}</td>
-                          <td className="py-2 px-2 text-slate-700">{item.formCode}</td>
-                          <td className="py-2 px-2 text-slate-700">{item.departmentName}</td>
-                          <td className="py-2 px-2 text-slate-700">{item.submittedBy || item.inspectorName}</td>
+                        <tr key={item.id} className="hover:bg-[#FBF4E1]">
+                          <td className="py-2 px-2 font-mono font-bold text-[#8B0A12] tabular-nums">
+                            {item.inspectionNo}
+                          </td>
+                          <td className="py-2 px-2 text-[#2B1114] font-mono">{item.formCode}</td>
+                          <td className="py-2 px-2 text-[#2B1114]">{item.departmentName}</td>
+                          <td className="py-2 px-2 text-[#2B1114]">
+                            {item.submittedBy || item.inspectorName}
+                          </td>
                           <td className="py-2 px-2">
                             <ResultBadge result={item.result} />
                           </td>
@@ -192,9 +213,9 @@ export const DashboardPage: React.FC = () => {
                             <button
                               id={`dash-review-btn-${item.id}`}
                               onClick={() => navigate(`/inspection/${item.id}`)}
-                              className="px-2.5 py-1 bg-amber-600 text-white rounded text-[11px] font-medium hover:bg-amber-700"
+                              className="px-2.5 py-1 bg-[#8B0A12] text-[#FFFDF8] rounded text-[11px] font-semibold hover:bg-[#68050B] cursor-pointer whitespace-nowrap"
                             >
-                              Open & Review
+                              Open &amp; Review
                             </button>
                           </td>
                         </tr>
@@ -206,26 +227,30 @@ export const DashboardPage: React.FC = () => {
           )}
 
           {/* Recent Inspection Log */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+          <div className="bg-[#FFFDF8] rounded-xl border border-[#E4D0A3] p-4 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Recent Inspection Activities</h3>
-                <p className="text-xs text-slate-500">Real-time submissions and audits across departments</p>
+                <h3 className="text-sm font-bold text-[#2B1114]">Recent Inspection Activities</h3>
+                <p className="text-xs text-[#6E524B]">
+                  Authorized records matching your assigned module &amp; data scope
+                </p>
               </div>
-              <button
-                id="dash-view-all-inspections"
-                onClick={() => navigate('/inspections')}
-                className="text-xs text-emerald-800 hover:text-emerald-950 font-semibold flex items-center gap-1"
-              >
-                <span>View Full Registry</span>
-                <ArrowUpRight size={13} />
-              </button>
+              {canAccessModule('INSPECTIONS') && (
+                <button
+                  id="dash-view-all-inspections"
+                  onClick={() => navigate('/inspections')}
+                  className="text-xs text-[#8B0A12] hover:underline font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                >
+                  <span>View Full Registry</span>
+                  <ArrowUpRight size={13} />
+                </button>
+              )}
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-semibold bg-slate-50/50">
+                  <tr className="border-b border-[#E4D0A3] text-[#5C080E] font-semibold bg-[#FBF4E1]">
                     <th className="py-2.5 px-3">Inspection #</th>
                     <th className="py-2.5 px-3">Date / Time</th>
                     <th className="py-2.5 px-3">Form Description</th>
@@ -235,44 +260,48 @@ export const DashboardPage: React.FC = () => {
                     <th className="py-2.5 px-3 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#EFE2C2]">
                   {recentList.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400">
-                        No inspection records found. Start live production entries using "New Inspection Entry".
+                      <td colSpan={7} className="py-8 text-center text-[#6E524B]">
+                        No inspection records found. Start live production entries using &quot;New Inspection Entry&quot;.
                       </td>
                     </tr>
                   ) : (
                     recentList.map(rec => (
-                    <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-2.5 px-3 font-mono font-medium text-emerald-900">
-                        {rec.inspectionNo}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600">
-                        {rec.inspectionDate} <span className="text-[10px] text-slate-400">{rec.inspectionTime}</span>
-                      </td>
-                      <td className="py-2.5 px-3 font-medium text-slate-800">
-                        <span className="font-mono text-emerald-700 mr-1.5">{rec.formCode}</span>
-                        {rec.formTitle.split('–')[1]?.trim() || rec.formTitle}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600">{rec.departmentName}</td>
-                      <td className="py-2.5 px-3">
-                        <StatusBadge status={rec.status} />
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <ResultBadge result={rec.result} />
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <button
-                          id={`dash-open-record-${rec.id}`}
-                          onClick={() => navigate(`/inspection/${rec.id}`)}
-                          className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 px-2 py-1 rounded hover:bg-emerald-50"
-                        >
-                          View / Edit
-                        </button>
-                      </td>
-                    </tr>
-                  )))}
+                      <tr key={rec.id} className="hover:bg-[#FCF3DE] transition-colors">
+                        <td className="py-2.5 px-3 font-mono font-bold text-[#8B0A12] tabular-nums">
+                          {rec.inspectionNo}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#2B1114] tabular-nums whitespace-nowrap">
+                          {rec.inspectionDate}{' '}
+                          <span className="text-[10px] text-[#6E524B]">{rec.inspectionTime}</span>
+                        </td>
+                        <td className="py-2.5 px-3 font-medium text-[#2B1114]">
+                          <span className="font-mono text-[#7A560B] font-bold mr-1.5 tabular-nums">
+                            {rec.formCode}
+                          </span>
+                          {rec.formTitle.split('–')[1]?.trim() || rec.formTitle}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#2B1114]">{rec.departmentName}</td>
+                        <td className="py-2.5 px-3">
+                          <StatusBadge status={rec.status} />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <ResultBadge result={rec.result} />
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <button
+                            id={`dash-open-record-${rec.id}`}
+                            onClick={() => navigate(`/inspection/${rec.id}`)}
+                            className="text-xs font-semibold text-[#8B0A12] hover:bg-[#FDF5DC] px-2 py-1 rounded whitespace-nowrap cursor-pointer"
+                          >
+                            View / Check
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -282,75 +311,91 @@ export const DashboardPage: React.FC = () => {
         {/* Right 1 Col: Quick Launch & Department Statistics */}
         <div className="space-y-6">
           {/* Quick Form Launchpad */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <Layers size={14} className="text-emerald-700" />
-              <span>High Frequency Inspection Launch</span>
+          <div className="bg-[#FFFDF8] rounded-xl border border-[#E4D0A3] p-4 shadow-xs">
+            <h3 className="text-xs font-bold text-[#5C080E] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+              <Layers size={14} className="text-[#8B0A12]" />
+              <span>Permitted Form Quick Launch</span>
             </h3>
-            <p className="text-[11px] text-slate-500 mb-3">
-              Direct access to primary digital forms defined in SQC standards
+            <p className="text-[11px] text-[#6E524B] mb-3">
+              Direct access to digital quality forms granted to your account
             </p>
 
-            <div className="space-y-2">
-              {popularForms.map(fCode => {
-                const meta = FORM_REGISTRY[fCode];
-                if (!meta) return null;
-                return (
-                  <button
-                    key={fCode}
-                    id={`quick-launch-${fCode.toLowerCase()}`}
-                    onClick={() => navigate(`/new-inspection?form=${fCode}`)}
-                    className="w-full text-left p-2.5 rounded-lg border border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/50 transition-colors flex items-center justify-between group"
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <span className="font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">
-                          {meta.code}
-                        </span>
-                        <span className="group-hover:text-emerald-950">{meta.title}</span>
+            {fallbackForms.length === 0 ? (
+              <div className="p-3 rounded-lg bg-[#FCF8EE] border border-[#E4D0A3] text-[11px] text-[#6E524B]">
+                No inspection forms are assigned to your account.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {fallbackForms.map(fCode => {
+                  const meta = FORM_REGISTRY[fCode];
+                  if (!meta) return null;
+                  return (
+                    <button
+                      key={fCode}
+                      id={`quick-launch-${fCode.toLowerCase()}`}
+                      onClick={() => navigate(`/new-inspection?form=${fCode}`)}
+                      className="w-full text-left p-2.5 rounded-lg border border-[#EFE2C2] hover:border-[#DFC378] hover:bg-[#FBF4E1] transition-colors flex items-center justify-between group cursor-pointer"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-[#2B1114] flex items-center gap-1.5">
+                          <span className="font-mono text-[#FFFDF8] bg-[#8B0A12] px-1.5 py-0.5 rounded text-[10px] tabular-nums shrink-0">
+                            {meta.code}
+                          </span>
+                          <span className="group-hover:text-[#8B0A12] truncate">{meta.title}</span>
+                        </div>
+                        <p className="text-[10px] text-[#6E524B] mt-0.5 truncate">
+                          {meta.department} · {meta.sampleUnit}
+                        </p>
                       </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{meta.department} • {meta.sampleUnit}</p>
-                    </div>
-                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-emerald-700" />
-                  </button>
-                );
-              })}
-            </div>
+                      <ArrowUpRight size={14} className="text-[#9B6E14] group-hover:text-[#8B0A12] shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-            <button
-              id="dash-browse-all-forms-btn"
-              onClick={() => navigate('/new-inspection')}
-              className="w-full mt-3 py-2 text-center text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
-            >
-              Browse All 36 Forms Registry →
-            </button>
+            {canCreateEntry && (
+              <button
+                id="dash-browse-all-forms-btn"
+                onClick={() => navigate(`/new-inspection?form=${encodeURIComponent(permittedForms[0])}`)}
+                className="w-full mt-3 py-2 text-center text-xs font-bold text-[#7A560B] hover:text-[#5C080E] bg-[#FDF5DC] border border-[#DFC378] rounded-lg hover:bg-[#F5E4AE] transition-colors cursor-pointer"
+              >
+                Open Permitted Forms ({permittedForms.length}) →
+              </button>
+            )}
           </div>
 
           {/* Department Breakdown */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Building size={14} className="text-emerald-700" />
+          <div className="bg-[#FFFDF8] rounded-xl border border-[#E4D0A3] p-4 shadow-xs">
+            <h3 className="text-xs font-bold text-[#5C080E] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Building size={14} className="text-[#8B0A12]" />
               <span>Department Inspection Volume</span>
             </h3>
 
-            <div className="space-y-2 text-xs">
-              {Object.entries(deptMap).map(([dept, count]) => {
-                const pct = total > 0 ? (count / total) * 100 : 0;
-                return (
-                  <div key={dept} className="space-y-1">
-                    <div className="flex justify-between text-slate-700 font-medium">
-                      <span>{dept}</span>
-                      <span className="font-mono font-bold text-emerald-900">{count}</span>
+            <div className="space-y-2.5 text-xs">
+              {Object.entries(deptMap).length === 0 ? (
+                <p className="text-[11px] text-[#6E524B]">No inspection data recorded yet.</p>
+              ) : (
+                Object.entries(deptMap).map(([dept, count]) => {
+                  const pct = total > 0 ? (count / total) * 100 : 0;
+                  return (
+                    <div key={dept} className="space-y-1">
+                      <div className="flex justify-between text-[#2B1114] font-medium">
+                        <span>{dept}</span>
+                        <span className="font-mono font-bold text-[#8B0A12] tabular-nums">
+                          {count}
+                        </span>
+                      </div>
+                      <div className="w-full bg-[#FBF4E1] rounded-full h-1.5 overflow-hidden border border-[#EFE2C2]">
+                        <div
+                          className="bg-gradient-to-r from-[#8B0A12] to-[#C9962B] h-full rounded-full transition-all duration-300"
+                          style={{ width: `${Math.max(5, pct)}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="bg-emerald-600 h-full rounded-full transition-all duration-300"
-                        style={{ width: `${Math.max(5, pct)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

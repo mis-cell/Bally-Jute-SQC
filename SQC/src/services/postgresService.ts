@@ -41,8 +41,40 @@ function getDefaultApiUrl(): string {
 }
 
 export const DEFAULT_API_URL = getDefaultApiUrl();
-export const DEFAULT_API_KEY =
-  (import.meta as any).env?.VITE_API_KEY || 'change-this-to-a-long-secret-key-123456';
+export const DEFAULT_API_KEY = (import.meta as any).env?.VITE_API_KEY || '';
+
+function getStoredAuthUser(): Partial<UserProfile> | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const raw = localStorage.getItem('sqc_auth_current_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function hasStoredAuthToken(): boolean {
+  try {
+    return typeof window !== 'undefined' && Boolean(localStorage.getItem('sqc_auth_token'));
+  } catch {
+    return false;
+  }
+}
+
+export function isCurrentSessionAdmin(): boolean {
+  const u = getStoredAuthUser();
+  return u?.role === 'Admin';
+}
+
+function emitAuthInvalidated(message?: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('bj_sqc_auth_invalidated', {
+        detail: { message: message || 'Session expired or permissions updated. Please sign in again.' },
+      })
+    );
+  }
+}
 
 function isPlaceholderOrDeadUrl(url: string | null | undefined): boolean {
   if (!url) return true;
@@ -67,6 +99,7 @@ export interface PostgresSyncResult {
   success: boolean;
   message: string;
   error?: string;
+  statusCode?: number;
   formTable?: string;
   data?: any;
 }
@@ -159,14 +192,18 @@ class PostgresService {
 
       // Trigger instant bi-directional sync when user returns to this browser tab
       window.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && this.isSyncEnabled()) {
-          this.triggerImmediateAutoPush();
+        if (document.visibilityState === 'visible' && this.isSyncEnabled() && hasStoredAuthToken()) {
+          if (isCurrentSessionAdmin() && this.hasPendingLocalChanges) {
+            this.triggerImmediateAutoPush();
+          }
           this.pullAndSyncAllData(false);
         }
       });
       window.addEventListener('focus', () => {
-        if (this.isSyncEnabled()) {
-          this.triggerImmediateAutoPush();
+        if (this.isSyncEnabled() && hasStoredAuthToken()) {
+          if (isCurrentSessionAdmin() && this.hasPendingLocalChanges) {
+            this.triggerImmediateAutoPush();
+          }
           this.pullAndSyncAllData(false);
         }
       });
@@ -237,7 +274,7 @@ class PostgresService {
   }
 
   public async triggerImmediateAutoPush(): Promise<boolean> {
-    if (!this.isSyncEnabled() || !this.fullDataSupplier) {
+    if (!this.isSyncEnabled() || !this.fullDataSupplier || !hasStoredAuthToken() || !isCurrentSessionAdmin()) {
       return false;
     }
 
@@ -319,9 +356,8 @@ class PostgresService {
     }
     this.notifySyncState({ isAutoSyncEnabled: true });
     this.syncIntervalTimer = setInterval(() => {
-      if (this.isSyncEnabled() && !this.syncState.isSyncing) {
-        // If we have pending local changes, push first; otherwise pull latest
-        if (this.hasPendingLocalChanges && this.fullDataSupplier) {
+      if (this.isSyncEnabled() && !this.syncState.isSyncing && hasStoredAuthToken()) {
+        if (this.hasPendingLocalChanges && this.fullDataSupplier && isCurrentSessionAdmin()) {
           this.triggerImmediateAutoPush();
         } else {
           this.pullAndSyncAllData(false);
@@ -344,6 +380,7 @@ class PostgresService {
     error?: string;
   }> {
     if (!this.isSyncEnabled()) return { success: false, error: 'Sync is disabled or not configured.' };
+    if (!hasStoredAuthToken()) return { success: false, error: 'Authentication required.' };
     if (this.syncState.isSyncing && !isUserInitiated) return { success: false, error: 'Sync already in progress.' };
 
     if (!isUserInitiated) {
@@ -371,7 +408,6 @@ class PostgresService {
         return { success: false, error: 'Failed to retrieve data from PostgreSQL backend.' };
       }
 
-      // Storage keys
       const STORAGE_KEYS_LOCAL = {
         DEPARTMENTS: 'bj_sqc_departments_prod_v1',
         SECTIONS: 'bj_sqc_sections_prod_v1',
@@ -383,79 +419,39 @@ class PostgresService {
         INSPECTIONS: 'bj_sqc_inspections_prod_clean',
       };
 
-      const getLocalArray = <T>(key: string): T[] => {
-        try {
-          const raw = localStorage.getItem(key);
-          return raw ? JSON.parse(raw) : [];
-        } catch {
-          return [];
-        }
-      };
-
-      // Smart merge: merge PostgreSQL database data with local items to guarantee zero data loss
-      if (data.users && Array.isArray(data.users)) {
-        const localUsers = getLocalArray<UserProfile>(STORAGE_KEYS_LOCAL.USERS);
-        const mergedUsers = [...data.users];
-        // Preserve any local user that hasn't appeared in PG yet
-        localUsers.forEach(lu => {
-          if (!mergedUsers.some(mu => mu.id === lu.id || mu.email === lu.email)) {
-            mergedUsers.push(lu);
-          }
-        });
-        localStorage.setItem(STORAGE_KEYS_LOCAL.USERS, JSON.stringify(mergedUsers));
+      // Only Admin sessions retain the full user directory locally; non-Admins never cache other users
+      if (isCurrentSessionAdmin() && Array.isArray(data.users)) {
+        const sanitizedUsers = data.users.map(({ passwordHash: _ph, ...rest }) => rest);
+        localStorage.setItem(STORAGE_KEYS_LOCAL.USERS, JSON.stringify(sanitizedUsers));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS_LOCAL.USERS);
       }
 
-      if (data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
+      if (Array.isArray(data.departments) && data.departments.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.DEPARTMENTS, JSON.stringify(data.departments));
       }
-      if (data.sections && Array.isArray(data.sections) && data.sections.length > 0) {
+      if (Array.isArray(data.sections) && data.sections.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.SECTIONS, JSON.stringify(data.sections));
       }
-      if (data.machines && Array.isArray(data.machines) && data.machines.length > 0) {
+      if (Array.isArray(data.machines) && data.machines.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.MACHINES, JSON.stringify(data.machines));
       }
-      if (data.looms && Array.isArray(data.looms) && data.looms.length > 0) {
+      if (Array.isArray(data.looms) && data.looms.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.LOOMS, JSON.stringify(data.looms));
       }
-      if (data.qualities && Array.isArray(data.qualities) && data.qualities.length > 0) {
+      if (Array.isArray(data.qualities) && data.qualities.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.QUALITIES, JSON.stringify(data.qualities));
       }
-      if (data.standards && Array.isArray(data.standards) && data.standards.length > 0) {
+      if (Array.isArray(data.standards) && data.standards.length > 0) {
         localStorage.setItem(STORAGE_KEYS_LOCAL.STANDARDS, JSON.stringify(data.standards));
       }
 
-      if (data.inspections && Array.isArray(data.inspections)) {
-        const localInspections = getLocalArray<InspectionRecord>(STORAGE_KEYS_LOCAL.INSPECTIONS);
-        const map = new Map<string, InspectionRecord>();
-        
-        // Populate with PG records
-        data.inspections.forEach((r: InspectionRecord) => {
-          if (r && r.inspectionNo) {
-            map.set(r.inspectionNo, r);
-          }
-        });
-
-        // Merge local records if newer or not in PG yet
-        localInspections.forEach(li => {
-          if (li && li.inspectionNo) {
-            const existing = map.get(li.inspectionNo);
-            if (!existing) {
-              map.set(li.inspectionNo, li);
-            } else {
-              const localTime = new Date(li.updatedAt || li.createdAt || 0).getTime();
-              const pgTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
-              if (localTime > pgTime) {
-                map.set(li.inspectionNo, li);
-              }
-            }
-          }
-        });
-
-        const mergedInspections = Array.from(map.values()).sort((a, b) => {
-          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        });
-
-        localStorage.setItem(STORAGE_KEYS_LOCAL.INSPECTIONS, JSON.stringify(mergedInspections));
+      // Strictly replace local inspection cache with server-authorized, data-scope filtered records
+      if (Array.isArray(data.inspections)) {
+        const sorted = [...data.inspections].sort(
+          (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+        localStorage.setItem(STORAGE_KEYS_LOCAL.INSPECTIONS, JSON.stringify(sorted));
       }
 
       const totalItems =
@@ -473,7 +469,7 @@ class PostgresService {
         isSyncing: false,
         lastSyncTime: nowStr,
         lastSyncStatus: 'success',
-        lastSyncMessage: `Auto-synced ${data.inspections?.length || 0} inspections & ${data.users?.length || 0} users`,
+        lastSyncMessage: `Auto-synced ${data.inspections?.length || 0} inspections`,
         itemsCount: {
           inspections: data.inspections?.length || 0,
           users: data.users?.length || 0,
@@ -486,7 +482,6 @@ class PostgresService {
         },
       });
 
-      // Broadcast update to all mounted React UI views
       broadcastDataChange('postgres_poll');
       return { success: true, totalItems };
     } catch (err: any) {
@@ -509,7 +504,7 @@ class PostgresService {
     standards: StandardDefinition[];
     inspections: InspectionRecord[];
   } | null> {
-    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
       return null;
     }
 
@@ -520,6 +515,11 @@ class PostgresService {
       });
 
       if (await this.handleMaintenanceResponse(res)) {
+        return null;
+      }
+
+      if (res.status === 401) {
+        emitAuthInvalidated();
         return null;
       }
 
@@ -627,7 +627,6 @@ class PostgresService {
 
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
-      'x-api-key': this.apiKey,
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
     };
@@ -654,6 +653,9 @@ class PostgresService {
       } catch {
         // Ignore parse failures
       }
+    }
+    if (res.status === 401 && hasStoredAuthToken()) {
+      emitAuthInvalidated();
     }
     return false;
   }
@@ -779,8 +781,126 @@ class PostgresService {
   }
 
   // ==========================================
-  // 2. USER SYNCHRONIZATION
+  // 2. USER & SESSION SECURITY APIS
   // ==========================================
+  public async fetchCurrentSessionUser(): Promise<{
+    ok: boolean;
+    status: number;
+    user?: UserProfile;
+    maintenanceMode?: any;
+    message?: string;
+  }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
+      return { ok: false, status: 0 };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/auth/me`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+        cache: 'no-store',
+      });
+      if (!this.isJsonResponse(res)) {
+        return { ok: false, status: 0 };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 503 && json?.maintenanceMode) {
+        emitMaintenanceLockout(json.message);
+        return { ok: false, status: 503, maintenanceMode: json.maintenanceMode, message: json.message };
+      }
+      if (res.status === 401 || res.status === 403) {
+        emitAuthInvalidated(json.message);
+        return { ok: false, status: res.status, message: json.message };
+      }
+      if (res.ok && json.success && json.user) {
+        return { ok: true, status: 200, user: json.user, maintenanceMode: json.maintenanceMode };
+      }
+      return { ok: false, status: res.status, message: json.message };
+    } catch {
+      return { ok: false, status: 0 };
+    }
+  }
+
+  public async updateOwnProfile(
+    displayName: string,
+    phone: string
+  ): Promise<{ success: boolean; user?: UserProfile; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend server URL not configured.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ displayName, phone }),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json.message || `HTTP ${res.status}` };
+      }
+      return { success: true, user: json.user };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error updating profile.' };
+    }
+  }
+
+  public async changeOwnPassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; token?: string; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend server URL not configured.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/auth/change-password`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json.message || `HTTP ${res.status}` };
+      }
+      return { success: true, token: json.token, message: json.message || 'Password updated.' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error updating password.' };
+    }
+  }
+
+  public async adminResetUserPassword(
+    userId: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend server URL not configured.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/users/${encodeURIComponent(userId)}/reset-password`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ newPassword }),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json.message || `HTTP ${res.status}` };
+      }
+      return { success: true, message: json.message || 'Password reset successfully.' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error resetting password.' };
+    }
+  }
+
   public async syncUserToPostgres(user: UserProfile, plainPassword?: string): Promise<PostgresSyncResult> {
     if (!this.isSyncEnabled()) {
       return { success: false, message: 'PostgreSQL sync disabled or backend URL not set.' };
@@ -799,10 +919,15 @@ class PostgresService {
         departmentName: user.departmentName || '',
         phone: user.phone || '',
         isActive: user.isActive,
+        canEditEntries: Boolean(user.canEditEntries),
+        canDeleteEntries: Boolean(user.canDeleteEntries),
+        permittedModules: Array.isArray(user.permittedModules) ? user.permittedModules : [],
         permittedForms: Array.isArray(user.permittedForms) ? user.permittedForms : [],
+        dataScope: user.dataScope || 'OWN',
       };
-      if (user.passwordHash) payload.passwordHash = user.passwordHash;
-      if (plainPassword && plainPassword.trim()) payload.password = plainPassword.trim();
+      if (plainPassword && plainPassword.trim()) {
+        payload.password = plainPassword.trim();
+      }
 
       const response = await fetch(url, {
         method: 'POST',
@@ -810,10 +935,12 @@ class PostgresService {
         body: JSON.stringify(payload),
       });
 
+      await this.handleMaintenanceResponse(response);
+
       if (!response.ok) {
         const err = await response.text();
         const cleanMsg = this.cleanErrorMessage(response.status, err, '/api/users');
-        return { success: false, message: cleanMsg };
+        return { success: false, statusCode: response.status, message: cleanMsg };
       }
 
       if (!this.isJsonResponse(response)) {
@@ -821,32 +948,41 @@ class PostgresService {
       }
 
       const res = await response.json();
-      return { success: true, message: 'User saved to PostgreSQL', data: res };
+      return { success: true, message: 'User saved to PostgreSQL', data: res.user || res };
     } catch (err: any) {
       return { success: false, message: err.message || 'Network error syncing user' };
     }
   }
 
-  public async deleteUserFromPostgres(userId: string): Promise<boolean> {
-    if (!this.isSyncEnabled()) return false;
+  public async deleteUserFromPostgresDetailed(userId: string): Promise<{ success: boolean; message?: string }> {
+    if (!this.isSyncEnabled()) return { success: false, message: 'Sync disabled' };
     try {
       const res = await fetch(`${this.apiUrl}/api/users/${encodeURIComponent(userId)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return res.ok;
-    } catch {
-      return false;
+      await this.handleMaintenanceResponse(res);
+      if (res.ok) return { success: true };
+      const errText = await res.text();
+      return { success: false, message: this.cleanErrorMessage(res.status, errText, '/api/users/:id') };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error deleting user' };
     }
   }
 
+  public async deleteUserFromPostgres(userId: string): Promise<boolean> {
+    const res = await this.deleteUserFromPostgresDetailed(userId);
+    return res.success;
+  }
+
   public async loadUsers(): Promise<UserProfile[]> {
-    if (!this.isSyncEnabled()) return [];
+    if (!this.isSyncEnabled() || !hasStoredAuthToken() || !isCurrentSessionAdmin()) return [];
     try {
       const res = await fetch(`${this.apiUrl}/api/users`, {
         method: 'GET',
         headers: this.getHeaders(),
       });
+      await this.handleMaintenanceResponse(res);
       if (res.ok && this.isJsonResponse(res)) {
         const data = await res.json();
         return Array.isArray(data) ? data : [];
@@ -854,6 +990,68 @@ class PostgresService {
       return [];
     } catch {
       return [];
+    }
+  }
+
+  public async fetchAuditLogs(): Promise<{ success: boolean; logs: any[]; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
+      return { success: false, logs: [] };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/audit-logs`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!res.ok || !this.isJsonResponse(res)) {
+        return { success: false, logs: [], message: `HTTP ${res.status}` };
+      }
+      const data = await res.json();
+      return { success: true, logs: Array.isArray(data) ? data : [] };
+    } catch {
+      return { success: false, logs: [] };
+    }
+  }
+
+  public async fetchSettings(): Promise<any | null> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) return null;
+    try {
+      const res = await fetch(`${this.apiUrl}/api/settings`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (res.ok && this.isJsonResponse(res)) {
+        const json = await res.json();
+        return json.settings || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async saveSettingsToPostgres(settings: any): Promise<{ success: boolean; settings?: any; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend URL not configured.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/settings`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(settings),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json.message || `HTTP ${res.status}` };
+      }
+      return { success: true, settings: json.settings };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error saving settings.' };
     }
   }
 
@@ -1132,6 +1330,7 @@ class PostgresService {
         const cleanMsg = this.cleanErrorMessage(response.status, errorBody, '/api/inspections');
         return {
           success: false,
+          statusCode: response.status,
           message: cleanMsg,
           error: errorBody,
         };
@@ -1161,12 +1360,13 @@ class PostgresService {
   }
 
   public async fetchInspectionById(idOrNo: string): Promise<InspectionRecord | null> {
-    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) return null;
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) return null;
     try {
       const response = await fetch(`${this.apiUrl}/api/inspections/${encodeURIComponent(idOrNo)}`, {
         method: 'GET',
         headers: this.getHeaders(),
       });
+      await this.handleMaintenanceResponse(response);
       if (!response.ok || !this.isJsonResponse(response)) return null;
       const data = await response.json();
       return data && data.inspectionNo ? data : null;
@@ -1176,7 +1376,7 @@ class PostgresService {
   }
 
   public async loadInspections(): Promise<any[]> {
-    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
       return [];
     }
 
@@ -1186,6 +1386,7 @@ class PostgresService {
         method: 'GET',
         headers: this.getHeaders(),
       });
+      await this.handleMaintenanceResponse(response);
 
       if (!response.ok || !this.isJsonResponse(response)) return [];
       const data = await response.json();
@@ -1195,9 +1396,11 @@ class PostgresService {
     }
   }
 
-  public async deleteInspectionFromPostgres(inspectionNo: string): Promise<boolean> {
+  public async deleteInspectionFromPostgresDetailed(
+    inspectionNo: string
+  ): Promise<{ success: boolean; statusCode?: number; message?: string }> {
     if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
-      return false;
+      return { success: false, message: 'Backend URL not configured.' };
     }
 
     const url = `${this.apiUrl}/api/inspections/${encodeURIComponent(inspectionNo)}`;
@@ -1206,10 +1409,22 @@ class PostgresService {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return response.ok;
-    } catch {
-      return false;
+      await this.handleMaintenanceResponse(response);
+      if (response.ok) return { success: true };
+      const errText = await response.text();
+      return {
+        success: false,
+        statusCode: response.status,
+        message: this.cleanErrorMessage(response.status, errText, '/api/inspections/:id'),
+      };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error deleting record.' };
     }
+  }
+
+  public async deleteInspectionFromPostgres(inspectionNo: string): Promise<boolean> {
+    const res = await this.deleteInspectionFromPostgresDetailed(inspectionNo);
+    return res.success;
   }
 
   public async clearAllInspectionsFromPostgres(): Promise<{ success: boolean; message: string }> {
@@ -1431,14 +1646,17 @@ CREATE TABLE IF NOT EXISTS inspections (
 `;
 
     data.users.forEach(u => {
-      sql += `INSERT INTO users (id, employee_code, display_name, email, role, department_id, department_name, is_active, updated_at)
-VALUES (${escapeSql(u.id)}, ${escapeSql(u.employeeCode || u.id)}, ${escapeSql(u.displayName)}, ${escapeSql(u.email)}, ${escapeSql(u.role)}, ${escapeSql(u.departmentId)}, ${escapeSql(u.departmentName)}, ${u.isActive ? 'TRUE' : 'FALSE'}, NOW())
+      const modsJson = JSON.stringify(Array.isArray(u.permittedModules) ? u.permittedModules : []).replace(/'/g, "''");
+      sql += `INSERT INTO users (id, employee_code, display_name, email, role, department_id, department_name, permitted_modules, data_scope, is_active, updated_at)
+VALUES (${escapeSql(u.id)}, ${escapeSql(u.employeeCode || u.id)}, ${escapeSql(u.displayName)}, ${escapeSql(u.email)}, ${escapeSql(u.role)}, ${escapeSql(u.departmentId)}, ${escapeSql(u.departmentName)}, '${modsJson}'::jsonb, ${escapeSql(u.dataScope || 'OWN')}, ${u.isActive ? 'TRUE' : 'FALSE'}, NOW())
 ON CONFLICT (email) DO UPDATE SET
   employee_code = EXCLUDED.employee_code,
   display_name = EXCLUDED.display_name,
   role = EXCLUDED.role,
   department_id = EXCLUDED.department_id,
   department_name = EXCLUDED.department_name,
+  permitted_modules = EXCLUDED.permitted_modules,
+  data_scope = EXCLUDED.data_scope,
   is_active = EXCLUDED.is_active,
   updated_at = NOW();\n`;
     });

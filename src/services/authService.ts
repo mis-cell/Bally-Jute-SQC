@@ -1,26 +1,44 @@
 // ==============================================================================
 // SQC - Authentication & Authorization Service
-// Enforces Per-Form Permissions, Password Hashing, and PostgreSQL Session Auth
+// Enforces Single Admin Role, Per-Module & Per-Form Permissions, and Data Scope
+// Live PostgreSQL session & token verification only (no local/offline user fallback)
 // ==============================================================================
 
-import { UserProfile } from '../types';
-import { dataService } from './dataService';
+import {
+  ALL_MODULES,
+  AppModule,
+  DataScope,
+  GRANTABLE_MODULES,
+  InspectionRecord,
+  UserProfile,
+} from '../types';
 import { postgresService } from './postgresService';
-import { hashPassword, verifyPassword, DEFAULT_ADMIN_PASSWORD_HASH } from '../utils/crypto';
 import { FORM_REGISTRY } from '../constants/formsRegistry';
 import {
   DEFAULT_MAINTENANCE_MESSAGE,
-  getCachedMaintenanceStatus,
   setCachedMaintenanceStatus,
 } from './maintenanceService';
 
-const AUTH_STORAGE_KEYS = {
-  CURRENT_USER: 'sqc_auth_current_user',
-  AUTH_TOKEN: 'sqc_auth_token',
-};
+const AUTH_TOKEN_KEY = 'sqc_auth_token';
 
-function isAdminRole(role?: string): boolean {
-  return role === 'SuperAdmin' || role === 'Super Admin' || role === 'Admin';
+// Remove any legacy localStorage cached user profile on module load
+try {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('sqc_auth_current_user');
+    localStorage.removeItem('bj_sqc_active_user_prod_v1');
+    localStorage.removeItem('bj_sqc_users_prod_v1');
+  }
+} catch {
+  // ignore
+}
+
+export function isAdminRole(role?: string): boolean {
+  return role === 'Admin';
+}
+
+function isLegacyElevatedRole(role?: string): boolean {
+  const r = String(role || '').trim().toLowerCase();
+  return r === 'superadmin' || r === 'super admin' || r === 'super_admin';
 }
 
 function expandFormAliases(code: string): string[] {
@@ -37,184 +55,216 @@ function expandFormAliases(code: string): string[] {
   return Array.from(out);
 }
 
+export function stripSensitiveUserFields(user: UserProfile): UserProfile {
+  const { passwordHash: _ph, ...safe } = user;
+  return safe as UserProfile;
+}
+
 class AuthService {
-  /**
-   * Get currently authenticated user from storage
-   */
-  public getCurrentUser(): UserProfile | null {
+  private activeUser: UserProfile | null = null;
+
+  public hasToken(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      return Boolean(localStorage.getItem(AUTH_TOKEN_KEY));
+    } catch {
+      return false;
+    }
+  }
+
+  public getToken(): string | null {
     if (typeof window === 'undefined') return null;
     try {
-      const stored = localStorage.getItem(AUTH_STORAGE_KEYS.CURRENT_USER);
-      if (!stored) return null;
-      const parsed: UserProfile = JSON.parse(stored);
-
-      const users = dataService.getUsers();
-      const fresh = users.find(
-        u => u.id === parsed.id || (u.email && parsed.email && u.email.toLowerCase() === parsed.email.toLowerCase())
-      );
-      if (fresh) {
-        if (!fresh.isActive) {
-          this.logout();
-          return null;
-        }
-        return fresh;
-      }
-      return parsed;
+      return localStorage.getItem(AUTH_TOKEN_KEY);
     } catch {
       return null;
     }
   }
 
+  public setToken(token: string): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } catch {
+      // ignore
+    }
+  }
+
+  public clearToken(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    } catch {
+      // ignore
+    }
+  }
+
+  public setAuthenticatedUser(user: UserProfile | null): UserProfile | null {
+    if (!user || isLegacyElevatedRole(user.role) || !user.isActive) {
+      this.activeUser = null;
+      postgresService.setSessionUserContext(null);
+      return null;
+    }
+    const safe = stripSensitiveUserFields(user);
+    this.activeUser = safe;
+    postgresService.setSessionUserContext(safe);
+    return safe;
+  }
+
+  public getCurrentUser(): UserProfile | null {
+    return this.activeUser;
+  }
+
   /**
-   * Authenticate user against PostgreSQL backend first, with local fallback when offline
+   * Authenticate strictly against the Express + PostgreSQL /api/auth/login endpoint.
+   * Never falls back to hardcoded, cached, or offline credentials.
    */
   public async login(
     identifier: string,
     password: string
-  ): Promise<{ success: boolean; user?: UserProfile; message?: string; maintenanceMode?: boolean }> {
+  ): Promise<{
+    success: boolean;
+    user?: UserProfile;
+    message?: string;
+    maintenanceMode?: boolean;
+    dbUnavailable?: boolean;
+  }> {
     const cleanRaw = (identifier || '').trim();
-    const cleanId = cleanRaw.toLowerCase();
-    if (!cleanId || !password) {
+    if (!cleanRaw || !password) {
       return { success: false, message: 'Please enter both username/email and password.' };
     }
 
-    // 1. Attempt PostgreSQL backend authentication
     const pgConfig = postgresService.getConfig();
-    if (pgConfig.apiUrl && !pgConfig.isDefaultPlaceholder) {
-      try {
-        const res = await fetch(`${pgConfig.apiUrl}/api/auth/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': pgConfig.apiKey,
-          },
-          body: JSON.stringify({ username: cleanRaw, password }),
-        });
-
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          const json = await res.json();
-          if (json.maintenanceMode && typeof json.maintenanceMode === 'object') {
-            setCachedMaintenanceStatus(json.maintenanceMode);
-          }
-
-          if (res.status === 503 || json.maintenanceMode === true) {
-            const msg = json.message || DEFAULT_MAINTENANCE_MESSAGE;
-            setCachedMaintenanceStatus({ enabled: true, message: msg });
-            return {
-              success: false,
-              maintenanceMode: true,
-              message: msg,
-            };
-          }
-
-          if (res.ok && json.success && json.user) {
-            const loggedInUser: UserProfile = {
-              ...json.user,
-              isActive: json.user.isActive !== false,
-              lastLoginAt: new Date().toISOString(),
-            };
-            dataService.saveUser(loggedInUser, undefined, true);
-            localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(loggedInUser));
-            if (json.token) {
-              localStorage.setItem(AUTH_STORAGE_KEYS.AUTH_TOKEN, json.token);
-            }
-            dataService.setCurrentUser(loggedInUser);
-            return { success: true, user: loggedInUser };
-          }
-          // If server explicitly rejected password/inactive user (401/403), return its exact message
-          if (res.status === 401 || res.status === 403) {
-            return { success: false, message: json.message || 'Invalid username or password.' };
-          }
-        }
-      } catch {
-        // Network unreachable — fall through to local offline verification
-      }
-    }
-
-    // 2. Offline / fallback local verification
-    const users = dataService.getUsers();
-    const user = users.find(
-      u =>
-        (u.username && u.username.toLowerCase() === cleanId) ||
-        (u.email && u.email.toLowerCase() === cleanId) ||
-        (u.employeeCode && u.employeeCode.toLowerCase() === cleanId)
-    );
-
-    if (!user) {
-      return { success: false, message: 'Invalid username, employee code, or password.' };
-    }
-
-    if (!user.isActive) {
-      return { success: false, message: 'This user account is currently deactivated. Please contact an SQC administrator.' };
-    }
-
-    let isValid = false;
-    if (user.passwordHash) {
-      isValid = await verifyPassword(password, user.passwordHash);
-    } else if (isAdminRole(user.role)) {
-      isValid = (await verifyPassword(password, DEFAULT_ADMIN_PASSWORD_HASH)) || password === 'Admin@123456' || password === 'Admin@1234';
-    }
-
-    if (!isValid) {
-      return { success: false, message: 'Invalid password. Please try again.' };
-    }
-
-    const cachedMaint = getCachedMaintenanceStatus();
-    if (cachedMaint.enabled && !isAdminRole(user.role as string)) {
+    if (!pgConfig.apiUrl || pgConfig.isDefaultPlaceholder) {
       return {
         success: false,
-        maintenanceMode: true,
-        message: cachedMaint.message || DEFAULT_MAINTENANCE_MESSAGE,
+        dbUnavailable: true,
+        message: 'SQC backend API URL is not configured.',
       };
     }
 
-    const updatedUser: UserProfile = {
-      ...user,
-      lastLoginAt: new Date().toISOString(),
-    };
-    dataService.saveUser(updatedUser, undefined, true);
+    try {
+      const res = await fetch(`${pgConfig.apiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: JSON.stringify({ username: cleanRaw, password }),
+      });
 
-    localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
-    localStorage.setItem(
-      AUTH_STORAGE_KEYS.AUTH_TOKEN,
-      btoa(JSON.stringify({ userId: updatedUser.id, username: updatedUser.username, role: updatedUser.role }))
-    );
-    dataService.setCurrentUser(updatedUser);
-
-    return { success: true, user: updatedUser };
-  }
-
-  /**
-   * Log out currently authenticated user
-   */
-  public logout(): void {
-    if (typeof window !== 'undefined') {
-      const user = this.getCurrentUser();
-      if (user) {
-        dataService.logAudit({
-          userId: user.id,
-          userEmail: user.email,
-          userRole: user.role,
-          action: 'LOGOUT',
-          module: 'Authentication',
-          details: `User ${user.displayName} logged out.`,
-        });
+      const contentType = (res.headers.get('content-type') || '').toLowerCase();
+      if (!contentType.includes('application/json')) {
+        return {
+          success: false,
+          dbUnavailable: true,
+          message: 'SQC backend server is not responding cleanly. Ensure Express API & PostgreSQL are running.',
+        };
       }
-      localStorage.removeItem(AUTH_STORAGE_KEYS.CURRENT_USER);
-      localStorage.removeItem(AUTH_STORAGE_KEYS.AUTH_TOKEN);
+
+      const json = await res.json().catch(() => ({}));
+
+      if (res.status === 503 && json.dbUnavailable) {
+        return {
+          success: false,
+          dbUnavailable: true,
+          message:
+            json.message || 'PostgreSQL database is unavailable. Verify database connectivity and retry.',
+        };
+      }
+
+      if (json.maintenanceMode && typeof json.maintenanceMode === 'object') {
+        setCachedMaintenanceStatus(json.maintenanceMode);
+      }
+
+      if (res.status === 503 || json.maintenanceMode === true) {
+        const msg = json.message || DEFAULT_MAINTENANCE_MESSAGE;
+        setCachedMaintenanceStatus({ enabled: true, message: msg });
+        return {
+          success: false,
+          maintenanceMode: true,
+          message: msg,
+        };
+      }
+
+      if (res.ok && json.success && json.user && json.token) {
+        const rawUser: UserProfile = {
+          ...json.user,
+          isActive: json.user.isActive !== false,
+          lastLoginAt: new Date().toISOString(),
+        };
+        if (isLegacyElevatedRole(rawUser.role) || !rawUser.isActive) {
+          this.logout();
+          return {
+            success: false,
+            message: 'Account access is disabled or holds an invalid role.',
+          };
+        }
+
+        this.setToken(json.token);
+        const loggedInUser = this.setAuthenticatedUser(rawUser)!;
+        return { success: true, user: loggedInUser };
+      }
+
+      return {
+        success: false,
+        message: json.message || `Authentication failed (HTTP ${res.status}).`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        dbUnavailable: true,
+        message: `Cannot reach SQC server or PostgreSQL (${err?.message || 'Network error'}).`,
+      };
     }
   }
 
   /**
-   * Check if a user has access to a specific form code
+   * Log out currently authenticated user and clear all in-memory & token state
+   */
+  public logout(): void {
+    this.activeUser = null;
+    this.clearToken();
+    postgresService.setSessionUserContext(null);
+    postgresService.clearSyncData();
+  }
+
+  public isAdminRole(role?: string): boolean {
+    return isAdminRole(role);
+  }
+
+  public getPermittedModules(user: UserProfile | null): AppModule[] {
+    if (!user || !user.isActive) return [];
+    if (isAdminRole(user.role)) return [...ALL_MODULES];
+    const mods = Array.isArray(user.permittedModules) ? user.permittedModules : [];
+    const allowed = new Set<AppModule>(GRANTABLE_MODULES);
+    return Array.from(new Set(mods.filter((m): m is AppModule => allowed.has(m))));
+  }
+
+  public canAccessModule(user: UserProfile | null, moduleCode: AppModule): boolean {
+    if (!user || !user.isActive) return false;
+    if (isAdminRole(user.role)) return true;
+    return this.getPermittedModules(user).includes(moduleCode);
+  }
+
+  public getDataScope(user: UserProfile | null): DataScope {
+    if (!user || !user.isActive) return 'OWN';
+    if (isAdminRole(user.role)) return 'ALL';
+    if (user.dataScope === 'DEPARTMENT' || user.dataScope === 'ALL') {
+      return user.dataScope;
+    }
+    return 'OWN';
+  }
+
+  /**
+   * Check if a user has access to a specific form code (and has INSPECTIONS module if standard user)
    */
   public canAccessForm(user: UserProfile | null, formCode: string): boolean {
     if (!user || !user.isActive) return false;
-    if (isAdminRole(user.role as string)) return true;
+    if (isAdminRole(user.role)) return true;
+    if (!this.canAccessModule(user, 'INSPECTIONS')) return false;
 
     if (Array.isArray(user.permittedForms)) {
-      if (user.permittedForms.includes('*')) return true;
       const aliases = expandFormAliases(formCode);
       const userSet = new Set(user.permittedForms.map(f => f.trim().toUpperCase()));
       return aliases.some(a => userSet.has(a));
@@ -230,12 +280,15 @@ class AuthService {
     if (!user || !user.isActive) return [];
     const allFormCodes = Object.keys(FORM_REGISTRY);
 
-    if (isAdminRole(user.role as string)) {
+    if (isAdminRole(user.role)) {
       return allFormCodes;
     }
 
+    if (!this.canAccessModule(user, 'INSPECTIONS')) {
+      return [];
+    }
+
     if (Array.isArray(user.permittedForms) && user.permittedForms.length > 0) {
-      if (user.permittedForms.includes('*')) return allFormCodes;
       return allFormCodes.filter(code => this.canAccessForm(user, code));
     }
 
@@ -243,40 +296,52 @@ class AuthService {
   }
 
   /**
-   * Setup initial first administrator password or reset admin
+   * Verify whether a user is authorized to view a specific inspection record under module + dataScope + form rules
    */
-  public async initializeAdmin(password: string): Promise<UserProfile> {
-    const users = dataService.getUsers();
-    let admin = users.find(u => isAdminRole(u.role as string));
+  public canViewInspectionRecord(
+    user: UserProfile | null,
+    record: Partial<InspectionRecord> | null | undefined
+  ): boolean {
+    if (!user || !user.isActive || !record) return false;
+    if (isAdminRole(user.role)) return true;
 
-    const passwordHash = await hashPassword(password);
+    const mods = this.getPermittedModules(user);
+    const hasAnyDataMod =
+      mods.includes('DASHBOARD') ||
+      mods.includes('INSPECTIONS') ||
+      mods.includes('APPROVALS') ||
+      mods.includes('REPORTS');
+    if (!hasAnyDataMod) return false;
 
-    if (admin) {
-      admin = {
-        ...admin,
-        passwordHash,
-        username: admin.username || 'admin',
-        isActive: true,
-      };
-      dataService.saveUser(admin);
+    const scope = this.getDataScope(user);
+    let scopeOk = false;
+    if (scope === 'ALL') {
+      scopeOk = true;
+    } else if (scope === 'DEPARTMENT') {
+      const isOwner = Boolean(record.inspectorId) && record.inspectorId === user.id;
+      const sameDeptId =
+        Boolean(user.departmentId) && Boolean(record.departmentId) && record.departmentId === user.departmentId;
+      const sameDeptName =
+        Boolean(user.departmentName) &&
+        Boolean(record.departmentName) &&
+        String(record.departmentName).trim().toLowerCase() === user.departmentName.trim().toLowerCase();
+      scopeOk = isOwner || sameDeptId || sameDeptName;
     } else {
-      admin = {
-        id: `usr-admin-${Date.now()}`,
-        username: 'admin',
-        email: 'admin@ballyjute.com',
-        displayName: 'SQC Administrator',
-        role: 'Super Admin',
-        departmentName: 'Quality Control',
-        employeeCode: 'ADM-01',
-        passwordHash,
-        isActive: true,
-        permittedForms: Object.keys(FORM_REGISTRY),
-        createdAt: new Date().toISOString(),
-      };
-      dataService.saveUser(admin);
+      scopeOk = Boolean(record.inspectorId) && record.inspectorId === user.id;
     }
 
-    return admin;
+    if (!scopeOk) return false;
+
+    // Without Approvals module, record must also match explicitly granted form codes
+    if (!mods.includes('APPROVALS')) {
+      const targetCode = String(record.formCode || record.formId || '').trim().toUpperCase();
+      if (!targetCode) return false;
+      const aliases = expandFormAliases(targetCode);
+      const userSet = new Set((user.permittedForms || []).map(f => String(f).trim().toUpperCase()));
+      return aliases.some(a => userSet.has(a));
+    }
+
+    return true;
   }
 }
 

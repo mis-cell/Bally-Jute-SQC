@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { UserProfile, UserRole } from '../types';
+import { AppModule, InspectionRecord, UserProfile, UserRole } from '../types';
 import { dataService } from '../services/dataService';
-import { authService } from '../services/authService';
+import { authService, isAdminRole } from '../services/authService';
 import { postgresService } from '../services/postgresService';
 import {
   maintenanceService,
@@ -9,30 +9,64 @@ import {
   DEFAULT_MAINTENANCE_MESSAGE,
 } from '../services/maintenanceService';
 import { MaintenanceModal } from '../components/MaintenanceModal';
-import { hashPassword } from '../utils/crypto';
-import { INITIAL_USERS } from '../constants/initialData';
 
-function isAdminUserRole(role?: string): boolean {
-  return role === 'Super Admin' || role === 'SuperAdmin' || role === 'Admin';
-}
+const GUEST_USER: UserProfile = {
+  id: 'guest',
+  email: '',
+  username: 'guest',
+  displayName: 'Unauthenticated',
+  role: 'Viewer / Auditor',
+  isActive: false,
+  canEditEntries: false,
+  canDeleteEntries: false,
+  permittedModules: [],
+  permittedForms: [],
+  dataScope: 'OWN',
+  createdAt: '',
+};
 
 interface AuthContextType {
   currentUser: UserProfile;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   login: (
     identifier: string,
     password: string
   ) => Promise<{ success: boolean; message?: string; maintenanceMode?: boolean }>;
   logout: () => void;
   allUsers: UserProfile[];
-  refreshUsers: () => void;
+  refreshUsers: () => Promise<void>;
+  refreshSession: () => Promise<void>;
   saveUser: (user: UserProfile, newPassword?: string) => Promise<{ success: boolean; message?: string }>;
-  deleteUser: (userId: string) => boolean;
+  deleteUser: (userId: string) => Promise<{ success: boolean; message?: string }>;
+  updateOwnProfile: (displayName: string, phone: string) => Promise<{ success: boolean; message?: string }>;
+  changeOwnPassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ success: boolean; message?: string }>;
+  adminResetUserPassword: (
+    userId: string,
+    newPassword: string
+  ) => Promise<{ success: boolean; message?: string }>;
+  permittedModules: AppModule[];
+  canAccessModule: (moduleCode: AppModule) => boolean;
   canAccessForm: (formCode: string) => boolean;
+  canViewRecord: (record: Partial<InspectionRecord> | null | undefined) => boolean;
+  canEditSavedEntry: () => boolean;
+  canDeleteSavedEntry: () => boolean;
   permittedForms: string[];
   isRole: (role: UserRole) => boolean;
-  hasPermission: (action: 'CREATE' | 'EDIT_DRAFT' | 'SUBMIT' | 'APPROVE' | 'REJECT' | 'RETURN' | 'MANAGE_MASTERS' | 'SYSTEM_CONFIG') => boolean;
-  switchUser: (userId: string) => void;
+  hasPermission: (
+    action:
+      | 'CREATE'
+      | 'EDIT_DRAFT'
+      | 'SUBMIT'
+      | 'APPROVE'
+      | 'REJECT'
+      | 'RETURN'
+      | 'MANAGE_MASTERS'
+      | 'SYSTEM_CONFIG'
+  ) => boolean;
   maintenanceStatus: MaintenanceStatus;
   toggleMaintenanceMode: (
     enabled: boolean,
@@ -46,16 +80,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
-    const existing = authService.getCurrentUser();
-    if (existing) return existing;
-    return INITIAL_USERS[0];
+    return authService.getCurrentUser() || GUEST_USER;
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!authService.getCurrentUser();
+    return Boolean(authService.getCurrentUser());
   });
 
-  const [allUsers, setAllUsers] = useState<UserProfile[]>(() => dataService.getUsers());
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(() => {
+    const u = authService.getCurrentUser();
+    return u && isAdminRole(u.role) ? dataService.getUsers() : [];
+  });
 
   const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus>(() =>
     maintenanceService.getCached()
@@ -63,13 +98,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [adminBypassedOverlay, setAdminBypassedOverlay] = useState<boolean>(false);
   const [wasForcedLogout, setWasForcedLogout] = useState<boolean>(false);
 
+  const performForcedSignOut = useCallback(() => {
+    authService.logout();
+    setCurrentUser(GUEST_USER);
+    setIsAuthenticated(false);
+    setAllUsers([]);
+  }, []);
+
   const applyMaintenanceStatus = useCallback(
     (next: MaintenanceStatus, isAuthNow: boolean, activeUser: UserProfile) => {
       setMaintenanceStatus(next);
       if (next.enabled) {
-        if (isAuthNow && !isAdminUserRole(activeUser?.role)) {
-          authService.logout();
-          setIsAuthenticated(false);
+        if (isAuthNow && !isAdminRole(activeUser?.role)) {
+          performForcedSignOut();
           setWasForcedLogout(true);
           setAdminBypassedOverlay(false);
         }
@@ -78,18 +119,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAdminBypassedOverlay(false);
       }
     },
-    []
+    [performForcedSignOut]
   );
 
-  // Enforce immediately on mount / auth changes if Maintenance Mode is active for a non-admin session
   useEffect(() => {
-    if (maintenanceStatus.enabled && isAuthenticated && !isAdminUserRole(currentUser?.role)) {
-      authService.logout();
-      setIsAuthenticated(false);
+    if (maintenanceStatus.enabled && isAuthenticated && !isAdminRole(currentUser?.role)) {
+      performForcedSignOut();
       setWasForcedLogout(true);
       setAdminBypassedOverlay(false);
     }
-  }, [maintenanceStatus.enabled, isAuthenticated, currentUser?.role]);
+  }, [maintenanceStatus.enabled, isAuthenticated, currentUser?.role, performForcedSignOut]);
 
   const refreshMaintenanceStatus = useCallback(async (): Promise<MaintenanceStatus> => {
     const latest = await maintenanceService.fetchStatus();
@@ -97,13 +136,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return latest;
   }, [applyMaintenanceStatus, isAuthenticated, currentUser]);
 
-  // Poll Maintenance Mode continuously + react to cross-tab & 503 forced logout events
+  const refreshUsers = useCallback(async () => {
+    if (!isAuthenticated || !isAdminRole(currentUser?.role)) {
+      setAllUsers([]);
+      return;
+    }
+    if (postgresService.isSyncEnabled()) {
+      const remoteUsers = await postgresService.loadUsers();
+      if (remoteUsers.length > 0) {
+        localStorage.setItem('bj_sqc_users_prod_v1', JSON.stringify(remoteUsers));
+        setAllUsers(remoteUsers);
+        return;
+      }
+    }
+    setAllUsers(dataService.getUsers());
+  }, [isAuthenticated, currentUser?.role]);
+
+  const refreshSession = useCallback(async () => {
+    if (!isAuthenticated) return;
+    const res = await postgresService.fetchCurrentSessionUser();
+    if (res.ok && res.user) {
+      const { passwordHash: _ph, ...safeUser } = res.user;
+      setCurrentUser(safeUser as UserProfile);
+      localStorage.setItem('sqc_auth_current_user', JSON.stringify(safeUser));
+      if (res.maintenanceMode) {
+        applyMaintenanceStatus(res.maintenanceMode, true, safeUser as UserProfile);
+      }
+    }
+  }, [isAuthenticated, applyMaintenanceStatus]);
+
+  // Poll Maintenance Mode + listen for auth invalidation (401/revoked tokens)
   useEffect(() => {
     refreshMaintenanceStatus();
 
     const timer = setInterval(() => {
       refreshMaintenanceStatus();
-    }, 4000);
+      if (isAuthenticated) {
+        void refreshSession();
+      }
+    }, 6000);
 
     const onForcedLogout = (e: Event) => {
       const detail = (e as CustomEvent)?.detail;
@@ -112,13 +183,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         enabled: true,
         message: detail?.message || DEFAULT_MAINTENANCE_MESSAGE,
       };
-      if (isAuthenticated && !isAdminUserRole(currentUser?.role)) {
-        authService.logout();
-        setIsAuthenticated(false);
+      if (isAuthenticated && !isAdminRole(currentUser?.role)) {
+        performForcedSignOut();
       }
       setMaintenanceStatus(nextStatus);
       setWasForcedLogout(true);
       setAdminBypassedOverlay(false);
+    };
+
+    const onAuthInvalidated = () => {
+      performForcedSignOut();
     };
 
     const onMaintenanceChanged = (e: Event) => {
@@ -131,15 +205,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (e.key === 'bj_sqc_maintenance_mode') {
         applyMaintenanceStatus(maintenanceService.getCached(), isAuthenticated, currentUser);
       }
+      if (e.key === 'sqc_auth_token' && !e.newValue && isAuthenticated) {
+        performForcedSignOut();
+      }
     };
 
     const onFocusOrVisible = () => {
       if (document.visibilityState === 'visible') {
-        refreshMaintenanceStatus();
+        void refreshMaintenanceStatus();
+        if (isAuthenticated) {
+          void refreshSession();
+        }
       }
     };
 
     window.addEventListener('bj_sqc_maintenance_forced_logout', onForcedLogout);
+    window.addEventListener('bj_sqc_auth_invalidated', onAuthInvalidated);
     window.addEventListener('bj_sqc_maintenance_changed', onMaintenanceChanged);
     window.addEventListener('storage', onStorage);
     window.addEventListener('focus', onFocusOrVisible);
@@ -148,33 +229,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       clearInterval(timer);
       window.removeEventListener('bj_sqc_maintenance_forced_logout', onForcedLogout);
+      window.removeEventListener('bj_sqc_auth_invalidated', onAuthInvalidated);
       window.removeEventListener('bj_sqc_maintenance_changed', onMaintenanceChanged);
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('focus', onFocusOrVisible);
       document.removeEventListener('visibilitychange', onFocusOrVisible);
     };
-  }, [refreshMaintenanceStatus, applyMaintenanceStatus, isAuthenticated, currentUser]);
+  }, [
+    refreshMaintenanceStatus,
+    refreshSession,
+    applyMaintenanceStatus,
+    performForcedSignOut,
+    isAuthenticated,
+    currentUser,
+  ]);
 
-  // Listen to data service events for real-time user updates
+  // Listen to data sync events
   useEffect(() => {
     const handleSync = () => {
-      const users = dataService.getUsers();
-      setAllUsers(users);
-      const active = authService.getCurrentUser();
-      if (active) {
-        const found = users.find(u => u.id === active.id);
-        if (found) setCurrentUser(found);
+      if (!isAuthenticated) return;
+      if (isAdminRole(currentUser?.role)) {
+        const users = dataService.getUsers();
+        setAllUsers(users);
       }
     };
 
     window.addEventListener('bj_sqc_data_synced', handleSync);
     return () => window.removeEventListener('bj_sqc_data_synced', handleSync);
-  }, []);
-
-  const refreshUsers = () => {
-    const users = dataService.getUsers();
-    setAllUsers(users);
-  };
+  }, [isAuthenticated, currentUser?.role]);
 
   const login = async (
     identifier: string,
@@ -186,7 +268,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(true);
       setWasForcedLogout(false);
       setAdminBypassedOverlay(false);
-      refreshUsers();
+
+      if (isAdminRole(res.user.role)) {
+        const remoteUsers = await postgresService.loadUsers();
+        setAllUsers(remoteUsers.length > 0 ? remoteUsers : dataService.getUsers());
+      } else {
+        setAllUsers([]);
+      }
+
+      // Immediately pull scoped inspections & master data for the authenticated account
+      void postgresService.pullAndSyncAllData(true);
       return { success: true };
     }
     if (res.maintenanceMode) {
@@ -205,11 +296,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    authService.logout();
-    setIsAuthenticated(false);
+    performForcedSignOut();
   };
 
   const toggleMaintenanceMode = async (enabled: boolean, message: string) => {
+    if (!isAuthenticated || !isAdminRole(currentUser?.role)) {
+      return {
+        success: false,
+        status: maintenanceStatus,
+        notice: 'Forbidden: Only Administrators can toggle Maintenance Mode.',
+      };
+    }
     const res = await maintenanceService.setMaintenanceMode(enabled, message, currentUser);
     if (res.success) {
       setMaintenanceStatus(res.status);
@@ -221,32 +318,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res;
   };
 
+  const isAdmin = isAuthenticated && isAdminRole(currentUser?.role);
+  const permittedModules = isAuthenticated ? authService.getPermittedModules(currentUser) : [];
+  const permittedForms = isAuthenticated ? authService.getPermittedForms(currentUser) : [];
+
+  const canAccessModule = (moduleCode: AppModule): boolean => {
+    if (!isAuthenticated) return false;
+    return authService.canAccessModule(currentUser, moduleCode);
+  };
+
   const canAccessForm = (formCode: string): boolean => {
+    if (!isAuthenticated) return false;
     return authService.canAccessForm(currentUser, formCode);
   };
 
-  const permittedForms = authService.getPermittedForms(currentUser);
+  const canViewRecord = (record: Partial<InspectionRecord> | null | undefined): boolean => {
+    if (!isAuthenticated) return false;
+    return authService.canViewInspectionRecord(currentUser, record);
+  };
 
-  const saveUser = async (user: UserProfile, newPassword?: string): Promise<{ success: boolean; message?: string }> => {
+  const canEditSavedEntry = (): boolean => {
+    if (!isAuthenticated || !currentUser || !currentUser.isActive) return false;
+    if (isAdminRole(currentUser.role)) return true;
+    return canAccessModule('INSPECTIONS') && Boolean(currentUser.canEditEntries);
+  };
+
+  const canDeleteSavedEntry = (): boolean => {
+    if (!isAuthenticated || !currentUser || !currentUser.isActive) return false;
+    if (isAdminRole(currentUser.role)) return true;
+    return canAccessModule('INSPECTIONS') && Boolean(currentUser.canDeleteEntries);
+  };
+
+  const saveUser = async (
+    user: UserProfile,
+    newPassword?: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Forbidden: Only Administrators can manage user accounts.' };
+    }
     try {
-      const toSave = { ...user };
-      if (newPassword && newPassword.trim()) {
-        toSave.passwordHash = await hashPassword(newPassword.trim());
-      }
-      dataService.saveUser(toSave, currentUser, true);
-      refreshUsers();
-
-      // Sync directly to PostgreSQL backend
+      const { passwordHash: _ph, ...toSave } = user;
       if (postgresService.isSyncEnabled()) {
-        const pgRes = await postgresService.syncUserToPostgres(toSave, newPassword);
+        const pgRes = await postgresService.syncUserToPostgres(toSave as UserProfile, newPassword);
         if (!pgRes.success) {
           return { success: false, message: pgRes.message };
         }
-      }
+        const savedFromServer = pgRes.data && pgRes.data.id ? pgRes.data : toSave;
+        await refreshUsers();
 
-      if (currentUser && currentUser.id === toSave.id) {
-        setCurrentUser(toSave);
-        localStorage.setItem('sqc_auth_current_user', JSON.stringify(toSave));
+        if (currentUser && currentUser.id === savedFromServer.id) {
+          setCurrentUser(savedFromServer as UserProfile);
+        }
+      } else {
+        await refreshUsers();
       }
 
       dataService.logAudit({
@@ -256,7 +380,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         action: 'UPDATE',
         module: 'User Management',
         recordId: toSave.id,
-        details: `Saved account for user "${toSave.displayName}" [${toSave.role}]. Form access count: ${toSave.permittedForms?.length ?? 'All'}`,
+        details: `Saved user "${toSave.displayName}" [${toSave.role}] (Modules: ${
+          toSave.permittedModules?.length ?? 0
+        }, Scope: ${toSave.dataScope || 'OWN'}).`,
       });
 
       return { success: true };
@@ -265,12 +391,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const deleteUser = (userId: string): boolean => {
+  const deleteUser = async (userId: string): Promise<{ success: boolean; message?: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Forbidden: Only Administrators can delete users.' };
+    }
+    if (userId === currentUser.id) {
+      return { success: false, message: 'You cannot delete your own active Administrator account.' };
+    }
     const target = allUsers.find(u => u.id === userId);
-    if (!target) return false;
+    if (!target) {
+      return { success: false, message: 'User not found.' };
+    }
 
-    dataService.deleteUser(userId, currentUser);
-    refreshUsers();
+    if (postgresService.isSyncEnabled()) {
+      const pgRes = await postgresService.deleteUserFromPostgresDetailed(userId);
+      if (!pgRes.success) {
+        return { success: false, message: pgRes.message || 'Failed to delete user on server.' };
+      }
+    }
+
+    await refreshUsers();
 
     dataService.logAudit({
       userId: currentUser?.id || 'SYSTEM',
@@ -282,39 +422,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       details: `Deleted user "${target.displayName}".`,
     });
 
-    return true;
+    return { success: true };
   };
 
-  const switchUser = (userId: string) => {
-    const target = allUsers.find(u => u.id === userId);
-    if (target) {
-      if (maintenanceStatus.enabled && !isAdminUserRole(target.role)) {
-        return;
-      }
-      setCurrentUser(target);
-      setIsAuthenticated(true);
-      localStorage.setItem('sqc_auth_current_user', JSON.stringify(target));
-      dataService.setCurrentUser(target);
+  const updateOwnProfile = async (
+    displayName: string,
+    phone: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!isAuthenticated) return { success: false, message: 'Authentication required.' };
+    const cleanName = displayName.trim();
+    if (!cleanName) return { success: false, message: 'Display name is required.' };
+
+    const res = await postgresService.updateOwnProfile(cleanName, phone.trim());
+    if (!res.success) {
+      return { success: false, message: res.message || 'Failed to update profile.' };
     }
+    if (res.user) {
+      const { passwordHash: _ph, ...safeUser } = res.user;
+      setCurrentUser(safeUser as UserProfile);
+      localStorage.setItem('sqc_auth_current_user', JSON.stringify(safeUser));
+    }
+    return { success: true };
   };
 
-  const isRole = (role: UserRole) => currentUser?.role === role;
+  const changeOwnPassword = async (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!isAuthenticated) return { success: false, message: 'Authentication required.' };
+    const res = await postgresService.changeOwnPassword(currentPassword, newPassword);
+    if (!res.success) {
+      return { success: false, message: res.message || 'Failed to update password.' };
+    }
+    if (res.token) {
+      localStorage.setItem('sqc_auth_token', res.token);
+    }
+    return { success: true, message: res.message || 'Your password has been updated.' };
+  };
 
-  const hasPermission = (action: 'CREATE' | 'EDIT_DRAFT' | 'SUBMIT' | 'APPROVE' | 'REJECT' | 'RETURN' | 'MANAGE_MASTERS' | 'SYSTEM_CONFIG') => {
-    const role = currentUser?.role as string;
-    if (role === 'Super Admin' || role === 'SuperAdmin') return true;
+  const adminResetUserPassword = async (
+    userId: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Forbidden: Only Administrators can reset another user password.' };
+    }
+    return postgresService.adminResetUserPassword(userId, newPassword);
+  };
 
+  const isRole = (role: UserRole) => isAuthenticated && currentUser?.role === role;
+
+  const hasPermission = (
+    action:
+      | 'CREATE'
+      | 'EDIT_DRAFT'
+      | 'SUBMIT'
+      | 'APPROVE'
+      | 'REJECT'
+      | 'RETURN'
+      | 'MANAGE_MASTERS'
+      | 'SYSTEM_CONFIG'
+  ) => {
+    if (!isAuthenticated || !currentUser || !currentUser.isActive) return false;
+    if (isAdminRole(currentUser.role)) return true;
+
+    const role = currentUser.role;
     switch (action) {
       case 'CREATE':
       case 'EDIT_DRAFT':
       case 'SUBMIT':
-        return role === 'Admin' || role === 'SQC Inspector / User' || role === 'Inspector';
+        return role !== 'Viewer / Auditor' && canAccessModule('INSPECTIONS');
       case 'APPROVE':
       case 'REJECT':
       case 'RETURN':
-        return role === 'Admin' || role === 'HOD / Approver' || role === 'HOD';
+        return role === 'HOD / Approver' && canAccessModule('APPROVALS');
       case 'MANAGE_MASTERS':
-        return role === 'Admin';
+        return canAccessModule('MASTERS') && role !== 'Viewer / Auditor';
       case 'SYSTEM_CONFIG':
         return false;
       default:
@@ -322,26 +505,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const isAdminSession = isAuthenticated && isAdminUserRole(currentUser?.role);
   const maintenancePopupVisible =
-    maintenanceStatus.enabled && !isAdminSession && !adminBypassedOverlay;
+    maintenanceStatus.enabled && !isAdmin && !adminBypassedOverlay;
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
         isAuthenticated,
+        isAdmin,
         login,
         logout,
         allUsers,
         refreshUsers,
+        refreshSession,
         saveUser,
         deleteUser,
+        updateOwnProfile,
+        changeOwnPassword,
+        adminResetUserPassword,
+        permittedModules,
+        canAccessModule,
         canAccessForm,
+        canViewRecord,
+        canEditSavedEntry,
+        canDeleteSavedEntry,
         permittedForms,
         isRole,
         hasPermission,
-        switchUser,
         maintenanceStatus,
         toggleMaintenanceMode,
         refreshMaintenanceStatus,

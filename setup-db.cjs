@@ -131,14 +131,13 @@ async function runSetup() {
     );
     console.log(`   📊 Total Public Tables in "${DB_NAME}": ${totalTablesRes.rows[0].total}`);
 
-    // Step 4: Check default admin
-    const adminRes = await client.query(`SELECT username, display_name, role FROM users WHERE username = 'admin'`);
+    // Step 4: Check active Admin account
+    const adminRes = await client.query(`SELECT username, display_name, role FROM users WHERE role = 'Admin' ORDER BY created_at ASC LIMIT 1`);
     if (adminRes.rows.length > 0) {
-      console.log(`\n✅ Default Administrator verified:`);
+      console.log(`\n✅ Administrator account verified:`);
       console.log(`   Username : ${adminRes.rows[0].username}`);
       console.log(`   Name     : ${adminRes.rows[0].display_name}`);
       console.log(`   Role     : ${adminRes.rows[0].role}`);
-      console.log(`   Password : Admin@123456 (or Admin@1234)`);
     }
 
     client.release();

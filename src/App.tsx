@@ -1,7 +1,9 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { ShieldAlert, ArrowRight, User } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppLayout } from './layouts/AppLayout';
+import { AppModule } from './types';
 
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -13,16 +15,131 @@ import { MastersPage } from './pages/MastersPage';
 import { UsersPage } from './pages/UsersPage';
 import { AuditTrailPage } from './pages/AuditTrailPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ProfilePage } from './pages/ProfilePage';
 
-const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+const MODULE_HOME_ROUTES: Array<{ module: AppModule; path: string; label: string }> = [
+  { module: 'DASHBOARD', path: '/', label: 'Floor Dashboard' },
+  { module: 'INSPECTIONS', path: '/inspections', label: 'Inspection Records' },
+  { module: 'APPROVALS', path: '/approvals', label: 'Approvals Workflow' },
+  { module: 'REPORTS', path: '/reports', label: 'Reports & Analytics' },
+  { module: 'MASTERS', path: '/masters/departments', label: 'Master Data' },
+  { module: 'USERS', path: '/admin/users', label: 'Users & Form Permissions' },
+];
+
+const AccessDeniedScreen: React.FC<{ title?: string; message?: string }> = ({
+  title = 'Access Restricted (403)',
+  message = 'Your account does not have permission to open this module or resource.',
+}) => {
+  const { permittedModules, canAccessModule } = useAuth();
+  const navigate = useNavigate();
+
+  const firstAllowed = MODULE_HOME_ROUTES.find(r => canAccessModule(r.module));
+
+  return (
+    <div className="bg-[#FFFDF8] rounded-2xl p-8 border border-[#DFC378] max-w-lg mx-auto my-12 text-center shadow-sm space-y-4">
+      <div className="w-14 h-14 mx-auto rounded-2xl bg-[#FDF5DC] border border-[#DFC378] text-[#8B0A12] flex items-center justify-center">
+        <ShieldAlert size={28} />
+      </div>
+      <div>
+        <h2 className="text-base font-bold text-[#2B1114]">{title}</h2>
+        <p className="text-xs text-[#6E524B] mt-1.5 leading-relaxed">{message}</p>
+        {permittedModules.length === 0 && (
+          <p className="text-[11px] text-[#7A560B] font-semibold mt-2">
+            Your account currently has no assigned modules. Contact an Administrator to grant access.
+          </p>
+        )}
+      </div>
+      <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+        {firstAllowed && (
+          <button
+            type="button"
+            onClick={() => navigate(firstAllowed.path, { replace: true })}
+            className="px-4 py-2 rounded-lg bg-[#8B0A12] hover:bg-[#68050B] text-[#FFFDF8] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Go to {firstAllowed.label}</span>
+            <ArrowRight size={14} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => navigate('/profile', { replace: true })}
+          className="px-4 py-2 rounded-lg border border-[#E4D0A3] bg-[#FBF4E1] hover:bg-[#FDF5DC] text-[#5C080E] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+        >
+          <User size={14} />
+          <span>My Profile &amp; Password</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ProtectedLayout: React.FC<{
+  children: React.ReactNode;
+  requiredModule?: AppModule;
+  requiredAnyModules?: AppModule[];
+  adminOnly?: boolean;
+}> = ({ children, requiredModule, requiredAnyModules, adminOnly = false }) => {
+  const { isAuthenticated, isAdmin, canAccessModule } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  if (adminOnly && !isAdmin) {
+    return (
+      <AppLayout>
+        <AccessDeniedScreen
+          title="Administrator Access Only (403)"
+          message="This administration module is restricted to authorized Admin accounts."
+        />
+      </AppLayout>
+    );
+  }
+
+  if (requiredModule && !canAccessModule(requiredModule)) {
+    return (
+      <AppLayout>
+        <AccessDeniedScreen />
+      </AppLayout>
+    );
+  }
+
+  if (requiredAnyModules && requiredAnyModules.length > 0) {
+    const allowed = isAdmin || requiredAnyModules.some(m => canAccessModule(m));
+    if (!allowed) {
+      return (
+        <AppLayout>
+          <AccessDeniedScreen />
+        </AppLayout>
+      );
+    }
+  }
+
   return <AppLayout>{children}</AppLayout>;
+};
+
+const LandingRoute: React.FC = () => {
+  const { isAuthenticated, canAccessModule } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  if (canAccessModule('DASHBOARD')) {
+    return (
+      <AppLayout>
+        <DashboardPage />
+      </AppLayout>
+    );
+  }
+  const nextRoute = MODULE_HOME_ROUTES.find(r => r.module !== 'DASHBOARD' && canAccessModule(r.module));
+  if (nextRoute) {
+    return <Navigate to={nextRoute.path} replace />;
+  }
+  return (
+    <AppLayout>
+      <ProfilePage />
+    </AppLayout>
+  );
 };
 
 export function App() {
@@ -33,19 +150,23 @@ export function App() {
           {/* Public Authentication Route */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Protected Application Routes */}
+          {/* Self-Service Profile Route (All authenticated users) */}
           <Route
-            path="/"
+            path="/profile"
             element={
               <ProtectedLayout>
-                <DashboardPage />
+                <ProfilePage />
               </ProtectedLayout>
             }
           />
+
+          {/* Protected Application Routes */}
+          <Route path="/" element={<LandingRoute />} />
+
           <Route
             path="/inspections"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="INSPECTIONS">
                 <InspectionsListPage />
               </ProtectedLayout>
             }
@@ -53,7 +174,7 @@ export function App() {
           <Route
             path="/new-inspection"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="INSPECTIONS">
                 <InspectionFormPage />
               </ProtectedLayout>
             }
@@ -61,7 +182,7 @@ export function App() {
           <Route
             path="/inspection/:id"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredAnyModules={['INSPECTIONS', 'APPROVALS', 'DASHBOARD']}>
                 <InspectionFormPage />
               </ProtectedLayout>
             }
@@ -69,7 +190,7 @@ export function App() {
           <Route
             path="/approvals"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="APPROVALS">
                 <ApprovalsPage />
               </ProtectedLayout>
             }
@@ -77,7 +198,7 @@ export function App() {
           <Route
             path="/reports"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="REPORTS">
                 <ReportsPage />
               </ProtectedLayout>
             }
@@ -87,7 +208,7 @@ export function App() {
           <Route
             path="/masters/departments"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="MASTERS">
                 <MastersPage tab="departments" />
               </ProtectedLayout>
             }
@@ -95,7 +216,7 @@ export function App() {
           <Route
             path="/masters/sections"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="MASTERS">
                 <MastersPage tab="sections" />
               </ProtectedLayout>
             }
@@ -103,7 +224,7 @@ export function App() {
           <Route
             path="/masters/machines"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="MASTERS">
                 <MastersPage tab="machines" />
               </ProtectedLayout>
             }
@@ -111,7 +232,7 @@ export function App() {
           <Route
             path="/masters/looms"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="MASTERS">
                 <MastersPage tab="looms" />
               </ProtectedLayout>
             }
@@ -119,7 +240,7 @@ export function App() {
           <Route
             path="/masters/qualities"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="MASTERS">
                 <MastersPage tab="qualities" />
               </ProtectedLayout>
             }
@@ -127,7 +248,7 @@ export function App() {
           <Route
             path="/masters/specs"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="MASTERS">
                 <MastersPage tab="qualities" />
               </ProtectedLayout>
             }
@@ -135,17 +256,17 @@ export function App() {
           <Route
             path="/masters/standards"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="MASTERS">
                 <MastersPage tab="standards" />
               </ProtectedLayout>
             }
           />
 
-          {/* Admin */}
+          {/* Strictly Admin-Only Administration Routes */}
           <Route
             path="/admin/users"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="USERS" adminOnly>
                 <UsersPage />
               </ProtectedLayout>
             }
@@ -153,7 +274,7 @@ export function App() {
           <Route
             path="/admin/audit-logs"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="AUDIT_LOGS" adminOnly>
                 <AuditTrailPage />
               </ProtectedLayout>
             }
@@ -161,7 +282,7 @@ export function App() {
           <Route
             path="/admin/settings"
             element={
-              <ProtectedLayout>
+              <ProtectedLayout requiredModule="SETTINGS" adminOnly>
                 <SettingsPage />
               </ProtectedLayout>
             }

@@ -112,25 +112,30 @@ class DataService {
       previousState: current,
       newState: updated,
     });
-    this.triggerAutoSync();
+    postgresService.saveSettingsToPostgres(updated).catch(() => {});
     return updated;
   }
 
-  // Active User / Auth simulation with real multi-role switching
-  getCurrentUser(): UserProfile {
-    return getFromStorage(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]);
+  clearSensitiveUserCaches(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.USERS);
+      localStorage.removeItem(STORAGE_KEYS.INSPECTIONS);
+      localStorage.removeItem(STORAGE_KEYS.AUDIT_LOGS);
+      localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Active User
+  getCurrentUser(): UserProfile | null {
+    return getFromStorage<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
   }
 
   setCurrentUser(user: UserProfile): void {
-    saveToStorage(STORAGE_KEYS.CURRENT_USER, user);
-    this.addAuditLog({
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'LOGIN',
-      module: 'Authentication',
-      details: `User logged in / switched session to ${user.displayName} (${user.role}).`,
-    });
+    const { passwordHash: _ph, ...safeUser } = user;
+    saveToStorage(STORAGE_KEYS.CURRENT_USER, safeUser);
   }
 
   // Inspections
@@ -162,6 +167,11 @@ class DataService {
   }
 
   deleteInspection(id: string, user: UserProfile): boolean {
+    const isAdmin = user?.role === 'Admin';
+    if (!isAdmin && !user?.canDeleteEntries) {
+      return false;
+    }
+
     const records = this.getInspections();
     const target = records.find(r => r.id === id || r.inspectionNo === id);
     if (!target) return false;
@@ -242,7 +252,6 @@ class DataService {
     broadcastDataChange('local_save');
 
     if (!skipPgSync) {
-      this.triggerAutoSync();
       postgresService.syncInspectionToPostgres(updatedRecord).catch(() => {});
     }
 
@@ -264,7 +273,6 @@ class DataService {
     broadcastDataChange('local_submit');
 
     if (!skipPgSync) {
-      this.triggerAutoSync();
       postgresService.syncInspectionToPostgres(record).catch(() => {});
     }
 
@@ -305,7 +313,6 @@ class DataService {
     broadcastDataChange('local_approve');
 
     if (!skipPgSync) {
-      this.triggerAutoSync();
       postgresService.syncInspectionToPostgres(record).catch(() => {});
     }
 
@@ -346,7 +353,6 @@ class DataService {
     broadcastDataChange('local_reject');
 
     if (!skipPgSync) {
-      this.triggerAutoSync();
       postgresService.syncInspectionToPostgres(record).catch(() => {});
     }
 
@@ -385,7 +391,6 @@ class DataService {
     broadcastDataChange('local_return');
 
     if (!skipPgSync) {
-      this.triggerAutoSync();
       postgresService.syncInspectionToPostgres(record).catch(() => {});
     }
 
@@ -425,7 +430,6 @@ class DataService {
     }
     saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
     broadcastDataChange('dept_save');
-    this.triggerAutoSync();
     postgresService.syncDepartmentToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -443,7 +447,6 @@ class DataService {
     const list = this.getDepartments().filter(d => d.id !== id);
     saveToStorage(STORAGE_KEYS.DEPARTMENTS, list);
     broadcastDataChange('dept_delete');
-    this.triggerAutoSync();
     postgresService.deleteDepartmentFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -471,7 +474,6 @@ class DataService {
     }
     saveToStorage(STORAGE_KEYS.SECTIONS, list);
     broadcastDataChange('sec_save');
-    this.triggerAutoSync();
     postgresService.syncSectionToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -489,7 +491,6 @@ class DataService {
     const list = this.getSections().filter(s => s.id !== id);
     saveToStorage(STORAGE_KEYS.SECTIONS, list);
     broadcastDataChange('sec_delete');
-    this.triggerAutoSync();
     postgresService.deleteSectionFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -517,7 +518,6 @@ class DataService {
     }
     saveToStorage(STORAGE_KEYS.MACHINES, list);
     broadcastDataChange('mch_save');
-    this.triggerAutoSync();
     postgresService.syncMachineToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -535,7 +535,6 @@ class DataService {
     const list = this.getMachines().filter(m => m.id !== id);
     saveToStorage(STORAGE_KEYS.MACHINES, list);
     broadcastDataChange('mch_delete');
-    this.triggerAutoSync();
     postgresService.deleteMachineFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -563,7 +562,6 @@ class DataService {
     }
     saveToStorage(STORAGE_KEYS.LOOMS, list);
     broadcastDataChange('loom_save');
-    this.triggerAutoSync();
     postgresService.syncLoomToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -581,7 +579,6 @@ class DataService {
     const list = this.getLooms().filter(l => l.id !== id);
     saveToStorage(STORAGE_KEYS.LOOMS, list);
     broadcastDataChange('loom_delete');
-    this.triggerAutoSync();
     postgresService.deleteLoomFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -609,7 +606,6 @@ class DataService {
     }
     saveToStorage(STORAGE_KEYS.QUALITIES, list);
     broadcastDataChange('qual_save');
-    this.triggerAutoSync();
     postgresService.syncQualityToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -627,7 +623,6 @@ class DataService {
     const list = this.getQualities().filter(q => q.id !== id);
     saveToStorage(STORAGE_KEYS.QUALITIES, list);
     broadcastDataChange('qual_delete');
-    this.triggerAutoSync();
     postgresService.deleteQualityFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -659,7 +654,6 @@ class DataService {
     }
     saveToStorage(STORAGE_KEYS.STANDARDS, list);
     broadcastDataChange('std_save');
-    this.triggerAutoSync();
     postgresService.syncStandardToPostgres(list[idx >= 0 ? idx : list.length - 1]).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -677,7 +671,6 @@ class DataService {
     const list = this.getStandards().filter(s => s.id !== id);
     saveToStorage(STORAGE_KEYS.STANDARDS, list);
     broadcastDataChange('std_delete');
-    this.triggerAutoSync();
     postgresService.deleteStandardFromPostgres(id).catch(() => {});
     this.addAuditLog({
       userId: user.id,
@@ -692,22 +685,37 @@ class DataService {
   }
 
   getUsers(): UserProfile[] {
-    return getFromStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const raw = getFromStorage<any[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    return raw
+      .filter(u => u && u.id !== 'user-superadmin' && u.username !== 'superadmin')
+      .map(({ passwordHash: _ph, ...u }) => {
+        const roleStr = String(u.role || '');
+        if (roleStr === 'Super Admin' || roleStr === 'SuperAdmin') {
+          return {
+            ...u,
+            role: 'SQC Inspector / User',
+            permittedModules: [],
+            permittedForms: [],
+            dataScope: 'OWN',
+          } as UserProfile;
+        }
+        return u as UserProfile;
+      });
   }
 
   saveUser(userData: UserProfile, actorUser?: UserProfile, skipPgSync = false): UserProfile[] {
-    const list = this.getUsers();
-    const idx = list.findIndex(u => u.id === userData.id || (u.email && userData.email && u.email.toLowerCase() === userData.email.toLowerCase()));
+    const list = getFromStorage<UserProfile[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const { passwordHash: _ignoredHash, ...cleanUser } = userData;
+    const idx = list.findIndex(u => u.id === cleanUser.id || (u.email && cleanUser.email && u.email.toLowerCase() === cleanUser.email.toLowerCase()));
     if (idx >= 0) {
-      list[idx] = { ...list[idx], ...userData };
+      list[idx] = { ...list[idx], ...cleanUser };
     } else {
-      list.push(userData);
+      list.push(cleanUser as UserProfile);
     }
     saveToStorage(STORAGE_KEYS.USERS, list);
     broadcastDataChange('user_save');
     if (!skipPgSync) {
-      this.triggerAutoSync();
-      postgresService.syncUserToPostgres(userData).catch(() => {});
+      postgresService.syncUserToPostgres(cleanUser as UserProfile).catch(() => {});
     }
     if (actorUser) {
       this.addAuditLog({
@@ -716,19 +724,20 @@ class DataService {
         userRole: actorUser.role,
         action: idx >= 0 ? 'UPDATE' : 'CREATE',
         module: 'User Management',
-        recordId: userData.id,
-        details: `${idx >= 0 ? 'Updated' : 'Created'} User ${userData.displayName} (${userData.role})`,
+        recordId: cleanUser.id,
+        details: `${idx >= 0 ? 'Updated' : 'Created'} User ${cleanUser.displayName} (${cleanUser.role})`,
       });
     }
-    return list;
+    return this.getUsers();
   }
 
-  deleteUser(id: string, actorUser?: UserProfile): UserProfile[] {
-    const list = this.getUsers().filter(u => u.id !== id);
+  deleteUser(id: string, actorUser?: UserProfile, skipPgSync = false): UserProfile[] {
+    const list = getFromStorage<UserProfile[]>(STORAGE_KEYS.USERS, INITIAL_USERS).filter(u => u.id !== id);
     saveToStorage(STORAGE_KEYS.USERS, list);
     broadcastDataChange('user_delete');
-    this.triggerAutoSync();
-    postgresService.deleteUserFromPostgres(id).catch(() => {});
+    if (!skipPgSync) {
+      postgresService.deleteUserFromPostgres(id).catch(() => {});
+    }
     if (actorUser) {
       this.addAuditLog({
         userId: actorUser.id,
@@ -740,7 +749,7 @@ class DataService {
         details: `Deleted User ID ${id}`,
       });
     }
-    return list;
+    return this.getUsers();
   }
 
   // Audit Logs

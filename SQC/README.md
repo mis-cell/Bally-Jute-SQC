@@ -66,7 +66,7 @@ JWT_SECRET=bjcl-sqc-jwt-secret-2026-quality-control
 ```bash
 node setup-db.js
 ```
-*Creates database `"IT SQC"`, creates all 10 schema tables, foreign keys, indexes, and initial admin account (`admin` / `Admin@123456`).*
+*Creates database `"SQC"`, creates all schema tables, indexes, and seeds the default `Admin` account (`admin`).*
 
 ### Step 4: Build Production Assets & Start Server
 ```bash

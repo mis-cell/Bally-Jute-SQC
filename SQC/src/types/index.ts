@@ -1,4 +1,88 @@
-export type UserRole = 'SuperAdmin' | 'Super Admin' | 'Admin' | 'QualityManager' | 'HOD' | 'HOD / Approver' | 'Inspector' | 'SQC Inspector / User' | 'Auditor' | 'Viewer / Auditor' | 'Operator';
+export type UserRole =
+  | 'Admin'
+  | 'HOD / Approver'
+  | 'SQC Inspector / User'
+  | 'Viewer / Auditor';
+
+export type AppModule =
+  | 'DASHBOARD'
+  | 'INSPECTIONS'
+  | 'APPROVALS'
+  | 'REPORTS'
+  | 'MASTERS'
+  | 'USERS'
+  | 'AUDIT_LOGS'
+  | 'SETTINGS';
+
+export type DataScope = 'OWN' | 'DEPARTMENT' | 'ALL';
+
+export const GRANTABLE_MODULES: AppModule[] = [
+  'DASHBOARD',
+  'INSPECTIONS',
+  'APPROVALS',
+  'REPORTS',
+  'MASTERS',
+];
+
+export const ADMIN_ONLY_MODULES: AppModule[] = ['USERS', 'AUDIT_LOGS', 'SETTINGS'];
+
+export const ALL_MODULES: AppModule[] = [...GRANTABLE_MODULES, ...ADMIN_ONLY_MODULES];
+
+export const MODULE_DEFINITIONS: Array<{
+  id: AppModule;
+  label: string;
+  description: string;
+  adminOnly: boolean;
+}> = [
+  {
+    id: 'DASHBOARD',
+    label: 'Floor Dashboard',
+    description: 'View live SQC KPIs, pass/fail status, and quick-launch permitted forms.',
+    adminOnly: false,
+  },
+  {
+    id: 'INSPECTIONS',
+    label: 'Quality Forms & Inspections',
+    description: 'Open inspection registry and enter data for explicitly granted quality forms.',
+    adminOnly: false,
+  },
+  {
+    id: 'APPROVALS',
+    label: 'Approvals Workflow',
+    description: 'Review, approve, return, or reject submitted floor inspections within scope.',
+    adminOnly: false,
+  },
+  {
+    id: 'REPORTS',
+    label: 'Reports & Analytics',
+    description: 'View SQC analytics, summary trends, and export authorized inspection data.',
+    adminOnly: false,
+  },
+  {
+    id: 'MASTERS',
+    label: 'Master Data',
+    description: 'Access and manage departments, sections, machines, looms, qualities, and standards.',
+    adminOnly: false,
+  },
+  {
+    id: 'USERS',
+    label: 'Users & Form Permissions',
+    description: 'Admin-only: manage user accounts, module permissions, data scopes, and password resets.',
+    adminOnly: true,
+  },
+  {
+    id: 'AUDIT_LOGS',
+    label: 'Audit Trail',
+    description: 'Admin-only: inspect immutable authentication, permission, and inspection audit logs.',
+    adminOnly: true,
+  },
+  {
+    id: 'SETTINGS',
+    label: 'System Settings',
+    description: 'Admin-only: configure system parameters and toggle Maintenance Mode.',
+    adminOnly: true,
+  },
+];
 
 export type InspectionStatus = 'Draft' | 'Submitted' | 'Under Review' | 'Approved' | 'Rejected' | 'Returned';
 
@@ -16,7 +100,12 @@ export interface UserProfile {
   employeeCode?: string;
   phone?: string;
   isActive: boolean;
-  permittedForms?: string[]; // Array of form codes e.g. ['FORM-01', 'FORM-02', 'FORM-37']. Empty or undefined for Admins means full access.
+  canEditEntries?: boolean;
+  canDeleteEntries?: boolean;
+  permittedModules?: AppModule[];
+  permittedForms?: string[]; // Array of form codes e.g. ['FORM-01', 'FORM-02']. Empty by default for standard users.
+  dataScope?: DataScope; // Explicit record visibility scope: 'OWN' (default), 'DEPARTMENT', or 'ALL'
+  tokenVersion?: number;
   createdAt: string;
   lastLoginAt?: string;
 }

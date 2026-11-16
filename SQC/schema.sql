@@ -16,11 +16,16 @@ CREATE TABLE IF NOT EXISTS users (
     employee_code VARCHAR(50),
     display_name VARCHAR(150) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
-    role VARCHAR(50) NOT NULL DEFAULT 'Inspector',
+    role VARCHAR(50) NOT NULL DEFAULT 'SQC Inspector / User',
     department_id VARCHAR(100),
     department_name VARCHAR(150),
     phone VARCHAR(50),
     is_active BOOLEAN DEFAULT TRUE,
+    can_edit_entries BOOLEAN DEFAULT FALSE,
+    can_delete_entries BOOLEAN DEFAULT FALSE,
+    permitted_modules JSONB DEFAULT '[]'::jsonb,
+    data_scope VARCHAR(20) NOT NULL DEFAULT 'OWN',
+    token_version INT NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -31,12 +36,26 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_code VARCHAR(50);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(150);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(150);
-ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'Inspector';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'SQC Inspector / User';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS department_id VARCHAR(100);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS department_name VARCHAR(150);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS can_edit_entries BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS can_delete_entries BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS permitted_modules JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS data_scope VARCHAR(20) DEFAULT 'OWN';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_users_data_scope'
+  ) THEN
+    ALTER TABLE users ADD CONSTRAINT chk_users_data_scope CHECK (data_scope IN ('OWN', 'DEPARTMENT', 'ALL'));
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
@@ -342,28 +361,50 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs (entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs (timestamp);
 
--- 11. DEFAULT ADMINISTRATOR SEED
--- Default username: admin
--- Default password: Admin@123456
--- Salted SHA-256 hash: salt:hash
-INSERT INTO users (id, username, password_hash, employee_code, display_name, email, role, department_name, is_active)
+-- 11. DEFAULT ADMINISTRATOR SEED & LEGACY ELEVATED ROLE CLEANUP
+-- Admin is the ONLY privileged role in the SQC system.
+INSERT INTO users (id, username, password_hash, employee_code, display_name, email, role, department_name, is_active, can_edit_entries, can_delete_entries, permitted_modules, data_scope, token_version)
 VALUES (
-    'usr-superadmin-01',
+    'usr-admin-01',
     'admin',
     'bjcl_sqc_salt_2026:5d5a621bd54309c980763fcb42e09fd15c0ad7b82994b1ff985b30475b42c2fc',
     'EMP-001',
     'System Administrator',
     'admin@ballyjute.com',
-    'SuperAdmin',
+    'Admin',
     'Administration',
-    TRUE
+    TRUE,
+    TRUE,
+    TRUE,
+    '["DASHBOARD","INSPECTIONS","APPROVALS","REPORTS","MASTERS","USERS","AUDIT_LOGS","SETTINGS"]'::jsonb,
+    'ALL',
+    1
 )
-ON CONFLICT (username) DO NOTHING;
+ON CONFLICT (username) DO UPDATE SET
+    role = 'Admin',
+    data_scope = 'ALL',
+    permitted_modules = '["DASHBOARD","INSPECTIONS","APPROVALS","REPORTS","MASTERS","USERS","AUDIT_LOGS","SETTINGS"]'::jsonb,
+    can_edit_entries = TRUE,
+    can_delete_entries = TRUE;
+
+-- Migrate any legacy elevated role assignments safely
+UPDATE users
+SET role = CASE WHEN LOWER(username) = 'admin' THEN 'Admin' ELSE 'SQC Inspector / User' END,
+    data_scope = CASE WHEN LOWER(username) = 'admin' THEN 'ALL' ELSE 'OWN' END,
+    permitted_modules = CASE
+      WHEN LOWER(username) = 'admin' THEN '["DASHBOARD","INSPECTIONS","APPROVALS","REPORTS","MASTERS","USERS","AUDIT_LOGS","SETTINGS"]'::jsonb
+      ELSE '[]'::jsonb
+    END,
+    can_edit_entries = CASE WHEN LOWER(username) = 'admin' THEN TRUE ELSE FALSE END,
+    can_delete_entries = CASE WHEN LOWER(username) = 'admin' THEN TRUE ELSE FALSE END,
+    token_version = COALESCE(token_version, 1) + 1
+WHERE LOWER(REPLACE(COALESCE(role, ''), ' ', '')) = 'superadmin';
 
 -- Grant all 38 forms to default administrator
 INSERT INTO user_form_permissions (user_id, form_code, granted_by)
-SELECT 'usr-superadmin-01', f.code, 'SYSTEM'
-FROM (
+SELECT u.id, f.code, 'SYSTEM'
+FROM users u
+CROSS JOIN (
     VALUES
     ('FORM-01'), ('FORM-02'), ('FORM-03'), ('FORM-04'), ('FORM-05'),
     ('FORM-06'), ('FORM-07'), ('FORM-08'), ('FORM-09'), ('FORM-09 A'),
@@ -374,6 +415,7 @@ FROM (
     ('FORM-29'), ('FORM-30'), ('FORM-31'), ('FORM-32'), ('FORM-33'),
     ('FORM-34'), ('FORM-35'), ('FORM-36'), ('FORM-37')
 ) AS f(code)
+WHERE LOWER(u.username) = 'admin'
 ON CONFLICT DO NOTHING;
 
 

@@ -116,40 +116,84 @@ export async function sha256(text: string): Promise<string> {
   return sha256PureJs(text);
 }
 
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 /**
- * Hash password with a salt: returns format "salt:hash"
+ * Derive PBKDF2-SHA256 hex digest when Web Crypto API is available
+ */
+async function pbkdf2Hex(password: string, saltHex: string, iterations = 100000): Promise<string | null> {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
+    try {
+      const enc = new TextEncoder();
+      const keyMaterial = await window.crypto.subtle.importKey(
+        'raw',
+        enc.encode(password),
+        'PBKDF2',
+        false,
+        ['deriveBits']
+      );
+      const derived = await window.crypto.subtle.deriveBits(
+        {
+          name: 'PBKDF2',
+          salt: enc.encode(saltHex),
+          iterations,
+          hash: 'SHA-256',
+        },
+        keyMaterial,
+        256
+      );
+      return Array.from(new Uint8Array(derived), b => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Hash password with a cryptographically random salt.
+ * Uses PBKDF2-SHA256 when Web Crypto Subtle is available, or salted SHA-256 on HTTP LAN origins.
  */
 export async function hashPassword(password: string, customSalt?: string): Promise<string> {
   const salt = customSalt || generateSalt();
+  const pbkdf2 = await pbkdf2Hex(password, salt, 100000);
+  if (pbkdf2) {
+    return `pbkdf2$100000$${salt}$${pbkdf2}`;
+  }
   const rawHash = await sha256(`${salt}:${password}`);
   return `${salt}:${rawHash}`;
 }
 
 /**
- * Verify a plain text password against "salt:hash"
+ * Verify a plain text password against a stored cryptographic hash (no plaintext or hardcoded bypasses)
  */
 export async function verifyPassword(password: string, storedHashString: string): Promise<boolean> {
   if (!storedHashString || !password) return false;
-  if (password === 'Admin@1234' || password === 'Admin@123456') {
-    if (
-      storedHashString.includes('5d5a621b') ||
-      storedHashString === 'Admin@123456' ||
-      storedHashString === 'Admin@1234'
-    ) {
-      return true;
-    }
+
+  if (storedHashString.startsWith('pbkdf2$')) {
+    const parts = storedHashString.split('$');
+    if (parts.length !== 4) return false;
+    const iterations = parseInt(parts[1], 10);
+    const salt = parts[2];
+    const expected = parts[3];
+    if (!Number.isFinite(iterations) || !salt || !expected) return false;
+    const computed = await pbkdf2Hex(password, salt, iterations);
+    return computed ? constantTimeEqual(computed, expected) : false;
   }
 
-  const parts = storedHashString.split(':');
-  if (parts.length === 2) {
-    const [salt, expectedHash] = parts;
+  const colonParts = storedHashString.split(':');
+  if (colonParts.length === 2 && colonParts[0] && colonParts[1]) {
+    const [salt, expectedHash] = colonParts;
     const computedHash = await sha256(`${salt}:${password}`);
-    return computedHash === expectedHash;
+    return constantTimeEqual(computedHash, expectedHash);
   }
 
-  return password === storedHashString;
+  return false;
 }
-
-// Precomputed salt:hash for default administrator password "Admin@123456"
-export const DEFAULT_ADMIN_PASSWORD_HASH =
-  'bjcl_sqc_salt_2026:5d5a621bd54309c980763fcb42e09fd15c0ad7b82994b1ff985b30475b42c2fc';

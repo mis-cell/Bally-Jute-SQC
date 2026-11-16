@@ -1,7 +1,6 @@
 // ==============================================================================
-// BALLY JUTE COMPANY LIMITED - S.Q.C. QUALITY CONTROL SYSTEM
-// Local PostgreSQL via Cloudflare Tunnel Client Service
-// Comprehensive Synchronization for Users, Masters, and Inspections
+// SQC QUALITY CONTROL SYSTEM - Live PostgreSQL Client Service
+// Pure live database API synchronization (zero localStorage/offline business fallbacks)
 // ==============================================================================
 
 import {
@@ -13,7 +12,7 @@ import {
   QualityMaster,
   StandardDefinition,
   InspectionRecord,
-  CustomerRecord,
+  ApplicationSettings,
 } from '../types';
 import {
   emitMaintenanceLockout,
@@ -25,10 +24,17 @@ const STORAGE_KEYS = {
   API_URL: 'bj_sqc_pg_api_url',
   API_KEY: 'bj_sqc_pg_api_key',
   SYNC_ENABLED: 'bj_sqc_pg_sync_enabled',
-  LAST_STATUS: 'bj_sqc_pg_last_status',
 };
 
-// Default configuration: use VITE_API_URL if set, else same-origin when served by Express (e.g. http://192.168.1.6:3001)
+// Clear any legacy status cache from localStorage
+try {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('bj_sqc_pg_last_status');
+  }
+} catch {
+  // ignore
+}
+
 function getDefaultApiUrl(): string {
   const envUrl = (import.meta as any).env?.VITE_API_URL;
   if (envUrl && !String(envUrl).includes('trycloudflare.com')) {
@@ -41,8 +47,25 @@ function getDefaultApiUrl(): string {
 }
 
 export const DEFAULT_API_URL = getDefaultApiUrl();
-export const DEFAULT_API_KEY =
-  (import.meta as any).env?.VITE_API_KEY || 'change-this-to-a-long-secret-key-123456';
+export const DEFAULT_API_KEY = (import.meta as any).env?.VITE_API_KEY || '';
+
+export function hasStoredAuthToken(): boolean {
+  try {
+    return typeof window !== 'undefined' && Boolean(localStorage.getItem('sqc_auth_token'));
+  } catch {
+    return false;
+  }
+}
+
+function emitAuthInvalidated(message?: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('bj_sqc_auth_invalidated', {
+        detail: { message: message || 'Session expired or permissions updated. Please sign in again.' },
+      })
+    );
+  }
+}
 
 function isPlaceholderOrDeadUrl(url: string | null | undefined): boolean {
   if (!url) return true;
@@ -67,6 +90,8 @@ export interface PostgresSyncResult {
   success: boolean;
   message: string;
   error?: string;
+  statusCode?: number;
+  dbUnavailable?: boolean;
   formTable?: string;
   data?: any;
 }
@@ -74,9 +99,11 @@ export interface PostgresSyncResult {
 export interface RealtimeSyncState {
   isAutoSyncEnabled: boolean;
   isSyncing: boolean;
+  hasLoaded: boolean;
   lastSyncTime: string | null;
   lastSyncStatus: 'idle' | 'syncing' | 'success' | 'error';
   lastSyncMessage: string;
+  dbError: string | null;
   itemsCount: {
     inspections: number;
     users: number;
@@ -89,9 +116,23 @@ export interface RealtimeSyncState {
   };
 }
 
+export interface AllPostgresPayload {
+  users: UserProfile[];
+  departments: Department[];
+  sections: Section[];
+  machines: Machine[];
+  looms: Loom[];
+  qualities: QualityMaster[];
+  standards: StandardDefinition[];
+  inspections: InspectionRecord[];
+  settings?: Partial<ApplicationSettings>;
+}
+
 export function broadcastDataChange(source: string = 'postgres') {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('bj_sqc_data_synced', { detail: { source, timestamp: Date.now() } }));
+    window.dispatchEvent(
+      new CustomEvent('bj_sqc_data_synced', { detail: { source, timestamp: Date.now() } })
+    );
   }
 }
 
@@ -103,19 +144,21 @@ class PostgresService {
   private listeners: Array<(status: PostgresConnectionStatus) => void> = [];
   private backendApiDetected: boolean | null = null;
   private probePromise: Promise<boolean> | null = null;
-  
-  // Real-Time Polling & Bi-Directional Synchronization
+
+  private sessionUserContext: Partial<UserProfile> | null = null;
+  private dataHydrator: ((data: AllPostgresPayload) => void) | null = null;
+
+  // Live PostgreSQL Polling Loop
   private syncIntervalTimer: any = null;
-  private autoPushDebounceTimer: any = null;
   private syncStateListeners: Array<(state: RealtimeSyncState) => void> = [];
-  private fullDataSupplier: (() => any) | null = null;
-  private hasPendingLocalChanges: boolean = false;
   private syncState: RealtimeSyncState = {
     isAutoSyncEnabled: true,
     isSyncing: false,
+    hasLoaded: false,
     lastSyncTime: null,
     lastSyncStatus: 'idle',
-    lastSyncMessage: 'Waiting for connection...',
+    lastSyncMessage: 'Waiting for PostgreSQL connection...',
+    dbError: null,
     itemsCount: {
       inspections: 0,
       users: 0,
@@ -129,71 +172,76 @@ class PostgresService {
   };
 
   constructor() {
-    const storedUrl = localStorage.getItem(STORAGE_KEYS.API_URL);
-    if (storedUrl && !isPlaceholderOrDeadUrl(storedUrl)) {
-      this.apiUrl = storedUrl.trim().replace(/\/+$/, '');
-    } else {
-      this.apiUrl = getDefaultApiUrl();
-      if (storedUrl && isPlaceholderOrDeadUrl(storedUrl)) {
-        localStorage.removeItem(STORAGE_KEYS.API_URL);
-      }
-    }
-    this.apiKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || DEFAULT_API_KEY;
-    const storedSync = localStorage.getItem(STORAGE_KEYS.SYNC_ENABLED);
-    this.syncEnabled = storedSync !== null ? storedSync === 'true' : true;
-
+    let storedUrl: string | null = null;
     try {
-      const savedStatus = localStorage.getItem(STORAGE_KEYS.LAST_STATUS);
-      if (savedStatus) {
-        this.cachedStatus = JSON.parse(savedStatus);
+      storedUrl = localStorage.getItem(STORAGE_KEYS.API_URL);
+      if (storedUrl && !isPlaceholderOrDeadUrl(storedUrl)) {
+        this.apiUrl = storedUrl.trim().replace(/\/+$/, '');
+      } else {
+        this.apiUrl = getDefaultApiUrl();
+        if (storedUrl && isPlaceholderOrDeadUrl(storedUrl)) {
+          localStorage.removeItem(STORAGE_KEYS.API_URL);
+        }
       }
+      this.apiKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || DEFAULT_API_KEY;
+      const storedSync = localStorage.getItem(STORAGE_KEYS.SYNC_ENABLED);
+      this.syncEnabled = storedSync !== null ? storedSync === 'true' : true;
     } catch {
-      // Ignore
+      this.apiUrl = getDefaultApiUrl();
+      this.apiKey = DEFAULT_API_KEY;
+      this.syncEnabled = true;
     }
 
-    // Initialize Auto-Sync loop on startup if in browser
     if (typeof window !== 'undefined') {
       setTimeout(() => {
-        this.startAutoSync(6000); // Continuous bi-directional sync every 6 seconds
-      }, 1500);
+        this.startAutoSync(6000);
+      }, 1200);
 
-      // Trigger instant bi-directional sync when user returns to this browser tab
       window.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && this.isSyncEnabled()) {
-          this.triggerImmediateAutoPush();
-          this.pullAndSyncAllData(false);
+        if (document.visibilityState === 'visible' && this.isSyncEnabled() && hasStoredAuthToken()) {
+          void this.pullAndSyncAllData(false);
         }
       });
       window.addEventListener('focus', () => {
-        if (this.isSyncEnabled()) {
-          this.triggerImmediateAutoPush();
-          this.pullAndSyncAllData(false);
+        if (this.isSyncEnabled() && hasStoredAuthToken()) {
+          void this.pullAndSyncAllData(false);
         }
       });
     }
   }
 
-  public registerDataSupplier(supplier: () => any) {
-    this.fullDataSupplier = supplier;
+  public setSessionUserContext(user: Partial<UserProfile> | null): void {
+    this.sessionUserContext = user;
   }
 
-  /**
-   * Automatically pushes all local changes to PostgreSQL without needing manual clicks.
-   * Debounced to coalesce rapid updates into a single efficient bulk-sync call.
-   */
-  public queueAutoPush(supplier?: () => any) {
-    if (supplier) {
-      this.fullDataSupplier = supplier;
-    }
-    this.hasPendingLocalChanges = true;
+  public isSessionAdmin(): boolean {
+    return this.sessionUserContext?.role === 'Admin';
+  }
 
-    if (this.autoPushDebounceTimer) {
-      clearTimeout(this.autoPushDebounceTimer);
-    }
+  public registerDataHydrator(hydrator: (data: AllPostgresPayload) => void): void {
+    this.dataHydrator = hydrator;
+  }
 
-    this.autoPushDebounceTimer = setTimeout(() => {
-      this.triggerImmediateAutoPush();
-    }, 350);
+  public clearSyncData(): void {
+    this.cachedStatus = null;
+    this.notifySyncState({
+      isSyncing: false,
+      hasLoaded: false,
+      lastSyncTime: null,
+      lastSyncStatus: 'idle',
+      lastSyncMessage: 'Signed out',
+      dbError: null,
+      itemsCount: {
+        inspections: 0,
+        users: 0,
+        departments: 0,
+        sections: 0,
+        machines: 0,
+        looms: 0,
+        qualities: 0,
+        standards: 0,
+      },
+    });
   }
 
   private isJsonResponse(res: Response): boolean {
@@ -236,66 +284,6 @@ class PostgresService {
     return this.probePromise;
   }
 
-  public async triggerImmediateAutoPush(): Promise<boolean> {
-    if (!this.isSyncEnabled() || !this.fullDataSupplier) {
-      return false;
-    }
-
-    const apiReady = await this.checkBackendApiAvailable(false);
-    if (!apiReady) {
-      return false;
-    }
-
-    try {
-      const state = this.fullDataSupplier();
-      if (!state) return false;
-
-      this.notifySyncState({
-        isSyncing: true,
-        lastSyncStatus: 'syncing',
-        lastSyncMessage: 'Auto-pushing changes to PostgreSQL...',
-      });
-
-      const res = await this.syncAllDataToPostgres(state);
-      this.hasPendingLocalChanges = !res.success;
-
-      if (res.success) {
-        const nowStr = new Date().toLocaleTimeString();
-        this.notifySyncState({
-          isSyncing: false,
-          lastSyncTime: nowStr,
-          lastSyncStatus: 'success',
-          lastSyncMessage: `⚡ Auto-synchronized with PostgreSQL at ${nowStr}`,
-          itemsCount: {
-            inspections: state.inspections?.length || 0,
-            users: state.users?.length || 0,
-            departments: state.departments?.length || 0,
-            sections: state.sections?.length || 0,
-            machines: state.machines?.length || 0,
-            looms: state.looms?.length || 0,
-            qualities: state.qualities?.length || 0,
-            standards: state.standards?.length || 0,
-          },
-        });
-        return true;
-      } else {
-        this.notifySyncState({
-          isSyncing: false,
-          lastSyncStatus: 'error',
-          lastSyncMessage: res.message || 'Auto-push to PostgreSQL failed',
-        });
-        return false;
-      }
-    } catch (err: any) {
-      this.notifySyncState({
-        isSyncing: false,
-        lastSyncStatus: 'error',
-        lastSyncMessage: err.message || 'Auto-push error',
-      });
-      return false;
-    }
-  }
-
   public subscribeRealtimeSync(callback: (state: RealtimeSyncState) => void) {
     this.syncStateListeners.push(callback);
     callback(this.syncState);
@@ -319,13 +307,8 @@ class PostgresService {
     }
     this.notifySyncState({ isAutoSyncEnabled: true });
     this.syncIntervalTimer = setInterval(() => {
-      if (this.isSyncEnabled() && !this.syncState.isSyncing) {
-        // If we have pending local changes, push first; otherwise pull latest
-        if (this.hasPendingLocalChanges && this.fullDataSupplier) {
-          this.triggerImmediateAutoPush();
-        } else {
-          this.pullAndSyncAllData(false);
-        }
+      if (this.isSyncEnabled() && !this.syncState.isSyncing && hasStoredAuthToken()) {
+        void this.pullAndSyncAllData(false);
       }
     }, intervalMs);
   }
@@ -342,238 +325,161 @@ class PostgresService {
     success: boolean;
     totalItems?: number;
     error?: string;
+    dbUnavailable?: boolean;
   }> {
-    if (!this.isSyncEnabled()) return { success: false, error: 'Sync is disabled or not configured.' };
-    if (this.syncState.isSyncing && !isUserInitiated) return { success: false, error: 'Sync already in progress.' };
-
-    if (!isUserInitiated) {
-      const apiReady = await this.checkBackendApiAvailable(false);
-      if (!apiReady) {
-        this.notifySyncState({
-          isSyncing: false,
-          lastSyncStatus: 'idle',
-          lastSyncMessage: 'Local offline mode (waiting for PostgreSQL backend)',
-        });
-        return { success: false, error: 'PostgreSQL backend API not attached.' };
-      }
+    if (!this.isSyncEnabled()) {
+      return { success: false, error: 'Sync is disabled or backend URL is not configured.' };
+    }
+    if (!hasStoredAuthToken()) {
+      return { success: false, error: 'Authentication required.' };
+    }
+    if (this.syncState.isSyncing && !isUserInitiated) {
+      return { success: false, error: 'Sync already in progress.' };
     }
 
     this.notifySyncState({ isSyncing: true, lastSyncStatus: 'syncing' });
 
-    try {
-      const data = await this.fetchAllDataFromPostgres();
-      if (!data) {
-        this.notifySyncState({
-          isSyncing: false,
-          lastSyncStatus: 'error',
-          lastSyncMessage: 'Failed to retrieve data from PostgreSQL',
-        });
-        return { success: false, error: 'Failed to retrieve data from PostgreSQL backend.' };
-      }
-
-      // Storage keys
-      const STORAGE_KEYS_LOCAL = {
-        DEPARTMENTS: 'bj_sqc_departments_prod_v1',
-        SECTIONS: 'bj_sqc_sections_prod_v1',
-        MACHINES: 'bj_sqc_machines_prod_v1',
-        LOOMS: 'bj_sqc_looms_prod_v1',
-        QUALITIES: 'bj_sqc_qualities_prod_v1',
-        STANDARDS: 'bj_sqc_standards_prod_v1',
-        USERS: 'bj_sqc_users_prod_v1',
-        INSPECTIONS: 'bj_sqc_inspections_prod_clean',
-      };
-
-      const getLocalArray = <T>(key: string): T[] => {
-        try {
-          const raw = localStorage.getItem(key);
-          return raw ? JSON.parse(raw) : [];
-        } catch {
-          return [];
-        }
-      };
-
-      // Smart merge: merge PostgreSQL database data with local items to guarantee zero data loss
-      if (data.users && Array.isArray(data.users)) {
-        const localUsers = getLocalArray<UserProfile>(STORAGE_KEYS_LOCAL.USERS);
-        const mergedUsers = [...data.users];
-        // Preserve any local user that hasn't appeared in PG yet
-        localUsers.forEach(lu => {
-          if (!mergedUsers.some(mu => mu.id === lu.id || mu.email === lu.email)) {
-            mergedUsers.push(lu);
-          }
-        });
-        localStorage.setItem(STORAGE_KEYS_LOCAL.USERS, JSON.stringify(mergedUsers));
-      }
-
-      if (data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
-        localStorage.setItem(STORAGE_KEYS_LOCAL.DEPARTMENTS, JSON.stringify(data.departments));
-      }
-      if (data.sections && Array.isArray(data.sections) && data.sections.length > 0) {
-        localStorage.setItem(STORAGE_KEYS_LOCAL.SECTIONS, JSON.stringify(data.sections));
-      }
-      if (data.machines && Array.isArray(data.machines) && data.machines.length > 0) {
-        localStorage.setItem(STORAGE_KEYS_LOCAL.MACHINES, JSON.stringify(data.machines));
-      }
-      if (data.looms && Array.isArray(data.looms) && data.looms.length > 0) {
-        localStorage.setItem(STORAGE_KEYS_LOCAL.LOOMS, JSON.stringify(data.looms));
-      }
-      if (data.qualities && Array.isArray(data.qualities) && data.qualities.length > 0) {
-        localStorage.setItem(STORAGE_KEYS_LOCAL.QUALITIES, JSON.stringify(data.qualities));
-      }
-      if (data.standards && Array.isArray(data.standards) && data.standards.length > 0) {
-        localStorage.setItem(STORAGE_KEYS_LOCAL.STANDARDS, JSON.stringify(data.standards));
-      }
-
-      if (data.inspections && Array.isArray(data.inspections)) {
-        const localInspections = getLocalArray<InspectionRecord>(STORAGE_KEYS_LOCAL.INSPECTIONS);
-        const map = new Map<string, InspectionRecord>();
-        
-        // Populate with PG records
-        data.inspections.forEach((r: InspectionRecord) => {
-          if (r && r.inspectionNo) {
-            map.set(r.inspectionNo, r);
-          }
-        });
-
-        // Merge local records if newer or not in PG yet
-        localInspections.forEach(li => {
-          if (li && li.inspectionNo) {
-            const existing = map.get(li.inspectionNo);
-            if (!existing) {
-              map.set(li.inspectionNo, li);
-            } else {
-              const localTime = new Date(li.updatedAt || li.createdAt || 0).getTime();
-              const pgTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
-              if (localTime > pgTime) {
-                map.set(li.inspectionNo, li);
-              }
-            }
-          }
-        });
-
-        const mergedInspections = Array.from(map.values()).sort((a, b) => {
-          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        });
-
-        localStorage.setItem(STORAGE_KEYS_LOCAL.INSPECTIONS, JSON.stringify(mergedInspections));
-      }
-
-      const totalItems =
-        (data.users?.length || 0) +
-        (data.departments?.length || 0) +
-        (data.sections?.length || 0) +
-        (data.machines?.length || 0) +
-        (data.looms?.length || 0) +
-        (data.qualities?.length || 0) +
-        (data.standards?.length || 0) +
-        (data.inspections?.length || 0);
-
-      const nowStr = new Date().toLocaleTimeString();
-      this.notifySyncState({
-        isSyncing: false,
-        lastSyncTime: nowStr,
-        lastSyncStatus: 'success',
-        lastSyncMessage: `Auto-synced ${data.inspections?.length || 0} inspections & ${data.users?.length || 0} users`,
-        itemsCount: {
-          inspections: data.inspections?.length || 0,
-          users: data.users?.length || 0,
-          departments: data.departments?.length || 0,
-          sections: data.sections?.length || 0,
-          machines: data.machines?.length || 0,
-          looms: data.looms?.length || 0,
-          qualities: data.qualities?.length || 0,
-          standards: data.standards?.length || 0,
-        },
-      });
-
-      // Broadcast update to all mounted React UI views
-      broadcastDataChange('postgres_poll');
-      return { success: true, totalItems };
-    } catch (err: any) {
+    const res = await this.fetchAllDataFromPostgresDetailed();
+    if (!res.success || !res.data) {
+      const errMsg = res.error || 'Failed to retrieve live data from PostgreSQL database.';
       this.notifySyncState({
         isSyncing: false,
         lastSyncStatus: 'error',
-        lastSyncMessage: err.message || 'Sync error',
+        lastSyncMessage: errMsg,
+        dbError: errMsg,
       });
-      return { success: false, error: err.message || 'Sync error' };
+      return { success: false, error: errMsg, dbUnavailable: res.dbUnavailable };
     }
+
+    const data = res.data;
+    // Unconditionally hydrate in-memory live store (even empty arrays [] so deletes persist)
+    this.dataHydrator?.(data);
+
+    const totalItems =
+      (data.users?.length || 0) +
+      (data.departments?.length || 0) +
+      (data.sections?.length || 0) +
+      (data.machines?.length || 0) +
+      (data.looms?.length || 0) +
+      (data.qualities?.length || 0) +
+      (data.standards?.length || 0) +
+      (data.inspections?.length || 0);
+
+    const nowStr = new Date().toLocaleTimeString();
+    this.notifySyncState({
+      isSyncing: false,
+      hasLoaded: true,
+      lastSyncTime: nowStr,
+      lastSyncStatus: 'success',
+      lastSyncMessage: `Live PostgreSQL synced (${data.inspections?.length || 0} inspections)`,
+      dbError: null,
+      itemsCount: {
+        inspections: data.inspections?.length || 0,
+        users: data.users?.length || 0,
+        departments: data.departments?.length || 0,
+        sections: data.sections?.length || 0,
+        machines: data.machines?.length || 0,
+        looms: data.looms?.length || 0,
+        qualities: data.qualities?.length || 0,
+        standards: data.standards?.length || 0,
+      },
+    });
+
+    broadcastDataChange('postgres_poll');
+    return { success: true, totalItems };
   }
 
-  public async fetchAllDataFromPostgres(): Promise<{
-    users: UserProfile[];
-    departments: Department[];
-    sections: Section[];
-    machines: Machine[];
-    looms: Loom[];
-    qualities: QualityMaster[];
-    standards: StandardDefinition[];
-    inspections: InspectionRecord[];
-  } | null> {
+  public async fetchAllDataFromPostgresDetailed(): Promise<{
+    success: boolean;
+    data?: AllPostgresPayload;
+    statusCode?: number;
+    error?: string;
+    dbUnavailable?: boolean;
+  }> {
     if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
-      return null;
+      return { success: false, dbUnavailable: true, error: 'Backend server URL is not configured.' };
+    }
+    if (!hasStoredAuthToken()) {
+      return { success: false, statusCode: 401, error: 'Authentication required.' };
     }
 
     try {
       const res = await fetch(`${this.apiUrl}/api/all-data`, {
         method: 'GET',
         headers: this.getHeaders(),
+        cache: 'no-store',
       });
-
-      if (await this.handleMaintenanceResponse(res)) {
-        return null;
-      }
-
-      if (res.ok && this.isJsonResponse(res)) {
-        this.backendApiDetected = true;
-        const json = await res.json();
-        if (json.maintenanceMode) {
-          setCachedMaintenanceStatus(json.maintenanceMode);
-        }
-        if (json.success && json.data) {
-          return json.data;
-        }
-        if (json.success && (json.users || json.inspections)) {
-          return {
-            users: json.users || [],
-            departments: json.departments || [],
-            sections: json.sections || [],
-            machines: json.machines || [],
-            looms: json.looms || [],
-            qualities: json.qualities || [],
-            standards: json.standards || [],
-            inspections: json.inspections || [],
-          };
-        }
-      }
 
       if (!this.isJsonResponse(res)) {
         this.backendApiDetected = false;
-        return null;
-      }
-
-      // If /api/all-data returns JSON 404 (running an older server.js), fallback to individual endpoints
-      if (res.status === 404) {
-        const [inspections, users] = await Promise.all([
-          this.loadInspections().catch(() => []),
-          this.loadUsers().catch(() => []),
-        ]);
-        
         return {
-          users,
-          departments: [],
-          sections: [],
-          machines: [],
-          looms: [],
-          qualities: [],
-          standards: [],
-          inspections,
+          success: false,
+          statusCode: res.status,
+          dbUnavailable: true,
+          error: 'SQC backend server did not return a JSON API response. Check that server.cjs is running.',
         };
       }
 
-      return null;
-    } catch {
-      return null;
+      this.backendApiDetected = true;
+      const json = await res.json().catch(() => ({}));
+
+      if (res.status === 503) {
+        if (json?.maintenanceMode) {
+          emitMaintenanceLockout(json.message);
+          return { success: false, statusCode: 503, error: json.message };
+        }
+        return {
+          success: false,
+          statusCode: 503,
+          dbUnavailable: true,
+          error: json.message || 'PostgreSQL database is currently unavailable.',
+        };
+      }
+
+      if (res.status === 401) {
+        emitAuthInvalidated(json?.message);
+        return { success: false, statusCode: 401, error: json?.message || 'Unauthorized.' };
+      }
+
+      if (!res.ok) {
+        return {
+          success: false,
+          statusCode: res.status,
+          error: json?.message || `PostgreSQL query failed (HTTP ${res.status}).`,
+        };
+      }
+
+      if (json.maintenanceMode) {
+        setCachedMaintenanceStatus(json.maintenanceMode);
+      }
+
+      const raw = json.data ? json.data : json;
+      return {
+        success: true,
+        data: {
+          users: Array.isArray(raw.users) ? raw.users : [],
+          departments: Array.isArray(raw.departments) ? raw.departments : [],
+          sections: Array.isArray(raw.sections) ? raw.sections : [],
+          machines: Array.isArray(raw.machines) ? raw.machines : [],
+          looms: Array.isArray(raw.looms) ? raw.looms : [],
+          qualities: Array.isArray(raw.qualities) ? raw.qualities : [],
+          standards: Array.isArray(raw.standards) ? raw.standards : [],
+          inspections: Array.isArray(raw.inspections) ? raw.inspections : [],
+          settings: raw.settings || undefined,
+        },
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        dbUnavailable: true,
+        error: `Cannot reach SQC server / PostgreSQL: ${err?.message || 'Network error'}.`,
+      };
     }
+  }
+
+  public async fetchAllDataFromPostgres(): Promise<AllPostgresPayload | null> {
+    const res = await this.fetchAllDataFromPostgresDetailed();
+    return res.success && res.data ? res.data : null;
   }
 
   public subscribe(callback: (status: PostgresConnectionStatus) => void) {
@@ -588,11 +494,6 @@ class PostgresService {
 
   private notifyStatus(status: PostgresConnectionStatus) {
     this.cachedStatus = status;
-    try {
-      localStorage.setItem(STORAGE_KEYS.LAST_STATUS, JSON.stringify(status));
-    } catch {
-      // Ignore
-    }
     this.listeners.forEach(l => l(status));
   }
 
@@ -616,9 +517,13 @@ class PostgresService {
     this.backendApiDetected = null;
     maintenanceService.resetApiDetection();
 
-    localStorage.setItem(STORAGE_KEYS.API_URL, this.apiUrl);
-    localStorage.setItem(STORAGE_KEYS.API_KEY, this.apiKey);
-    localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, String(syncEnabled));
+    try {
+      localStorage.setItem(STORAGE_KEYS.API_URL, this.apiUrl);
+      localStorage.setItem(STORAGE_KEYS.API_KEY, this.apiKey);
+      localStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, String(syncEnabled));
+    } catch {
+      // ignore
+    }
   }
 
   public isSyncEnabled(): boolean {
@@ -627,7 +532,6 @@ class PostgresService {
 
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
-      'x-api-key': this.apiKey,
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
     };
@@ -655,6 +559,9 @@ class PostgresService {
         // Ignore parse failures
       }
     }
+    if (res.status === 401 && hasStoredAuthToken()) {
+      emitAuthInvalidated();
+    }
     return false;
   }
 
@@ -669,7 +576,7 @@ class PostgresService {
     if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       const res: PostgresConnectionStatus = {
         isConnected: false,
-        message: 'No live PostgreSQL backend URL configured. Check Settings -> Backend URL.',
+        message: 'No live PostgreSQL backend URL configured.',
         checkedAt,
       };
       this.notifyStatus(res);
@@ -680,13 +587,14 @@ class PostgresService {
       const healthRes = await fetch(`${this.apiUrl}/api/health`, {
         method: 'GET',
         headers: this.getHeaders(),
+        cache: 'no-store',
       });
 
       if (!this.isJsonResponse(healthRes)) {
         this.backendApiDetected = false;
         const res: PostgresConnectionStatus = {
           isConnected: false,
-          message: `Express API server not attached at ${this.apiUrl}. Start server.cjs or verify Backend URL in Settings.`,
+          message: `Express API server not attached at ${this.apiUrl}. Start server.cjs.`,
           checkedAt,
         };
         this.notifyStatus(res);
@@ -697,17 +605,9 @@ class PostgresService {
         let errorMsg = `HTTP ${healthRes.status}`;
         try {
           const errorJson = await healthRes.json();
-          if (errorJson.error) {
-            errorMsg = errorJson.error;
-          } else if (errorJson.message) {
-            errorMsg = errorJson.message;
-          }
+          errorMsg = errorJson.error || errorJson.message || errorMsg;
         } catch {
-          try {
-            errorMsg = await healthRes.text();
-          } catch {
-            // ignore
-          }
+          // ignore
         }
         const res: PostgresConnectionStatus = {
           isConnected: false,
@@ -725,8 +625,14 @@ class PostgresService {
       }
       const dbName = healthData.database || 'SQC';
       const dbUser = healthData.user || 'postgres';
-      const inspectionsCount = healthData.stats?.inspections_count !== undefined ? Number(healthData.stats.inspections_count) : undefined;
-      const usersCount = healthData.stats?.users_count !== undefined ? Number(healthData.stats.users_count) : undefined;
+      const inspectionsCount =
+        healthData.stats?.inspections_count !== undefined
+          ? Number(healthData.stats.inspections_count)
+          : undefined;
+      const usersCount =
+        healthData.stats?.users_count !== undefined
+          ? Number(healthData.stats.users_count)
+          : undefined;
 
       const isOk = healthData.databaseConnected !== false;
       const res: PostgresConnectionStatus = {
@@ -763,7 +669,7 @@ class PostgresService {
       rawText.includes('Cannot PUT') ||
       status === 404
     ) {
-      return `Backend route '${endpoint}' returned HTTP 404. Restart the updated backend server (pm2 restart bjcl-sqc).`;
+      return `Backend route '${endpoint}' returned HTTP 404. Ensure the updated backend server is running.`;
     }
     try {
       const parsed = JSON.parse(rawText);
@@ -779,8 +685,145 @@ class PostgresService {
   }
 
   // ==========================================
-  // 2. USER SYNCHRONIZATION
+  // 2. USER & SESSION SECURITY APIS
   // ==========================================
+  public async fetchCurrentSessionUser(): Promise<{
+    ok: boolean;
+    status: number;
+    user?: UserProfile;
+    maintenanceMode?: any;
+    dbUnavailable?: boolean;
+    message?: string;
+  }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
+      return { ok: false, status: 0 };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/auth/me`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+        cache: 'no-store',
+      });
+      if (!this.isJsonResponse(res)) {
+        return {
+          ok: false,
+          status: 503,
+          dbUnavailable: true,
+          message: 'SQC backend API server did not respond with JSON.',
+        };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 503) {
+        if (json?.maintenanceMode) {
+          emitMaintenanceLockout(json.message);
+          return { ok: false, status: 503, maintenanceMode: json.maintenanceMode, message: json.message };
+        }
+        return {
+          ok: false,
+          status: 503,
+          dbUnavailable: true,
+          message: json?.message || 'PostgreSQL database is unavailable.',
+        };
+      }
+      if (res.status === 401 || res.status === 403) {
+        emitAuthInvalidated(json.message);
+        return { ok: false, status: res.status, message: json.message };
+      }
+      if (res.ok && json.success && json.user) {
+        return { ok: true, status: 200, user: json.user, maintenanceMode: json.maintenanceMode };
+      }
+      return { ok: false, status: res.status, message: json.message };
+    } catch (err: any) {
+      return {
+        ok: false,
+        status: 503,
+        dbUnavailable: true,
+        message: err?.message || 'Unable to connect to SQC server or PostgreSQL.',
+      };
+    }
+  }
+
+  public async updateOwnProfile(
+    displayName: string,
+    phone: string
+  ): Promise<{ success: boolean; user?: UserProfile; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend server URL not configured.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ displayName, phone }),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json.message || `HTTP ${res.status}` };
+      }
+      return { success: true, user: json.user };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error updating profile.' };
+    }
+  }
+
+  public async changeOwnPassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; token?: string; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend server URL not configured.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/auth/change-password`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json.message || `HTTP ${res.status}` };
+      }
+      return { success: true, token: json.token, message: json.message || 'Password updated.' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error updating password.' };
+    }
+  }
+
+  public async adminResetUserPassword(
+    userId: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend server URL not configured.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/users/${encodeURIComponent(userId)}/reset-password`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ newPassword }),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json.message || `HTTP ${res.status}` };
+      }
+      return { success: true, message: json.message || 'Password reset successfully.' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error resetting password.' };
+    }
+  }
+
   public async syncUserToPostgres(user: UserProfile, plainPassword?: string): Promise<PostgresSyncResult> {
     if (!this.isSyncEnabled()) {
       return { success: false, message: 'PostgreSQL sync disabled or backend URL not set.' };
@@ -799,10 +842,15 @@ class PostgresService {
         departmentName: user.departmentName || '',
         phone: user.phone || '',
         isActive: user.isActive,
+        canEditEntries: Boolean(user.canEditEntries),
+        canDeleteEntries: Boolean(user.canDeleteEntries),
+        permittedModules: Array.isArray(user.permittedModules) ? user.permittedModules : [],
         permittedForms: Array.isArray(user.permittedForms) ? user.permittedForms : [],
+        dataScope: user.dataScope || 'OWN',
       };
-      if (user.passwordHash) payload.passwordHash = user.passwordHash;
-      if (plainPassword && plainPassword.trim()) payload.password = plainPassword.trim();
+      if (plainPassword && plainPassword.trim()) {
+        payload.password = plainPassword.trim();
+      }
 
       const response = await fetch(url, {
         method: 'POST',
@@ -810,50 +858,207 @@ class PostgresService {
         body: JSON.stringify(payload),
       });
 
+      await this.handleMaintenanceResponse(response);
+
       if (!response.ok) {
         const err = await response.text();
         const cleanMsg = this.cleanErrorMessage(response.status, err, '/api/users');
-        return { success: false, message: cleanMsg };
+        return {
+          success: false,
+          statusCode: response.status,
+          dbUnavailable: response.status === 503,
+          message: cleanMsg,
+        };
       }
 
       if (!this.isJsonResponse(response)) {
-        return { success: false, message: 'Express backend API not responding with JSON.' };
+        return { success: false, dbUnavailable: true, message: 'Express backend API not responding with JSON.' };
       }
 
       const res = await response.json();
-      return { success: true, message: 'User saved to PostgreSQL', data: res };
+      return { success: true, message: 'User saved to PostgreSQL', data: res.user || res };
     } catch (err: any) {
-      return { success: false, message: err.message || 'Network error syncing user' };
+      return { success: false, dbUnavailable: true, message: err.message || 'Network error syncing user' };
     }
   }
 
-  public async deleteUserFromPostgres(userId: string): Promise<boolean> {
-    if (!this.isSyncEnabled()) return false;
+  public async deleteUserFromPostgresDetailed(userId: string): Promise<{ success: boolean; message?: string }> {
+    if (!this.isSyncEnabled()) return { success: false, message: 'Sync disabled' };
     try {
       const res = await fetch(`${this.apiUrl}/api/users/${encodeURIComponent(userId)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return res.ok;
-    } catch {
-      return false;
+      await this.handleMaintenanceResponse(res);
+      if (res.ok) return { success: true };
+      const errText = await res.text();
+      return { success: false, message: this.cleanErrorMessage(res.status, errText, '/api/users/:id') };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error deleting user' };
     }
   }
 
-  public async loadUsers(): Promise<UserProfile[]> {
-    if (!this.isSyncEnabled()) return [];
+  public async deleteUserFromPostgres(userId: string): Promise<boolean> {
+    const res = await this.deleteUserFromPostgresDetailed(userId);
+    return res.success;
+  }
+
+  public async loadUsersDetailed(): Promise<{
+    success: boolean;
+    users: UserProfile[];
+    message?: string;
+    dbUnavailable?: boolean;
+  }> {
+    if (!this.isSyncEnabled() || !hasStoredAuthToken()) {
+      return { success: false, users: [], message: 'Authentication required.' };
+    }
     try {
       const res = await fetch(`${this.apiUrl}/api/users`, {
         method: 'GET',
         headers: this.getHeaders(),
+        cache: 'no-store',
       });
-      if (res.ok && this.isJsonResponse(res)) {
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return {
+          success: false,
+          users: [],
+          dbUnavailable: true,
+          message: 'SQC backend API server is not returning JSON.',
+        };
       }
-      return [];
-    } catch {
-      return [];
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          success: false,
+          users: [],
+          dbUnavailable: res.status === 503 && Boolean(json?.dbUnavailable),
+          message: json?.message || `Failed to load users (HTTP ${res.status}).`,
+        };
+      }
+      return { success: true, users: Array.isArray(json) ? json : [] };
+    } catch (err: any) {
+      return {
+        success: false,
+        users: [],
+        dbUnavailable: true,
+        message: err?.message || 'Unable to load users from PostgreSQL.',
+      };
+    }
+  }
+
+  public async loadUsers(): Promise<UserProfile[]> {
+    const res = await this.loadUsersDetailed();
+    return res.success ? res.users : [];
+  }
+
+  public async fetchAuditLogs(): Promise<{
+    success: boolean;
+    logs: any[];
+    message?: string;
+    dbUnavailable?: boolean;
+  }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
+      return { success: false, logs: [], message: 'Authentication or backend URL required.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/audit-logs`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+        cache: 'no-store',
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return {
+          success: false,
+          logs: [],
+          dbUnavailable: true,
+          message: 'Express backend API is not returning JSON.',
+        };
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          success: false,
+          logs: [],
+          dbUnavailable: res.status === 503 && Boolean(data?.dbUnavailable),
+          message: data?.message || `Failed to fetch audit logs (HTTP ${res.status}).`,
+        };
+      }
+      return { success: true, logs: Array.isArray(data) ? data : [] };
+    } catch (err: any) {
+      return {
+        success: false,
+        logs: [],
+        dbUnavailable: true,
+        message: err?.message || 'Network error fetching audit logs from PostgreSQL.',
+      };
+    }
+  }
+
+  public async fetchSettingsDetailed(): Promise<{
+    success: boolean;
+    settings?: any;
+    message?: string;
+    dbUnavailable?: boolean;
+  }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
+      return { success: false, message: 'Authentication required.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/settings`, {
+        method: 'GET',
+        headers: this.getHeaders(),
+        cache: 'no-store',
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, dbUnavailable: true, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          success: false,
+          dbUnavailable: res.status === 503 && Boolean(json?.dbUnavailable),
+          message: json?.message || `Failed to load settings (HTTP ${res.status}).`,
+        };
+      }
+      return { success: true, settings: json.settings || null };
+    } catch (err: any) {
+      return {
+        success: false,
+        dbUnavailable: true,
+        message: err?.message || 'Network error loading settings from PostgreSQL.',
+      };
+    }
+  }
+
+  public async fetchSettings(): Promise<any | null> {
+    const res = await this.fetchSettingsDetailed();
+    return res.success ? res.settings : null;
+  }
+
+  public async saveSettingsToPostgres(settings: any): Promise<{ success: boolean; settings?: any; message?: string }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+      return { success: false, message: 'Backend URL not configured.' };
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/settings`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(settings),
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!this.isJsonResponse(res)) {
+        return { success: false, message: 'Express backend API not responding.' };
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json.message || `HTTP ${res.status}` };
+      }
+      return { success: true, settings: json.settings };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error saving settings.' };
     }
   }
 
@@ -878,16 +1083,20 @@ class PostgresService {
     }
   }
 
-  public async deleteDepartmentFromPostgres(id: string): Promise<boolean> {
-    if (!this.isSyncEnabled()) return false;
+  public async deleteDepartmentFromPostgres(id: string): Promise<PostgresSyncResult> {
+    if (!this.isSyncEnabled()) return { success: false, message: 'Sync disabled' };
     try {
       const res = await fetch(`${this.apiUrl}/api/departments/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return res.ok;
-    } catch {
-      return false;
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/departments/:id') };
+      }
+      return { success: true, message: 'Department deleted in PostgreSQL' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error' };
     }
   }
 
@@ -909,16 +1118,20 @@ class PostgresService {
     }
   }
 
-  public async deleteSectionFromPostgres(id: string): Promise<boolean> {
-    if (!this.isSyncEnabled()) return false;
+  public async deleteSectionFromPostgres(id: string): Promise<PostgresSyncResult> {
+    if (!this.isSyncEnabled()) return { success: false, message: 'Sync disabled' };
     try {
       const res = await fetch(`${this.apiUrl}/api/sections/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return res.ok;
-    } catch {
-      return false;
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/sections/:id') };
+      }
+      return { success: true, message: 'Section deleted in PostgreSQL' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error' };
     }
   }
 
@@ -940,16 +1153,20 @@ class PostgresService {
     }
   }
 
-  public async deleteMachineFromPostgres(id: string): Promise<boolean> {
-    if (!this.isSyncEnabled()) return false;
+  public async deleteMachineFromPostgres(id: string): Promise<PostgresSyncResult> {
+    if (!this.isSyncEnabled()) return { success: false, message: 'Sync disabled' };
     try {
       const res = await fetch(`${this.apiUrl}/api/machines/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return res.ok;
-    } catch {
-      return false;
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/machines/:id') };
+      }
+      return { success: true, message: 'Machine deleted in PostgreSQL' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error' };
     }
   }
 
@@ -971,16 +1188,20 @@ class PostgresService {
     }
   }
 
-  public async deleteLoomFromPostgres(id: string): Promise<boolean> {
-    if (!this.isSyncEnabled()) return false;
+  public async deleteLoomFromPostgres(id: string): Promise<PostgresSyncResult> {
+    if (!this.isSyncEnabled()) return { success: false, message: 'Sync disabled' };
     try {
       const res = await fetch(`${this.apiUrl}/api/looms/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return res.ok;
-    } catch {
-      return false;
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/looms/:id') };
+      }
+      return { success: true, message: 'Loom deleted in PostgreSQL' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error' };
     }
   }
 
@@ -1002,16 +1223,20 @@ class PostgresService {
     }
   }
 
-  public async deleteQualityFromPostgres(id: string): Promise<boolean> {
-    if (!this.isSyncEnabled()) return false;
+  public async deleteQualityFromPostgres(id: string): Promise<PostgresSyncResult> {
+    if (!this.isSyncEnabled()) return { success: false, message: 'Sync disabled' };
     try {
       const res = await fetch(`${this.apiUrl}/api/qualities/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return res.ok;
-    } catch {
-      return false;
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/qualities/:id') };
+      }
+      return { success: true, message: 'Quality deleted in PostgreSQL' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error' };
     }
   }
 
@@ -1044,16 +1269,20 @@ class PostgresService {
     }
   }
 
-  public async deleteStandardFromPostgres(id: string): Promise<boolean> {
-    if (!this.isSyncEnabled()) return false;
+  public async deleteStandardFromPostgres(id: string): Promise<PostgresSyncResult> {
+    if (!this.isSyncEnabled()) return { success: false, message: 'Sync disabled' };
     try {
       const res = await fetch(`${this.apiUrl}/api/standards/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return res.ok;
-    } catch {
-      return false;
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, message: this.cleanErrorMessage(res.status, err, '/api/standards/:id') };
+      }
+      return { success: true, message: 'Standard deleted in PostgreSQL' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error' };
     }
   }
 
@@ -1062,13 +1291,14 @@ class PostgresService {
   // ==========================================
   public async syncInspectionToPostgres(inspection: InspectionRecord): Promise<PostgresSyncResult> {
     if (!this.syncEnabled) {
-      return { success: false, message: 'PostgreSQL auto-sync is disabled in Settings.' };
+      return { success: false, message: 'PostgreSQL sync is disabled in Settings.' };
     }
 
     if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       return {
         success: false,
-        message: 'Backend PostgreSQL URL not configured. Open System Settings to check connection.',
+        dbUnavailable: true,
+        message: 'Backend PostgreSQL URL not configured.',
         error: 'Placeholder URL detected',
       };
     }
@@ -1113,6 +1343,10 @@ class PostgresService {
           approvalRemarks: inspection.approvalRemarks || '',
           approvedBy: inspection.approvedBy || null,
           approvedAt: inspection.approvedAt || null,
+          submittedBy: inspection.submittedBy || null,
+          submittedAt: inspection.submittedAt || null,
+          rejectedBy: inspection.rejectedBy || null,
+          rejectedAt: inspection.rejectedAt || null,
           version: inspection.version || 1,
           createdBy: inspection.createdBy || inspection.inspectorName || '',
           updatedBy: inspection.updatedBy || inspection.inspectorName || '',
@@ -1132,6 +1366,8 @@ class PostgresService {
         const cleanMsg = this.cleanErrorMessage(response.status, errorBody, '/api/inspections');
         return {
           success: false,
+          statusCode: response.status,
+          dbUnavailable: response.status === 503,
           message: cleanMsg,
           error: errorBody,
         };
@@ -1140,6 +1376,7 @@ class PostgresService {
       if (!this.isJsonResponse(response)) {
         return {
           success: false,
+          dbUnavailable: true,
           message: `Backend server at ${this.apiUrl} did not return JSON API response.`,
         };
       }
@@ -1154,29 +1391,67 @@ class PostgresService {
     } catch (err: any) {
       return {
         success: false,
-        message: `Cannot reach backend server at ${this.apiUrl}. Ensure server is running.`,
+        dbUnavailable: true,
+        message: `Cannot reach backend server at ${this.apiUrl}. Ensure server and PostgreSQL are running.`,
         error: err.message,
       };
     }
   }
 
-  public async fetchInspectionById(idOrNo: string): Promise<InspectionRecord | null> {
-    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) return null;
+  public async fetchInspectionByIdDetailed(idOrNo: string): Promise<{
+    success: boolean;
+    record?: InspectionRecord;
+    statusCode?: number;
+    dbUnavailable?: boolean;
+    message?: string;
+  }> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
+      return { success: false, statusCode: 0, message: 'Authentication required.' };
+    }
     try {
       const response = await fetch(`${this.apiUrl}/api/inspections/${encodeURIComponent(idOrNo)}`, {
         method: 'GET',
         headers: this.getHeaders(),
+        cache: 'no-store',
       });
-      if (!response.ok || !this.isJsonResponse(response)) return null;
-      const data = await response.json();
-      return data && data.inspectionNo ? data : null;
-    } catch {
-      return null;
+      await this.handleMaintenanceResponse(response);
+      if (!this.isJsonResponse(response)) {
+        return {
+          success: false,
+          statusCode: response.status,
+          dbUnavailable: true,
+          message: 'SQC backend server did not return JSON.',
+        };
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return {
+          success: false,
+          statusCode: response.status,
+          dbUnavailable: response.status === 503 && Boolean(data?.dbUnavailable),
+          message: data?.message || `Failed to load inspection (HTTP ${response.status}).`,
+        };
+      }
+      return data && data.inspectionNo
+        ? { success: true, record: data }
+        : { success: false, statusCode: 404, message: 'Inspection record not found in PostgreSQL.' };
+    } catch (err: any) {
+      return {
+        success: false,
+        statusCode: 503,
+        dbUnavailable: true,
+        message: err?.message || 'Unable to connect to PostgreSQL backend.',
+      };
     }
   }
 
+  public async fetchInspectionById(idOrNo: string): Promise<InspectionRecord | null> {
+    const res = await this.fetchInspectionByIdDetailed(idOrNo);
+    return res.success && res.record ? res.record : null;
+  }
+
   public async loadInspections(): Promise<any[]> {
-    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
       return [];
     }
 
@@ -1185,7 +1460,9 @@ class PostgresService {
       const response = await fetch(url, {
         method: 'GET',
         headers: this.getHeaders(),
+        cache: 'no-store',
       });
+      await this.handleMaintenanceResponse(response);
 
       if (!response.ok || !this.isJsonResponse(response)) return [];
       const data = await response.json();
@@ -1195,9 +1472,11 @@ class PostgresService {
     }
   }
 
-  public async deleteInspectionFromPostgres(inspectionNo: string): Promise<boolean> {
+  public async deleteInspectionFromPostgresDetailed(
+    inspectionNo: string
+  ): Promise<{ success: boolean; statusCode?: number; message?: string }> {
     if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
-      return false;
+      return { success: false, message: 'Backend URL not configured.' };
     }
 
     const url = `${this.apiUrl}/api/inspections/${encodeURIComponent(inspectionNo)}`;
@@ -1206,10 +1485,22 @@ class PostgresService {
         method: 'DELETE',
         headers: this.getHeaders(),
       });
-      return response.ok;
-    } catch {
-      return false;
+      await this.handleMaintenanceResponse(response);
+      if (response.ok) return { success: true };
+      const errText = await response.text();
+      return {
+        success: false,
+        statusCode: response.status,
+        message: this.cleanErrorMessage(response.status, errText, '/api/inspections/:id'),
+      };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error deleting record.' };
     }
+  }
+
+  public async deleteInspectionFromPostgres(inspectionNo: string): Promise<boolean> {
+    const res = await this.deleteInspectionFromPostgresDetailed(inspectionNo);
+    return res.success;
   }
 
   public async clearAllInspectionsFromPostgres(): Promise<{ success: boolean; message: string }> {
@@ -1237,7 +1528,7 @@ class PostgresService {
   }
 
   // ==========================================
-  // 5. BULK SYNC ALL DATA (ONE-CLICK PUSH)
+  // 5. BULK SYNC ALL DATA
   // ==========================================
   public async syncAllDataToPostgres(data: {
     users: UserProfile[];
@@ -1252,7 +1543,7 @@ class PostgresService {
     if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl)) {
       return {
         success: false,
-        message: 'Please configure your backend server URL in Settings first.',
+        message: 'Backend server URL is not configured.',
       };
     }
 
@@ -1291,12 +1582,8 @@ class PostgresService {
   }
 
   // ==========================================
-  // 6. INSTANT SQL DUMP SCRIPT GENERATOR
+  // 6. SQL EXPORT HELPER (from live data only)
   // ==========================================
-  /**
-   * Generates a fully compliant SQL file that the user can execute directly
-   * in psql or pgAdmin: `psql -U postgres -d SQC -f import_sqc_data.sql`
-   */
   public generateSqlDumpScript(data: {
     users: UserProfile[];
     departments: Department[];
@@ -1313,193 +1600,75 @@ class PostgresService {
     };
 
     let sql = `-- ==============================================================================
--- BALLY JUTE COMPANY LIMITED - S.Q.C. QUALITY CONTROL SYSTEM
--- Local PostgreSQL Bulk Database Import Script
+-- SQC QUALITY CONTROL SYSTEM
+-- PostgreSQL Live Data Export Script
 -- Database Name: SQC (Port: 5432)
 -- Generated on: ${new Date().toISOString()}
 -- ==============================================================================
 
 BEGIN;
-
--- 1. Ensure Tables Exist
-CREATE TABLE IF NOT EXISTS users (
-  id VARCHAR(100) PRIMARY KEY,
-  employee_code VARCHAR(50) UNIQUE NOT NULL,
-  display_name VARCHAR(150) NOT NULL,
-  email VARCHAR(150) UNIQUE NOT NULL,
-  role VARCHAR(50) NOT NULL,
-  department_id VARCHAR(100),
-  department_name VARCHAR(150),
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS departments (
-  id VARCHAR(100) PRIMARY KEY,
-  code VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(150) NOT NULL,
-  hod_name VARCHAR(150),
-  status VARCHAR(50) DEFAULT 'Active',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS sections (
-  id VARCHAR(100) PRIMARY KEY,
-  code VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(150) NOT NULL,
-  department_code VARCHAR(50),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS machines (
-  id VARCHAR(100) PRIMARY KEY,
-  code VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(150) NOT NULL,
-  machine_type VARCHAR(100),
-  department_code VARCHAR(50),
-  speed_standard NUMERIC DEFAULT 0,
-  speed_unit VARCHAR(30) DEFAULT 'rpm',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS looms (
-  id VARCHAR(100) PRIMARY KEY,
-  code VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(150) NOT NULL,
-  loom_type VARCHAR(100),
-  shed VARCHAR(100),
-  standard_rpm INTEGER DEFAULT 140,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS qualities (
-  id VARCHAR(100) PRIMARY KEY,
-  code VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(150) NOT NULL,
-  category VARCHAR(100),
-  nominal_count NUMERIC DEFAULT 0,
-  standard_mr NUMERIC DEFAULT 17,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS standards (
-  id VARCHAR(100) PRIMARY KEY,
-  code VARCHAR(50) UNIQUE NOT NULL,
-  form_code VARCHAR(50) NOT NULL,
-  name VARCHAR(200) NOT NULL,
-  parameter VARCHAR(150),
-  nominal_value NUMERIC DEFAULT 0,
-  lower_limit NUMERIC DEFAULT 0,
-  upper_limit NUMERIC DEFAULT 0,
-  unit VARCHAR(50),
-  tolerance VARCHAR(50),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS inspections (
-  id SERIAL PRIMARY KEY,
-  inspection_no VARCHAR(100) UNIQUE NOT NULL,
-  form_id VARCHAR(50) NOT NULL,
-  form_code VARCHAR(30) NOT NULL,
-  form_title VARCHAR(255) NOT NULL,
-  department_id VARCHAR(100),
-  shift_id VARCHAR(50),
-  shift_name VARCHAR(100),
-  inspector_id VARCHAR(100),
-  inspector_name VARCHAR(150),
-  inspection_date VARCHAR(30),
-  status VARCHAR(50) DEFAULT 'Draft',
-  result VARCHAR(30) DEFAULT 'PASS',
-  form_data JSONB DEFAULT '{}'::jsonb,
-  reading_rows JSONB DEFAULT '[]'::jsonb,
-  summary_metrics JSONB DEFAULT '{}'::jsonb,
-  remarks TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- =====================================================
--- 2. USERS (${data.users.length} records)
--- =====================================================
 `;
 
+    sql += `\n-- USERS (${data.users.length} records)\n`;
     data.users.forEach(u => {
-      sql += `INSERT INTO users (id, employee_code, display_name, email, role, department_id, department_name, is_active, updated_at)
-VALUES (${escapeSql(u.id)}, ${escapeSql(u.employeeCode || u.id)}, ${escapeSql(u.displayName)}, ${escapeSql(u.email)}, ${escapeSql(u.role)}, ${escapeSql(u.departmentId)}, ${escapeSql(u.departmentName)}, ${u.isActive ? 'TRUE' : 'FALSE'}, NOW())
+      const modsJson = JSON.stringify(Array.isArray(u.permittedModules) ? u.permittedModules : []).replace(/'/g, "''");
+      sql += `INSERT INTO users (id, employee_code, display_name, email, role, department_id, department_name, permitted_modules, data_scope, is_active, updated_at)
+VALUES (${escapeSql(u.id)}, ${escapeSql(u.employeeCode || u.id)}, ${escapeSql(u.displayName)}, ${escapeSql(u.email)}, ${escapeSql(u.role)}, ${escapeSql(u.departmentId)}, ${escapeSql(u.departmentName)}, '${modsJson}'::jsonb, ${escapeSql(u.dataScope || 'OWN')}, ${u.isActive ? 'TRUE' : 'FALSE'}, NOW())
 ON CONFLICT (email) DO UPDATE SET
   employee_code = EXCLUDED.employee_code,
   display_name = EXCLUDED.display_name,
   role = EXCLUDED.role,
   department_id = EXCLUDED.department_id,
   department_name = EXCLUDED.department_name,
+  permitted_modules = EXCLUDED.permitted_modules,
+  data_scope = EXCLUDED.data_scope,
   is_active = EXCLUDED.is_active,
   updated_at = NOW();\n`;
     });
 
-    sql += `\n-- =====================================================
--- 3. DEPARTMENTS (${data.departments.length} records)
--- =====================================================\n`;
+    sql += `\n-- DEPARTMENTS (${data.departments.length} records)\n`;
     data.departments.forEach(d => {
       sql += `INSERT INTO departments (id, code, name, hod_name, status, updated_at)
 VALUES (${escapeSql(d.id)}, ${escapeSql(d.code)}, ${escapeSql(d.name)}, ${escapeSql(d.hodName)}, ${escapeSql(d.status || 'Active')}, NOW())
 ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, hod_name = EXCLUDED.hod_name, status = EXCLUDED.status, updated_at = NOW();\n`;
     });
 
-    sql += `\n-- =====================================================
--- 4. SECTIONS (${data.sections.length} records)
--- =====================================================\n`;
+    sql += `\n-- SECTIONS (${data.sections.length} records)\n`;
     data.sections.forEach(s => {
       sql += `INSERT INTO sections (id, code, name, department_code, updated_at)
 VALUES (${escapeSql(s.id)}, ${escapeSql(s.code)}, ${escapeSql(s.name)}, ${escapeSql(s.departmentCode)}, NOW())
 ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, department_code = EXCLUDED.department_code, updated_at = NOW();\n`;
     });
 
-    sql += `\n-- =====================================================
--- 5. MACHINES (${data.machines.length} records)
--- =====================================================\n`;
+    sql += `\n-- MACHINES (${data.machines.length} records)\n`;
     data.machines.forEach(m => {
       sql += `INSERT INTO machines (id, code, name, machine_type, department_code, speed_standard, speed_unit, updated_at)
 VALUES (${escapeSql(m.id)}, ${escapeSql(m.code)}, ${escapeSql(m.name)}, ${escapeSql(m.machineType)}, ${escapeSql(m.departmentCode)}, ${Number(m.speedStandard || 0)}, ${escapeSql(m.speedUnit || 'rpm')}, NOW())
 ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, machine_type = EXCLUDED.machine_type, department_code = EXCLUDED.department_code, speed_standard = EXCLUDED.speed_standard, speed_unit = EXCLUDED.speed_unit, updated_at = NOW();\n`;
     });
 
-    sql += `\n-- =====================================================
--- 6. LOOMS (${data.looms.length} records)
--- =====================================================\n`;
+    sql += `\n-- LOOMS (${data.looms.length} records)\n`;
     data.looms.forEach(l => {
       sql += `INSERT INTO looms (id, code, name, loom_type, shed, standard_rpm, updated_at)
 VALUES (${escapeSql(l.id)}, ${escapeSql(l.code)}, ${escapeSql(l.name)}, ${escapeSql(l.loomType)}, ${escapeSql(l.shed)}, ${Number(l.standardRpm || 140)}, NOW())
 ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, loom_type = EXCLUDED.loom_type, shed = EXCLUDED.shed, standard_rpm = EXCLUDED.standard_rpm, updated_at = NOW();\n`;
     });
 
-    sql += `\n-- =====================================================
--- 7. QUALITIES (${data.qualities.length} records)
--- =====================================================\n`;
+    sql += `\n-- QUALITIES (${data.qualities.length} records)\n`;
     data.qualities.forEach(q => {
       sql += `INSERT INTO qualities (id, code, name, category, nominal_count, standard_mr, updated_at)
 VALUES (${escapeSql(q.id)}, ${escapeSql(q.code)}, ${escapeSql(q.name)}, ${escapeSql(q.category)}, ${Number(q.nominalCount || 0)}, ${Number(q.standardMR || 17)}, NOW())
 ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, category = EXCLUDED.category, nominal_count = EXCLUDED.nominal_count, standard_mr = EXCLUDED.standard_mr, updated_at = NOW();\n`;
     });
 
-    sql += `\n-- =====================================================
--- 8. STANDARDS (${data.standards.length} records)
--- =====================================================\n`;
+    sql += `\n-- STANDARDS (${data.standards.length} records)\n`;
     data.standards.forEach(st => {
       sql += `INSERT INTO standards (id, code, form_code, name, parameter, nominal_value, lower_limit, upper_limit, unit, tolerance, updated_at)
 VALUES (${escapeSql(st.id)}, ${escapeSql(st.code || (st as any).standardCode)}, ${escapeSql(st.formCode)}, ${escapeSql(st.name)}, ${escapeSql(st.parameter)}, ${Number(st.nominalValue || 0)}, ${Number(st.lowerLimit || 0)}, ${Number(st.upperLimit || 0)}, ${escapeSql(st.unit)}, ${escapeSql(st.tolerance)}, NOW())
 ON CONFLICT (code) DO UPDATE SET form_code = EXCLUDED.form_code, name = EXCLUDED.name, parameter = EXCLUDED.parameter, nominal_value = EXCLUDED.nominal_value, lower_limit = EXCLUDED.lower_limit, upper_limit = EXCLUDED.upper_limit, unit = EXCLUDED.unit, tolerance = EXCLUDED.tolerance, updated_at = NOW();\n`;
     });
 
-    sql += `\n-- =====================================================
--- 9. INSPECTIONS (${data.inspections.length} records)
--- =====================================================\n`;
+    sql += `\n-- INSPECTIONS (${data.inspections.length} records)\n`;
     data.inspections.forEach(i => {
       const fData = JSON.stringify(i.formData || {}).replace(/'/g, "''");
       const rRows = JSON.stringify(i.readingRows || []).replace(/'/g, "''");
@@ -1519,14 +1688,11 @@ ON CONFLICT (code) DO UPDATE SET form_code = EXCLUDED.form_code, name = EXCLUDED
   reading_rows = EXCLUDED.reading_rows, summary_metrics = EXCLUDED.summary_metrics, remarks = EXCLUDED.remarks, updated_at = NOW();\n`;
     });
 
-    sql += `\nCOMMIT;\n\n-- Finished successfully. Verify with:\n-- SELECT COUNT(*) FROM users;\n-- SELECT COUNT(*) FROM departments;\n-- SELECT COUNT(*) FROM inspections;\n`;
+    sql += `\nCOMMIT;\n`;
     return sql;
   }
 
-  /**
-   * Helper to trigger browser download of the SQL file
-   */
-  public downloadSqlFile(sqlContent: string, fileName: string = 'bally_jute_sqc_export.sql') {
+  public downloadSqlFile(sqlContent: string, fileName: string = 'sqc_live_export.sql') {
     const blob = new Blob([sqlContent], { type: 'text/sql;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1536,14 +1702,6 @@ ON CONFLICT (code) DO UPDATE SET form_code = EXCLUDED.form_code, name = EXCLUDED
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }
-
-  // Deprecated customer methods for backward compatibility
-  public async loadCustomers(): Promise<CustomerRecord[]> {
-    return [];
-  }
-  public async createCustomer(): Promise<any> {
-    return {};
   }
 }
 

@@ -60,8 +60,7 @@ echo Dashboard URL (Local):  http://localhost:3001
 echo Dashboard URL (BJCL LAN): http://BJCL:3001
 echo Public Access: Forward router Port 3001 to BJCL LAN IP
 echo.
-echo Admin Login:
-echo   Username: admin
-echo   Password: Admin@123456
+echo Admin Account:
+echo   Username: admin (set and rotate password after first sign-in)
 echo ====================================================================
 pause

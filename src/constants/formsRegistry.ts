@@ -2430,27 +2430,6 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   },
 };
 
-export const DEPARTMENT_LIST = [
-  { id: 'DEP-SEL', code: 'SEL', name: 'Selection', hod: 'B. K. Mukherjee' },
-  { id: 'DEP-JSP', code: 'JSP', name: 'Jute Spreader / Softener', hod: 'P. Sengupta' },
-  { id: 'DEP-CRD', code: 'CRD', name: 'Carding', hod: 'S. K. Roy' },
-  { id: 'DEP-DRW', code: 'DRW', name: 'Drawing', hod: 'M. C. Ghosh' },
-  { id: 'DEP-SPN', code: 'SPN', name: 'Spinning', hod: 'A. K. Banerjee' },
-  { id: 'DEP-WND', code: 'WND', name: 'Winding', hod: 'D. N. Das' },
-  { id: 'DEP-BMG', code: 'BMG', name: 'Beaming', hod: 'R. K. Dutta' },
-  { id: 'DEP-WVG', code: 'WVG', name: 'Weaving', hod: 'P. K. Chatterjee' },
-  { id: 'DEP-CAL', code: 'CAL', name: 'Calender', hod: 'N. G. Majumdar' },
-  { id: 'DEP-LAP', code: 'LAP', name: 'Lapping', hod: 'T. K. Paul' },
-  { id: 'DEP-CUT', code: 'CUT', name: 'Cutting', hod: 'S. N. Saha' },
-  { id: 'DEP-GDN', code: 'GDN', name: 'Godown', hod: 'A. B. Bose' },
-  { id: 'DEP-SSW', code: 'SSW', name: 'Sacksewing', hod: 'K. L. Sarkar' },
-  { id: 'DEP-PRS', code: 'PRS', name: 'Press', hod: 'H. P. Mitra' },
-  { id: 'DEP-BLR', code: 'BLR', name: 'Broad Loom Rolling', hod: 'G. C. Dey' },
-  { id: 'DEP-LAB', code: 'LAB', name: 'Laboratory', hod: 'Dr. S. Bhattacharya' },
-  { id: 'DEP-SPD', code: 'SPD', name: 'Machine Speed Checking', hod: 'R. N. Mondal' },
-  { id: 'DEP-PRD', code: 'PRD', name: 'Productivity Study', hod: 'V. K. Sharma' },
-];
-
 export function normalizeFormKey(code?: string): string {
   const c = (code || 'FORM-01').trim().toUpperCase();
   if (FORM_REGISTRY[c]) return c;

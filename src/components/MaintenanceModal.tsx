@@ -40,18 +40,18 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="maintenance-modal-title"
-      className="fixed inset-0 z-[100] bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] bg-[#2B1114]/80 backdrop-blur-sm flex items-center justify-center p-4"
     >
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border-2 border-[#D95F68] overflow-hidden">
+      <div className="bg-[#FFFDF8] rounded-2xl max-w-md w-full shadow-2xl border-2 border-[#D4AF37] overflow-hidden">
         {/* Top Accent Banner */}
-        <div className="bg-gradient-to-r from-[#701638] via-[#9D174D] to-[#D95F68] px-6 py-5 text-white text-center">
-          <div className="w-14 h-14 rounded-2xl bg-white/15 border border-white/30 flex items-center justify-center mx-auto mb-3 shadow-inner">
-            <Wrench size={28} className="text-white" />
+        <div className="bg-gradient-to-r from-[#4E0308] via-[#8B0A12] to-[#68050B] px-6 py-5 text-[#FFFDF8] text-center border-b-2 border-[#D4AF37]">
+          <div className="w-14 h-14 rounded-2xl bg-[#4E0308]/70 border border-[#D4AF37] flex items-center justify-center mx-auto mb-3 shadow-inner">
+            <Wrench size={26} className="text-[#E9C96B]" />
           </div>
           <h2 id="maintenance-modal-title" className="text-lg font-black tracking-tight">
             System Under Maintenance
           </h2>
-          <p className="text-[11px] text-white/90 mt-1 font-medium uppercase tracking-wider">
+          <p className="text-[11px] text-[#E9C96B] mt-1 font-semibold uppercase tracking-wider">
             SQC Quality Control Portal
           </p>
         </div>
@@ -59,25 +59,25 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({
         {/* Message Body */}
         <div className="p-6 space-y-4 text-center">
           {wasForcedLogout && (
-            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold flex items-center justify-center gap-2">
-              <ShieldAlert size={15} className="text-amber-700 shrink-0" />
+            <div className="p-2.5 rounded-xl bg-[#FDF5DC] border border-[#DFC378] text-[#7A560B] text-xs font-semibold flex items-center justify-center gap-2">
+              <ShieldAlert size={15} className="text-[#9B6E14] shrink-0" />
               <span>Your active session was signed out because maintenance started.</span>
             </div>
           )}
 
-          <div className="p-4 rounded-xl bg-[#FFF9F9] border border-[#F4C4C5]">
-            <p className="text-sm font-bold text-[#393334] leading-relaxed">
+          <div className="p-4 rounded-xl bg-[#FBF4E1] border border-[#E4D0A3]">
+            <p className="text-sm font-bold text-[#2B1114] leading-relaxed">
               {message || DEFAULT_MAINTENANCE_MESSAGE}
             </p>
             {(activatedBy || activatedAt) && (
-              <p className="text-[11px] text-[#806B6C] mt-2">
+              <p className="text-[11px] text-[#6E524B] mt-2">
                 {activatedBy ? `Initiated by ${activatedBy}` : 'Scheduled Maintenance'}
-                {activatedAt ? ` • ${new Date(activatedAt).toLocaleString()}` : ''}
+                {activatedAt ? ` · ${new Date(activatedAt).toLocaleString()}` : ''}
               </p>
             )}
           </div>
 
-          <p className="text-xs text-[#806B6C] leading-relaxed">
+          <p className="text-xs text-[#6E524B] leading-relaxed">
             All floor entries, approvals, and user logins are temporarily paused while administrators perform maintenance. This screen will automatically clear once service resumes.
           </p>
 
@@ -87,7 +87,7 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({
               type="button"
               onClick={handleCheckAgain}
               disabled={checking}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#D95F68] hover:bg-[#C94E59] text-white text-xs font-bold inline-flex items-center justify-center gap-2 shadow-sm transition-colors disabled:opacity-60 cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B0A12] to-[#68050B] hover:from-[#68050B] hover:to-[#4E0308] text-[#FFFDF8] text-xs font-bold inline-flex items-center justify-center gap-2 shadow-sm border border-[#D4AF37]/40 transition-colors disabled:opacity-60 cursor-pointer"
             >
               <RefreshCw size={14} className={checking ? 'animate-spin' : ''} />
               <span>{checking ? 'Checking Server Status...' : 'Check Server Status'}</span>
@@ -98,7 +98,7 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({
                 id="maintenance-admin-signin-btn"
                 type="button"
                 onClick={onAdminBypassToLogin}
-                className="w-full py-2 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-[11px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="w-full py-2 px-4 rounded-xl border border-[#E4D0A3] hover:bg-[#FBF4E1] text-[#5C080E] text-[11px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <LogIn size={13} />
                 <span>Administrator Sign-In</span>

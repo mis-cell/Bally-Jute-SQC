@@ -1,14 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  CheckCircle2,
-  XCircle,
-  RotateCcw,
   Clock,
   ShieldCheck,
   AlertCircle,
   ArrowUpRight,
-  Filter,
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { postgresService } from '../services/postgresService';
@@ -19,8 +15,9 @@ import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 export const ApprovalsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser, hasPermission } = useAuth();
-  const inspections = useRealtimeData(() => dataService.getInspections());
+  const { currentUser, hasPermission, canViewRecord } = useAuth();
+  const rawInspections = useRealtimeData(() => dataService.getInspections());
+  const inspections = rawInspections.filter(i => canViewRecord(i));
   const [selectedRecord, setSelectedRecord] = useState<InspectionRecord | null>(null);
   const [remarks, setRemarks] = useState('');
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'return' | null>(null);
@@ -37,52 +34,68 @@ export const ApprovalsPage: React.FC = () => {
 
   const handleExecuteAction = async () => {
     if (!selectedRecord || !actionType || submitting) return;
+    if (!canApprove || !canViewRecord(selectedRecord)) {
+      setFeedback({ type: 'error', text: 'Forbidden: You are not authorized to approve or return this record.' });
+      setSelectedRecord(null);
+      setActionType(null);
+      return;
+    }
     setSubmitting(true);
     setFeedback(null);
 
-    let updated: InspectionRecord | null = null;
-    if (actionType === 'approve') {
-      updated = dataService.approveInspection(selectedRecord.id, remarks || 'Conforms to SQC standards.', currentUser, true);
-    } else if (actionType === 'reject') {
-      updated = dataService.rejectInspection(selectedRecord.id, remarks || 'Out of specification limit.', currentUser, true);
-    } else if (actionType === 'return') {
-      updated = dataService.returnInspectionForCorrection(selectedRecord.id, remarks || 'Requires sample re-test.', currentUser, true);
-    }
+    const nowIso = new Date().toISOString();
+    const statusMap = {
+      approve: 'Approved',
+      reject: 'Rejected',
+      return: 'Returned',
+    } as const;
+    const newStatus = statusMap[actionType];
+    const updated: InspectionRecord = {
+      ...selectedRecord,
+      status: newStatus,
+      approvedBy: actionType === 'approve' ? currentUser.displayName : undefined,
+      approvedAt: actionType === 'approve' ? nowIso : undefined,
+      rejectedBy: actionType === 'reject' ? currentUser.displayName : undefined,
+      rejectedAt: actionType === 'reject' ? nowIso : undefined,
+      approvalRemarks: remarks || (actionType === 'approve' ? 'Conforms to SQC standards.' : 'Reviewed by HOD.'),
+      version: (selectedRecord.version || 1) + 1,
+      updatedBy: currentUser.displayName,
+      updatedAt: nowIso,
+    };
 
-    if (updated) {
-      const pgRes = await postgresService.syncInspectionToPostgres(updated);
-      setFeedback({
-        type: pgRes.success ? 'success' : 'error',
-        text: pgRes.success
-          ? `✅ ${updated.inspectionNo} (${updated.status}) saved to PostgreSQL.`
-          : `⚠️ Saved locally, but PostgreSQL sync failed: ${pgRes.message}`,
-      });
-      setSelectedRecord(null);
-      setActionType(null);
-      setRemarks('');
-    }
+    dataService.upsertInMemoryInspection(updated);
+    const pgRes = await postgresService.syncInspectionToPostgres(updated);
+    setFeedback({
+      type: pgRes.success ? 'success' : 'error',
+      text: pgRes.success
+        ? `${updated.inspectionNo} (${updated.status}) saved to PostgreSQL.`
+        : `PostgreSQL sync failed: ${pgRes.message}`,
+    });
+    setSelectedRecord(null);
+    setActionType(null);
+    setRemarks('');
     setSubmitting(false);
   };
 
   return (
     <div className="space-y-5">
       {/* Top Banner */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-[#FFFDF8] rounded-xl p-4 border border-[#E4D0A3] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck size={20} className="text-emerald-700" />
-            <h2 className="text-base font-bold text-slate-900">
-              Department Approvals & Compliance Workflow
+            <ShieldCheck size={20} className="text-[#8B0A12]" />
+            <h2 className="text-base font-bold text-[#2B1114]">
+              Department Approvals &amp; Compliance Workflow
             </h2>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[#6E524B] mt-0.5">
             Two-stage validation for SQC quality tests: Inspector Submission → HOD / Chief SQC Locking
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {!canApprove && (
-            <div className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
+            <div className="text-xs bg-[#FDF5DC] text-[#7A560B] border border-[#DFC378] px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
               <AlertCircle size={14} />
               <span>Current role ({currentUser.role}) has Read-Only access to Approvals</span>
             </div>
@@ -103,15 +116,15 @@ export const ApprovalsPage: React.FC = () => {
       )}
 
       {/* Pending Approval Inbox */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+      <div className="bg-[#FFFDF8] rounded-xl border border-[#E4D0A3] shadow-xs overflow-hidden">
+        <div className="p-3.5 bg-[#FBF4E1] border-b border-[#E4D0A3] flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-amber-600" />
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            <Clock size={16} className="text-[#9B6E14]" />
+            <h3 className="text-xs font-bold text-[#5C080E] uppercase tracking-wider">
               Pending Inspection Submissions ({pendingList.length})
             </h3>
           </div>
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-[#6E524B]">
             Awaiting HOD sign-off before manufacturing lot clearance
           </span>
         </div>
@@ -119,7 +132,7 @@ export const ApprovalsPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold">
+              <tr className="bg-[#FBF4E1] border-b border-[#E4D0A3] text-[#5C080E] font-semibold">
                 <th className="py-2.5 px-3">Inspection #</th>
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Form Description</th>
@@ -129,26 +142,30 @@ export const ApprovalsPage: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Workflow Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#EFE2C2]">
               {pendingList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
+                  <td colSpan={7} className="py-8 text-center text-[#6E524B] font-medium">
                     All inspection reports have been processed. No pending submissions in queue.
                   </td>
                 </tr>
               ) : (
                 pendingList.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-emerald-950">
+                  <tr key={item.id} className="hover:bg-[#FCF3DE] transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-[#8B0A12] tabular-nums">
                       {item.inspectionNo}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-700">{item.inspectionDate}</td>
+                    <td className="py-2.5 px-3 text-[#2B1114] tabular-nums">{item.inspectionDate}</td>
                     <td className="py-2.5 px-3">
-                      <span className="font-mono text-emerald-700 font-bold mr-1">{item.formCode}</span>
-                      <span className="text-slate-800 font-medium">{item.formTitle}</span>
+                      <span className="font-mono text-[#7A560B] font-bold mr-1 tabular-nums">
+                        {item.formCode}
+                      </span>
+                      <span className="text-[#2B1114] font-medium">{item.formTitle}</span>
                     </td>
-                    <td className="py-2.5 px-3 text-slate-700">{item.departmentName}</td>
-                    <td className="py-2.5 px-3 text-slate-700 font-medium">{item.submittedBy || item.inspectorName}</td>
+                    <td className="py-2.5 px-3 text-[#2B1114]">{item.departmentName}</td>
+                    <td className="py-2.5 px-3 text-[#2B1114] font-medium">
+                      {item.submittedBy || item.inspectorName}
+                    </td>
                     <td className="py-2.5 px-3">
                       <ResultBadge result={item.result} />
                     </td>
@@ -156,7 +173,7 @@ export const ApprovalsPage: React.FC = () => {
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => navigate(`/inspection/${item.id}`)}
-                          className="px-2 py-1 text-slate-700 hover:bg-slate-100 rounded border border-slate-200 text-[11px] font-medium"
+                          className="px-2 py-1 text-[#5C080E] hover:bg-[#FBF4E1] rounded border border-[#E4D0A3] text-[11px] font-medium whitespace-nowrap cursor-pointer"
                         >
                           View Form
                         </button>
@@ -167,7 +184,7 @@ export const ApprovalsPage: React.FC = () => {
                               setActionType('approve');
                               setRemarks('Conforms to SQC standards. Approved for production lot.');
                             }}
-                            className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[11px] font-bold"
+                            className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[11px] font-bold whitespace-nowrap cursor-pointer"
                           >
                             Approve
                           </button>
@@ -179,7 +196,7 @@ export const ApprovalsPage: React.FC = () => {
                               setActionType('return');
                               setRemarks('Please re-check reading values and provide verification.');
                             }}
-                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-bold"
+                            className="px-2.5 py-1 bg-[#C9962B] hover:bg-[#9B6E14] text-[#FFFDF8] rounded text-[11px] font-bold whitespace-nowrap cursor-pointer"
                           >
                             Return
                           </button>
@@ -195,18 +212,20 @@ export const ApprovalsPage: React.FC = () => {
       </div>
 
       {/* Recently Processed Records */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+      <div className="bg-[#FFFDF8] rounded-xl border border-[#E4D0A3] shadow-xs overflow-hidden">
+        <div className="p-3.5 bg-[#FBF4E1] border-b border-[#E4D0A3] flex items-center justify-between flex-wrap gap-2">
+          <h3 className="text-xs font-bold text-[#5C080E] uppercase tracking-wider">
             Recently Processed / Locked Inspections
           </h3>
-          <span className="text-[11px] text-slate-500">History of approved, returned, or rejected reports</span>
+          <span className="text-[11px] text-[#6E524B]">
+            History of approved, returned, or rejected reports
+          </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold">
+              <tr className="bg-[#FBF4E1] border-b border-[#E4D0A3] text-[#5C080E] font-semibold">
                 <th className="py-2.5 px-3">Inspection #</th>
                 <th className="py-2.5 px-3">Form</th>
                 <th className="py-2.5 px-3">Department</th>
@@ -216,32 +235,38 @@ export const ApprovalsPage: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#EFE2C2]">
               {recentlyApproved.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-slate-400">
+                  <td colSpan={7} className="py-6 text-center text-[#6E524B]">
                     No approved, rejected, or returned inspections on record.
                   </td>
                 </tr>
               ) : (
                 recentlyApproved.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{item.inspectionNo}</td>
-                    <td className="py-2.5 px-3 text-slate-700 font-mono">{item.formCode}</td>
-                    <td className="py-2.5 px-3 text-slate-700">{item.departmentName}</td>
+                  <tr key={item.id} className="hover:bg-[#FCF3DE] transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-[#8B0A12] tabular-nums">
+                      {item.inspectionNo}
+                    </td>
+                    <td className="py-2.5 px-3 text-[#2B1114] font-mono tabular-nums">
+                      {item.formCode}
+                    </td>
+                    <td className="py-2.5 px-3 text-[#2B1114]">{item.departmentName}</td>
                     <td className="py-2.5 px-3">
                       <StatusBadge status={item.status} />
                     </td>
-                    <td className="py-2.5 px-3 text-slate-800 font-medium">
+                    <td className="py-2.5 px-3 text-[#2B1114] font-medium">
                       {item.approvedBy || item.rejectedBy || 'HOD Staff'}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-500">
-                      {item.approvedAt || item.rejectedAt ? new Date(item.approvedAt || item.rejectedAt || '').toLocaleString() : 'Recent'}
+                    <td className="py-2.5 px-3 text-[#6E524B] tabular-nums">
+                      {item.approvedAt || item.rejectedAt
+                        ? new Date(item.approvedAt || item.rejectedAt || '').toLocaleString()
+                        : 'Recent'}
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <button
                         onClick={() => navigate(`/inspection/${item.id}`)}
-                        className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 inline-flex items-center gap-1"
+                        className="text-xs font-semibold text-[#8B0A12] hover:underline inline-flex items-center gap-1 cursor-pointer"
                       >
                         <span>View</span>
                         <ArrowUpRight size={13} />
@@ -257,24 +282,24 @@ export const ApprovalsPage: React.FC = () => {
 
       {/* Confirmation Modal */}
       {selectedRecord && actionType && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
-            <h4 className="text-sm font-bold text-slate-900 capitalize">
+        <div className="fixed inset-0 bg-[#2B1114]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-[#FFFDF8] rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#DFC378] space-y-4">
+            <h4 className="text-sm font-bold text-[#2B1114] capitalize">
               Execute Workflow: {actionType} {selectedRecord.inspectionNo}
             </h4>
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-[#6E524B]">
               {selectedRecord.formTitle} ({selectedRecord.departmentName})
             </p>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Approver Notes & Instructions:
+              <label className="block text-xs font-semibold text-[#5C080E] mb-1">
+                Approver Notes &amp; Instructions:
               </label>
               <textarea
                 rows={3}
                 value={remarks}
                 onChange={e => setRemarks(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2 text-xs"
+                className="w-full bg-[#FFFDF8] border border-[#E4D0A3] rounded-lg p-2 text-xs text-[#2B1114]"
               ></textarea>
             </div>
 
@@ -284,13 +309,13 @@ export const ApprovalsPage: React.FC = () => {
                   setSelectedRecord(null);
                   setActionType(null);
                 }}
-                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs rounded-lg hover:bg-slate-100"
+                className="px-3 py-1.5 border border-[#E4D0A3] text-[#5C080E] text-xs rounded-lg hover:bg-[#FBF4E1] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleExecuteAction}
-                className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-lg shadow-xs"
+                className="px-4 py-1.5 bg-[#8B0A12] hover:bg-[#68050B] text-[#FFFDF8] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
               >
                 Confirm Decision
               </button>

@@ -108,12 +108,95 @@ function resolveFormTable(formCode) {
   return FORM_TABLE_MAP[compact] || null;
 }
 
+const ALLOWED_ROLES = [
+  'Admin',
+  'HOD / Approver',
+  'SQC Inspector / User',
+  'Viewer / Auditor',
+];
+const GRANTABLE_MODULES = ['DASHBOARD', 'INSPECTIONS', 'APPROVALS', 'REPORTS', 'MASTERS'];
+const ADMIN_ONLY_MODULES = ['USERS', 'AUDIT_LOGS', 'SETTINGS'];
+const ALL_MODULES = [...GRANTABLE_MODULES, ...ADMIN_ONLY_MODULES];
+const ALLOWED_DATA_SCOPES = ['OWN', 'DEPARTMENT', 'ALL'];
+const TOKEN_TTL_SECONDS = 12 * 60 * 60;
+
+// In-memory fallback users (used ONLY if PostgreSQL is offline; never uses plaintext bypasses)
+const fallbackUsers = new Map([
+  [
+    'usr-admin-01',
+    {
+      id: 'usr-admin-01',
+      username: 'admin',
+      password_hash: 'bjcl_sqc_salt_2026:5d5a621bd54309c980763fcb42e09fd15c0ad7b82994b1ff985b30475b42c2fc',
+      employee_code: 'EMP-001',
+      display_name: 'System Administrator',
+      email: 'admin@ballyjute.com',
+      role: 'Admin',
+      department_id: '',
+      department_name: 'Administration',
+      phone: '',
+      is_active: true,
+      can_edit_entries: true,
+      can_delete_entries: true,
+      permitted_modules: [...ALL_MODULES],
+      data_scope: 'ALL',
+      token_version: 1,
+      permittedForms: ['*'],
+    },
+  ],
+]);
+
 function isAdminRole(role) {
-  return role === 'SuperAdmin' || role === 'Super Admin' || role === 'Admin';
+  return role === 'Admin';
 }
 
 function isHodRole(role) {
   return role === 'HOD / Approver' || role === 'HOD' || role === 'Approver';
+}
+
+function isLegacyElevatedRole(role) {
+  const compact = String(role || '').replace(/\s+/g, '').toLowerCase();
+  return compact === 'superadmin';
+}
+
+function sanitizeRole(role, fallback = 'SQC Inspector / User') {
+  if (ALLOWED_ROLES.includes(role)) return role;
+  if (role === 'HOD' || role === 'Approver') return 'HOD / Approver';
+  if (role === 'Inspector' || role === 'Operator') return 'SQC Inspector / User';
+  if (role === 'Auditor') return 'Viewer / Auditor';
+  return fallback;
+}
+
+function sanitizeModules(modules, role) {
+  if (isAdminRole(role)) return [...ALL_MODULES];
+  if (!Array.isArray(modules)) return [];
+  const valid = new Set(GRANTABLE_MODULES);
+  return Array.from(
+    new Set(
+      modules
+        .map(m => String(m || '').trim().toUpperCase())
+        .filter(m => valid.has(m))
+    )
+  );
+}
+
+function sanitizeDataScope(scope, role) {
+  if (isAdminRole(role)) return 'ALL';
+  const clean = String(scope || '').trim().toUpperCase();
+  return ALLOWED_DATA_SCOPES.includes(clean) ? clean : 'OWN';
+}
+
+function hasModuleAccess(user, moduleCode) {
+  if (!user || !user.is_active) return false;
+  if (isAdminRole(user.role)) return true;
+  const mods = Array.isArray(user.permittedModules)
+    ? user.permittedModules
+    : sanitizeModules(parseJsonSafe(user.permitted_modules, []), user.role);
+  return mods.includes(String(moduleCode || '').trim().toUpperCase());
+}
+
+function hasAnyModuleAccess(user, moduleCodes = []) {
+  return moduleCodes.some(m => hasModuleAccess(user, m));
 }
 
 function expandFormCodeAliases(formCode) {
@@ -130,29 +213,86 @@ function expandFormCodeAliases(formCode) {
   return Array.from(out);
 }
 
-// 4. Cryptographic Password Hashing (Salted SHA-256)
+// 4. Cryptographic Password Hashing (scrypt + legacy hash migration support, no shortcuts)
 function generateSalt(length = 16) {
   return crypto.randomBytes(length).toString('hex');
 }
 
 function hashPassword(password, customSalt = null) {
   const salt = customSalt || generateSalt();
-  const hash = crypto.createHash('sha256').update(`${salt}:${password}`).digest('hex');
-  return `${salt}:${hash}`;
+  const derived = crypto.scryptSync(String(password), salt, 64).toString('hex');
+  return `scrypt$${salt}$${derived}`;
+}
+
+function safeHexEqual(hexA, hexB) {
+  try {
+    const a = Buffer.from(hexA, 'hex');
+    const b = Buffer.from(hexB, 'hex');
+    if (a.length === 0 || a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 function verifyPassword(password, storedHash) {
-  if (!password || !storedHash) return false;
-  if (password === 'Admin@1234' || password === 'Admin@123456') {
-    if (storedHash.includes('5d5a621b') || storedHash === 'Admin@123456' || storedHash === 'Admin@1234') return true;
+  if (!password || !storedHash || typeof storedHash !== 'string') return false;
+
+  if (storedHash.startsWith('scrypt$')) {
+    const parts = storedHash.split('$');
+    if (parts.length !== 3 || !parts[1] || !parts[2]) return false;
+    const derived = crypto.scryptSync(String(password), parts[1], 64).toString('hex');
+    return safeHexEqual(derived, parts[2]);
   }
-  const parts = storedHash.split(':');
-  if (parts.length === 2) {
-    const [salt, expectedHash] = parts;
+
+  if (storedHash.startsWith('pbkdf2$')) {
+    const parts = storedHash.split('$');
+    if (parts.length !== 4) return false;
+    const iterations = parseInt(parts[1], 10);
+    if (!Number.isFinite(iterations) || !parts[2] || !parts[3]) return false;
+    const derived = crypto.pbkdf2Sync(String(password), parts[2], iterations, 32, 'sha256').toString('hex');
+    return safeHexEqual(derived, parts[3]);
+  }
+
+  const colonParts = storedHash.split(':');
+  if (colonParts.length === 2 && colonParts[0] && colonParts[1]) {
+    const [salt, expectedHash] = colonParts;
     const computedHash = crypto.createHash('sha256').update(`${salt}:${password}`).digest('hex');
-    return computedHash === expectedHash;
+    return safeHexEqual(computedHash, expectedHash);
   }
-  return password === storedHash;
+
+  return false;
+}
+
+function signAuthToken({ userId, tokenVersion = 1 }) {
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    userId,
+    tokenVersion: Number(tokenVersion || 1),
+    iat: now,
+    exp: now + TOKEN_TTL_SECONDS,
+  };
+  const payloadB64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const sigB64 = crypto.createHmac('sha256', JWT_SECRET).update(payloadB64).digest('base64url');
+  return `${payloadB64}.${sigB64}`;
+}
+
+function verifySignedToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  try {
+    const expectedSig = crypto.createHmac('sha256', JWT_SECRET).update(parts[0]).digest('base64url');
+    const a = Buffer.from(parts[1], 'utf8');
+    const b = Buffer.from(expectedSig, 'utf8');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const payload = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    if (!payload || !payload.userId) return null;
+    if (payload.exp && Number(payload.exp) <= Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 function parseJsonSafe(val, fallback) {
@@ -167,20 +307,28 @@ function parseJsonSafe(val, fallback) {
   return val;
 }
 
-// 5. DTO Mappers (PostgreSQL snake_case -> Frontend camelCase)
+// 5. DTO Mappers (PostgreSQL snake_case -> Frontend camelCase; never exposes password_hash)
 function mapUserRow(u, permittedForms) {
+  const role = isAdminRole(u.role) ? 'Admin' : sanitizeRole(u.role);
+  const permittedModules = sanitizeModules(parseJsonSafe(u.permitted_modules, []), role);
+  const dataScope = sanitizeDataScope(u.data_scope, role);
   return {
     id: u.id,
     username: u.username || (u.email ? u.email.split('@')[0] : u.id),
     employeeCode: u.employee_code || '',
     displayName: u.display_name,
     email: u.email,
-    role: u.role,
+    role,
     departmentId: u.department_id || '',
     departmentName: u.department_name || '',
     phone: u.phone || '',
     isActive: u.is_active !== false,
-    permittedForms: isAdminRole(u.role) ? ['*'] : (permittedForms || []),
+    canEditEntries: isAdminRole(role) || Boolean(u.can_edit_entries),
+    canDeleteEntries: isAdminRole(role) || Boolean(u.can_delete_entries),
+    permittedModules,
+    permittedForms: isAdminRole(role) ? ['*'] : (permittedForms || []),
+    dataScope,
+    tokenVersion: Number(u.token_version || 1),
     createdAt: u.created_at,
     updatedAt: u.updated_at,
   };
@@ -397,11 +545,16 @@ async function initDatabase() {
         employee_code VARCHAR(50),
         display_name VARCHAR(150) NOT NULL,
         email VARCHAR(150) UNIQUE NOT NULL,
-        role VARCHAR(50) NOT NULL DEFAULT 'Inspector',
+        role VARCHAR(50) NOT NULL DEFAULT 'SQC Inspector / User',
         department_id VARCHAR(100),
         department_name VARCHAR(150),
         phone VARCHAR(50),
         is_active BOOLEAN DEFAULT TRUE,
+        can_edit_entries BOOLEAN DEFAULT FALSE,
+        can_delete_entries BOOLEAN DEFAULT FALSE,
+        permitted_modules JSONB DEFAULT '[]'::jsonb,
+        data_scope VARCHAR(20) NOT NULL DEFAULT 'OWN',
+        token_version INT NOT NULL DEFAULT 1,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
@@ -410,11 +563,16 @@ async function initDatabase() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_code VARCHAR(50);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(150);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(150);
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'Inspector';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'SQC Inspector / User';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS department_id VARCHAR(100);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS department_name VARCHAR(150);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS can_edit_entries BOOLEAN DEFAULT FALSE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS can_delete_entries BOOLEAN DEFAULT FALSE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS permitted_modules JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS data_scope VARCHAR(20) DEFAULT 'OWN';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
       CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
@@ -695,19 +853,67 @@ async function initDatabase() {
       };
     }
 
-    // Ensure default admin user exists & holds all form permissions (FORM-01..FORM-37 + 09A/09B)
-    const adminCheck = await client.query(`SELECT id FROM users WHERE username = 'admin' LIMIT 1`);
+    // Ensure default Admin account exists (Admin is the ONLY privileged role)
+    const adminCheck = await client.query(`SELECT id, role FROM users WHERE LOWER(username) = 'admin' LIMIT 1`);
     let adminUserId = adminCheck.rows[0]?.id;
+    const allModulesJson = JSON.stringify(ALL_MODULES);
     if (!adminUserId) {
       adminUserId = 'usr-admin-01';
       const adminHash = 'bjcl_sqc_salt_2026:5d5a621bd54309c980763fcb42e09fd15c0ad7b82994b1ff985b30475b42c2fc';
       await client.query(`
-        INSERT INTO users (id, username, password_hash, employee_code, display_name, email, role, department_name, is_active)
-        VALUES ('usr-admin-01', 'admin', $1, 'EMP-001', 'System Administrator', 'admin@ballyjute.com', 'SuperAdmin', 'Administration', TRUE)
+        INSERT INTO users (id, username, password_hash, employee_code, display_name, email, role, department_name, is_active, can_edit_entries, can_delete_entries, permitted_modules, data_scope, token_version)
+        VALUES ('usr-admin-01', 'admin', $1, 'EMP-001', 'System Administrator', 'admin@ballyjute.com', 'Admin', 'Administration', TRUE, TRUE, TRUE, $2::jsonb, 'ALL', 1)
         ON CONFLICT DO NOTHING
-      `, [adminHash]);
-      console.log('✅ Default administrator created: admin / Admin@123456');
+      `, [adminHash, allModulesJson]);
+      console.log('✅ Administrator account initialized: admin (Role: Admin)');
     }
+
+    // Migrate any legacy elevated accounts cleanly: 'admin' becomes 'Admin', all other legacy elevated accounts are downgraded to standard user with zero modules & OWN scope
+    const legacyMigrated = await client.query(`
+      UPDATE users
+      SET role = CASE WHEN LOWER(username) = 'admin' THEN 'Admin' ELSE 'SQC Inspector / User' END,
+          data_scope = CASE WHEN LOWER(username) = 'admin' THEN 'ALL' ELSE 'OWN' END,
+          permitted_modules = CASE WHEN LOWER(username) = 'admin' THEN $1::jsonb ELSE '[]'::jsonb END,
+          can_edit_entries = CASE WHEN LOWER(username) = 'admin' THEN TRUE ELSE FALSE END,
+          can_delete_entries = CASE WHEN LOWER(username) = 'admin' THEN TRUE ELSE FALSE END,
+          token_version = COALESCE(token_version, 1) + 1
+      WHERE LOWER(REPLACE(COALESCE(role, ''), ' ', '')) = 'superadmin'
+      RETURNING id, username, email, role
+    `, [allModulesJson]);
+
+    if (legacyMigrated.rows.length > 0) {
+      console.log('🔒 Migrated legacy elevated role assignments:', legacyMigrated.rows.map(r => `${r.username} -> ${r.role}`).join(', '));
+      for (const mig of legacyMigrated.rows) {
+        if (!isAdminRole(mig.role)) {
+          await client.query(`DELETE FROM user_form_permissions WHERE user_id = $1`, [mig.id]);
+        }
+        await client.query(
+          `INSERT INTO audit_logs (id, entity_type, entity_id, action, performed_by_id, performed_by_name, details)
+           VALUES ($1, 'USER', $2, 'ROLE_MIGRATION', 'SYSTEM', 'Security Migration', $3)`,
+          [
+            `log-mig-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            mig.id,
+            JSON.stringify({ username: mig.username, email: mig.email, migratedRole: mig.role }),
+          ]
+        );
+      }
+    }
+
+    // Normalize existing Admin accounts and sanitize non-Admin data scopes & module lists
+    await client.query(`
+      UPDATE users
+      SET permitted_modules = $1::jsonb,
+          data_scope = 'ALL',
+          can_edit_entries = TRUE,
+          can_delete_entries = TRUE
+      WHERE role = 'Admin'
+    `, [allModulesJson]);
+
+    await client.query(`
+      UPDATE users
+      SET data_scope = 'OWN'
+      WHERE role <> 'Admin' AND (data_scope IS NULL OR data_scope NOT IN ('OWN', 'DEPARTMENT', 'ALL'))
+    `);
 
     const allFormCodes = Object.keys(FORM_TABLE_MAP);
     for (const fc of allFormCodes) {
@@ -786,47 +992,59 @@ async function initDatabase() {
 
 initDatabase();
 
-// 7. Authentication & Authorization Middleware
+// 7. Authentication & Authorization Middleware (Fail-Closed RBAC + Signed Tokens)
 async function resolveUserFromToken(token) {
-  if (!token) return null;
+  const decoded = verifySignedToken(token);
+  if (!decoded || !decoded.userId) return null;
+
   try {
-    const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
-    if (!decoded || !decoded.userId) return null;
     if (isDatabaseConnected) {
       const userRes = await pool.query(
-        `SELECT id, username, display_name, email, role, is_active FROM users WHERE id = $1 LIMIT 1`,
+        `SELECT * FROM users WHERE id = $1 LIMIT 1`,
         [decoded.userId]
       );
-      if (userRes.rows.length > 0 && userRes.rows[0].is_active) {
-        return userRes.rows[0];
+      if (userRes.rows.length === 0) return null;
+      const row = userRes.rows[0];
+      if (!row.is_active) return null;
+      if (Number(row.token_version || 1) !== Number(decoded.tokenVersion || 1)) {
+        return null;
       }
-      return null;
+
+      const role = isAdminRole(row.role) ? 'Admin' : sanitizeRole(row.role);
+      let permittedForms = ['*'];
+      if (!isAdminRole(role)) {
+        const permRes = await pool.query(
+          `SELECT form_code FROM user_form_permissions WHERE user_id = $1`,
+          [row.id]
+        );
+        permittedForms = permRes.rows.map(r => r.form_code);
+      }
+
+      return {
+        ...row,
+        role,
+        permittedModules: sanitizeModules(parseJsonSafe(row.permitted_modules, []), role),
+        permittedForms,
+        dataScope: sanitizeDataScope(row.data_scope, role),
+      };
     }
-    return { id: decoded.userId, username: decoded.username || 'user', role: decoded.role || 'Inspector' };
+
+    const fb = fallbackUsers.get(decoded.userId);
+    if (!fb || !fb.is_active) return null;
+    if (Number(fb.token_version || 1) !== Number(decoded.tokenVersion || 1)) return null;
+    return {
+      ...fb,
+      permittedModules: sanitizeModules(fb.permitted_modules, fb.role),
+      dataScope: sanitizeDataScope(fb.data_scope, fb.role),
+    };
   } catch {
     return null;
   }
 }
 
-async function attachUserIfPresent(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (token) {
-    const user = await resolveUserFromToken(token);
-    if (user) req.user = user;
-  }
-  next();
-}
-
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-
-  if (apiKey && apiKey === API_KEY && !token) {
-    req.user = { id: 'api-service', username: 'api', role: 'SuperAdmin' };
-    return next();
-  }
 
   if (!token) {
     return res.status(401).json({ success: false, message: 'Authentication required. Please log in.' });
@@ -834,15 +1052,55 @@ async function authenticateToken(req, res, next) {
 
   const user = await resolveUserFromToken(token);
   if (!user) {
-    return res.status(401).json({ success: false, message: 'Invalid or inactive authentication session.' });
+    return res.status(401).json({ success: false, message: 'Invalid, expired, or revoked authentication session.' });
   }
   req.user = user;
   next();
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.user || !isAdminRole(req.user.role)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Forbidden: Only Administrators can perform this action.',
+    });
+  }
+  next();
+}
+
+function requireModule(moduleCode) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+    if (hasModuleAccess(req.user, moduleCode)) {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      message: `Access Denied: You do not have permission for the ${moduleCode} module.`,
+    });
+  };
+}
+
+function requireAnyModule(moduleCodes) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+    if (hasAnyModuleAccess(req.user, moduleCodes)) {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      message: 'Access Denied: You have no assigned module permissions for this resource.',
+    });
+  };
+}
+
 // Enforce Maintenance Mode globally on all protected /api/* routes for non-Admin users
 app.use('/api', async (req, res, next) => {
-  const openPaths = ['/health', '/maintenance/status', '/maintenance/toggle', '/auth/login'];
+  const openPaths = ['/health', '/maintenance/status', '/auth/login'];
   if (!maintenanceState.enabled || openPaths.includes(req.path)) {
     return next();
   }
@@ -863,15 +1121,110 @@ app.use('/api', async (req, res, next) => {
   });
 });
 
-async function verifyFormPermission(userId, userRole, formCode) {
+async function verifyFormPermission(userId, userRole, formCode, preloadedForms = null) {
   if (isAdminRole(userRole)) return true;
-  if (!isDatabaseConnected) return true;
   const aliases = expandFormCodeAliases(formCode);
+  if (Array.isArray(preloadedForms)) {
+    if (preloadedForms.includes('*')) return true;
+    const set = new Set(preloadedForms.map(f => String(f || '').trim().toUpperCase()));
+    return aliases.some(a => set.has(a));
+  }
+  if (!isDatabaseConnected) return false;
   const permRes = await pool.query(
     `SELECT 1 FROM user_form_permissions WHERE user_id = $1 AND form_code = ANY($2::text[]) LIMIT 1`,
     [userId, aliases]
   );
   return permRes.rows.length > 0;
+}
+
+function expandAllPermittedAliases(permittedForms = []) {
+  const set = new Set();
+  for (const fc of permittedForms) {
+    for (const alias of expandFormCodeAliases(fc)) {
+      set.add(alias);
+    }
+  }
+  return Array.from(set);
+}
+
+function canAccessInspectionRow(user, row) {
+  if (!user || !user.is_active) return false;
+  if (isAdminRole(user.role)) return true;
+  if (!hasAnyModuleAccess(user, ['INSPECTIONS', 'APPROVALS', 'DASHBOARD', 'REPORTS'])) return false;
+
+  const scope = sanitizeDataScope(user.dataScope || user.data_scope, user.role);
+  let scopeOk = false;
+  if (scope === 'ALL') {
+    scopeOk = true;
+  } else if (scope === 'DEPARTMENT') {
+    const isOwner = row.inspector_id === user.id;
+    const sameDeptId = Boolean(user.department_id) && row.department_id === user.department_id;
+    const sameDeptName =
+      Boolean(user.department_name) &&
+      String(row.department_name || '').trim().toLowerCase() === String(user.department_name).trim().toLowerCase();
+    scopeOk = isOwner || sameDeptId || sameDeptName;
+  } else {
+    scopeOk = row.inspector_id === user.id;
+  }
+  if (!scopeOk) return false;
+
+  // If user does not have Approvals module, enforce explicit form permission on inspection rows
+  if (!hasModuleAccess(user, 'APPROVALS')) {
+    const allowedAliases = expandAllPermittedAliases(user.permittedForms || []);
+    return allowedAliases.includes(String(row.form_code || '').trim().toUpperCase());
+  }
+  return true;
+}
+
+function buildInspectionScopeWhere(user, params) {
+  if (isAdminRole(user.role)) return '';
+  let clause = '';
+  const scope = sanitizeDataScope(user.dataScope || user.data_scope, user.role);
+  if (scope === 'DEPARTMENT') {
+    params.push(user.id);
+    const uidIdx = params.length;
+    params.push(user.department_id || '');
+    const didIdx = params.length;
+    params.push(user.department_name || '');
+    const dnameIdx = params.length;
+    clause += ` AND (inspector_id = $${uidIdx} OR ($${didIdx} <> '' AND department_id = $${didIdx}) OR ($${dnameIdx} <> '' AND LOWER(COALESCE(department_name, '')) = LOWER($${dnameIdx})))`;
+  } else if (scope === 'OWN') {
+    params.push(user.id);
+    clause += ` AND inspector_id = $${params.length}`;
+  }
+
+  if (!hasModuleAccess(user, 'APPROVALS')) {
+    const aliases = expandAllPermittedAliases(user.permittedForms || []);
+    if (aliases.length === 0) {
+      clause += ` AND 1=0`;
+    } else {
+      params.push(aliases);
+      clause += ` AND UPPER(form_code) = ANY($${params.length}::text[])`;
+    }
+  }
+
+  return clause;
+}
+
+async function logAuditEvent(dbClient, { entityType, entityId, action, user, details }) {
+  if (!isDatabaseConnected && dbClient === pool) return;
+  try {
+    await dbClient.query(
+      `INSERT INTO audit_logs (id, entity_type, entity_id, action, performed_by_id, performed_by_name, details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        entityType,
+        String(entityId || 'SYSTEM'),
+        action,
+        user?.id || 'SYSTEM',
+        user?.display_name || user?.displayName || user?.username || 'System',
+        JSON.stringify(details || {}),
+      ]
+    );
+  } catch (e) {
+    console.warn('Audit log write notice:', e.message);
+  }
 }
 
 // 8. Core Helper: Upsert Inspection into BOTH `inspections` AND dedicated `form_*` table
@@ -1076,13 +1429,18 @@ async function upsertInspectionAndFormTable(client, rawIns) {
   };
 }
 
-// Helper for upserting user + permissions inside a client/pool
-async function upsertUserRecord(client, u) {
+// Helper for upserting user + permissions inside a client/pool (Admin-only caller)
+async function upsertUserRecord(client, u, actorId = 'ADMIN') {
+  if (isLegacyElevatedRole(u.role)) {
+    const err = new Error('Legacy elevated role is disabled. Only Admin or standard user roles are allowed.');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const email = (u.email || `${u.username || 'user'}@ballyjute.com`).trim();
   const username = (u.username || email.split('@')[0]).trim();
-  const incomingId = u.id || `usr-${Date.now()}`;
+  const incomingId = u.id || `usr-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
 
-  // Look up existing user by id, email, or username to avoid unique constraint collisions
   const existingRes = await client.query(
     `SELECT * FROM users WHERE id = $1 OR LOWER(email) = LOWER($2) OR LOWER(username) = LOWER($3) LIMIT 1`,
     [incomingId, email, username]
@@ -1091,14 +1449,69 @@ async function upsertUserRecord(client, u) {
   const existing = existingRes.rows[0];
   const userId = existing ? existing.id : incomingId;
 
-  let passwordHash = existing ? existing.password_hash : null;
-  if (u.password && String(u.password).trim()) {
-    passwordHash = hashPassword(String(u.password).trim());
-  } else if (u.passwordHash && String(u.passwordHash).trim()) {
-    passwordHash = String(u.passwordHash).trim();
-  } else if (!passwordHash) {
-    passwordHash = 'bjcl_sqc_salt_2026:5d5a621bd54309c980763fcb42e09fd15c0ad7b82994b1ff985b30475b42c2fc';
+  const requestedRole = u.role !== undefined ? sanitizeRole(u.role) : (existing ? sanitizeRole(existing.role) : 'SQC Inspector / User');
+
+  // Guard against demoting or deactivating the last active Admin
+  if (existing && isAdminRole(existing.role)) {
+    const nextActive = u.isActive !== undefined ? Boolean(u.isActive) : Boolean(existing.is_active);
+    if (!isAdminRole(requestedRole) || !nextActive) {
+      const otherAdmins = await client.query(
+        `SELECT COUNT(*) AS cnt FROM users WHERE role = 'Admin' AND is_active = TRUE AND id <> $1`,
+        [userId]
+      );
+      if (Number(otherAdmins.rows[0]?.cnt || 0) === 0) {
+        const err = new Error('Cannot demote or deactivate the last active Administrator account.');
+        err.statusCode = 400;
+        throw err;
+      }
+    }
   }
+
+  let passwordHash = existing ? existing.password_hash : null;
+  let bumpTokenVersion = false;
+  if (u.password && String(u.password).trim()) {
+    const pw = String(u.password).trim();
+    if (pw.length < 6) {
+      const err = new Error('Password must be at least 6 characters.');
+      err.statusCode = 400;
+      throw err;
+    }
+    passwordHash = hashPassword(pw);
+    bumpTokenVersion = true;
+  } else if (!existing) {
+    const err = new Error('A password of at least 6 characters is required when creating a new user.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const nextActive = u.isActive !== undefined ? Boolean(u.isActive) : (existing ? existing.is_active : true);
+  if (existing && existing.is_active && !nextActive) {
+    bumpTokenVersion = true;
+  }
+
+  const targetCanEdit = isAdminRole(requestedRole)
+    ? true
+    : u.canEditEntries !== undefined
+    ? Boolean(u.canEditEntries)
+    : Boolean(existing?.can_edit_entries);
+  const targetCanDelete = isAdminRole(requestedRole)
+    ? true
+    : u.canDeleteEntries !== undefined
+    ? Boolean(u.canDeleteEntries)
+    : Boolean(existing?.can_delete_entries);
+
+  const existingModules = existing ? parseJsonSafe(existing.permitted_modules, []) : [];
+  const targetModules = u.permittedModules !== undefined
+    ? sanitizeModules(u.permittedModules, requestedRole)
+    : sanitizeModules(existingModules, requestedRole);
+
+  const targetDataScope = u.dataScope !== undefined
+    ? sanitizeDataScope(u.dataScope, requestedRole)
+    : sanitizeDataScope(existing?.data_scope, requestedRole);
+
+  const nextTokenVersion = existing
+    ? Number(existing.token_version || 1) + (bumpTokenVersion ? 1 : 0)
+    : 1;
 
   let savedUserRow;
   if (existing) {
@@ -1114,6 +1527,11 @@ async function upsertUserRecord(client, u) {
         department_name = $9,
         phone = $10,
         is_active = $11,
+        can_edit_entries = $12,
+        can_delete_entries = $13,
+        permitted_modules = $14::jsonb,
+        data_scope = $15,
+        token_version = $16,
         updated_at = NOW()
       WHERE id = $1
       RETURNING *`,
@@ -1124,18 +1542,23 @@ async function upsertUserRecord(client, u) {
         u.employeeCode !== undefined ? u.employeeCode : existing.employee_code || '',
         u.displayName || existing.display_name,
         email,
-        u.role || existing.role || 'Inspector',
+        requestedRole,
         u.departmentId !== undefined ? u.departmentId : existing.department_id || '',
         u.departmentName !== undefined ? u.departmentName : existing.department_name || '',
         u.phone !== undefined ? u.phone : existing.phone || '',
-        u.isActive !== undefined ? u.isActive : existing.is_active,
+        nextActive,
+        targetCanEdit,
+        targetCanDelete,
+        JSON.stringify(targetModules),
+        targetDataScope,
+        nextTokenVersion,
       ]
     );
     savedUserRow = updRes.rows[0];
   } else {
     const insRes = await client.query(
-      `INSERT INTO users (id, username, password_hash, employee_code, display_name, email, role, department_id, department_name, phone, is_active, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+      `INSERT INTO users (id, username, password_hash, employee_code, display_name, email, role, department_id, department_name, phone, is_active, can_edit_entries, can_delete_entries, permitted_modules, data_scope, token_version, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, NOW())
        RETURNING *`,
       [
         userId,
@@ -1144,25 +1567,37 @@ async function upsertUserRecord(client, u) {
         u.employeeCode || '',
         u.displayName || username,
         email,
-        u.role || 'Inspector',
+        requestedRole,
         u.departmentId || '',
         u.departmentName || '',
         u.phone || '',
-        u.isActive !== undefined ? u.isActive : true,
+        nextActive,
+        targetCanEdit,
+        targetCanDelete,
+        JSON.stringify(targetModules),
+        targetDataScope,
+        nextTokenVersion,
       ]
     );
     savedUserRow = insRes.rows[0];
   }
 
-  if (Array.isArray(u.permittedForms)) {
+  if (Array.isArray(u.permittedForms) && !isAdminRole(requestedRole)) {
     await client.query(`DELETE FROM user_form_permissions WHERE user_id = $1`, [userId]);
     for (const fc of u.permittedForms) {
       if (fc && fc !== '*') {
         await client.query(
-          `INSERT INTO user_form_permissions (user_id, form_code, granted_by) VALUES ($1, $2, 'ADMIN') ON CONFLICT DO NOTHING`,
-          [userId, fc]
+          `INSERT INTO user_form_permissions (user_id, form_code, granted_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+          [userId, fc, actorId]
         );
       }
+    }
+  } else if (isAdminRole(requestedRole)) {
+    for (const fc of Object.keys(FORM_TABLE_MAP)) {
+      await client.query(
+        `INSERT INTO user_form_permissions (user_id, form_code, granted_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [userId, fc, actorId]
+      );
     }
   }
 
@@ -1194,20 +1629,11 @@ app.get('/api/maintenance/status', async (req, res) => {
   }
 });
 
-app.post('/api/maintenance/toggle', attachUserIfPresent, async (req, res) => {
+app.post('/api/maintenance/toggle', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const apiKey = req.headers['x-api-key'];
-    const isAuthorized = (req.user && isAdminRole(req.user.role)) || (!req.user && apiKey === API_KEY);
-    if (!isAuthorized) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only Administrators can activate or deactivate Maintenance Mode.',
-      });
-    }
-
     const enabled = Boolean(req.body?.enabled);
     const customMsg = (req.body?.message || '').trim();
-    const actor = req.body?.activatedBy || req.user?.display_name || req.user?.username || 'Administrator';
+    const actor = req.user.display_name || req.user.username || 'Administrator';
 
     maintenanceState = {
       enabled,
@@ -1226,17 +1652,13 @@ app.post('/api/maintenance/toggle', attachUserIfPresent, async (req, res) => {
            updated_at = NOW()`,
         [JSON.stringify(maintenanceState), actor]
       );
-      await pool.query(
-        `INSERT INTO audit_logs (id, entity_type, entity_id, action, performed_by_id, performed_by_name, details)
-         VALUES ($1, 'SYSTEM', 'maintenance_mode', $2, $3, $4, $5)`,
-        [
-          `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          enabled ? 'MAINTENANCE_ON' : 'MAINTENANCE_OFF',
-          req.user?.id || 'ADMIN',
-          actor,
-          JSON.stringify(maintenanceState),
-        ]
-      );
+      await logAuditEvent(pool, {
+        entityType: 'SYSTEM',
+        entityId: 'maintenance_mode',
+        action: enabled ? 'MAINTENANCE_ON' : 'MAINTENANCE_OFF',
+        user: req.user,
+        details: maintenanceState,
+      });
     }
 
     res.json({
@@ -1252,40 +1674,51 @@ app.post('/api/maintenance/toggle', attachUserIfPresent, async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password } = req.body || {};
   if (!username || !password) {
     return res.status(400).json({ success: false, message: 'Username and password are required.' });
   }
 
-  const cleanId = username.trim();
+  const cleanId = String(username).trim();
 
   try {
     if (!isDatabaseConnected) {
-      if (cleanId.toLowerCase() === 'admin' && (password === 'Admin@123456' || password === 'Admin@1234')) {
-        const token = Buffer.from(JSON.stringify({ userId: 'usr-admin-01', username: 'admin', role: 'SuperAdmin' })).toString('base64');
-        return res.json({
-          success: true,
-          token,
-          maintenanceMode: maintenanceState,
-          user: {
-            id: 'usr-admin-01',
-            username: 'admin',
-            displayName: 'System Administrator',
-            email: 'admin@ballyjute.com',
-            role: 'SuperAdmin',
-            isActive: true,
-            permittedForms: ['*'],
-          },
-        });
+      const fbUser = Array.from(fallbackUsers.values()).find(
+        u =>
+          (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === cleanId.toLowerCase()) ||
+          (u.employee_code && u.employee_code.toLowerCase() === cleanId.toLowerCase())
+      );
+
+      if (!fbUser || !verifyPassword(password, fbUser.password_hash)) {
+        if (maintenanceState.enabled && (!fbUser || !isAdminRole(fbUser.role))) {
+          return res.status(503).json({
+            success: false,
+            maintenanceMode: true,
+            message: maintenanceState.message || 'Server is under maintenance. We will be back shortly.',
+          });
+        }
+        return res.status(401).json({ success: false, message: 'Invalid username or password.' });
       }
-      if (maintenanceState.enabled) {
+
+      if (!fbUser.is_active) {
+        return res.status(403).json({ success: false, message: 'User account is deactivated. Contact Administrator.' });
+      }
+      if (maintenanceState.enabled && !isAdminRole(fbUser.role)) {
         return res.status(503).json({
           success: false,
           maintenanceMode: true,
           message: maintenanceState.message || 'Server is under maintenance. We will be back shortly.',
         });
       }
-      return res.status(401).json({ success: false, message: 'Invalid username or password.' });
+
+      const token = signAuthToken({ userId: fbUser.id, tokenVersion: fbUser.token_version });
+      return res.json({
+        success: true,
+        token,
+        maintenanceMode: maintenanceState,
+        user: mapUserRow(fbUser, fbUser.permittedForms || []),
+      });
     }
 
     const userRes = await pool.query(
@@ -1321,7 +1754,6 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid password. Please try again.' });
     }
 
-    // Block all non-admin logins immediately when Maintenance Mode is active
     if (maintenanceState.enabled && !isAdminRole(user.role)) {
       return res.status(503).json({
         success: false,
@@ -1330,12 +1762,28 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
+    // Transparently upgrade legacy hashes to scrypt on login
+    if (user.password_hash && !user.password_hash.startsWith('scrypt$')) {
+      try {
+        const upgraded = hashPassword(password);
+        await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [upgraded, user.id]);
+      } catch (_) {}
+    }
+
     const permRes = await pool.query(
       `SELECT form_code FROM user_form_permissions WHERE user_id = $1`,
       [user.id]
     );
     const permittedForms = permRes.rows.map(r => r.form_code);
-    const token = Buffer.from(JSON.stringify({ userId: user.id, username: user.username, role: user.role })).toString('base64');
+    const token = signAuthToken({ userId: user.id, tokenVersion: user.token_version || 1 });
+
+    await logAuditEvent(pool, {
+      entityType: 'AUTH',
+      entityId: user.id,
+      action: 'LOGIN',
+      user,
+      details: { username: user.username, role: user.role },
+    });
 
     res.json({
       success: true,
@@ -1351,26 +1799,126 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
     const user = req.user;
-    let permittedForms = ['*'];
-    if (isDatabaseConnected && !isAdminRole(user.role)) {
-      const permRes = await pool.query(`SELECT form_code FROM user_form_permissions WHERE user_id = $1`, [user.id]);
-      permittedForms = permRes.rows.map(r => r.form_code);
+    res.json({
+      success: true,
+      maintenanceMode: maintenanceState,
+      user: mapUserRow(user, user.permittedForms || []),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Self-service profile update (ONLY own displayName and phone; never role/modules/forms/scope)
+app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+  const { displayName, phone } = req.body || {};
+  const cleanName = typeof displayName === 'string' ? displayName.trim() : '';
+  const cleanPhone = typeof phone === 'string' ? phone.trim() : '';
+
+  if (!cleanName) {
+    return res.status(400).json({ success: false, message: 'Display name is required.' });
+  }
+
+  try {
+    if (!isDatabaseConnected) {
+      const fb = fallbackUsers.get(req.user.id);
+      if (!fb) return res.status(404).json({ success: false, message: 'User not found.' });
+      fb.display_name = cleanName;
+      fb.phone = cleanPhone;
+      return res.json({ success: true, user: mapUserRow(fb, fb.permittedForms || []) });
     }
-    res.json({ success: true, user: mapUserRow(user, permittedForms) });
+
+    const upd = await pool.query(
+      `UPDATE users SET display_name = $2, phone = $3, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [req.user.id, cleanName, cleanPhone]
+    );
+    if (upd.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    await logAuditEvent(pool, {
+      entityType: 'USER',
+      entityId: req.user.id,
+      action: 'PROFILE_UPDATE',
+      user: req.user,
+      details: { displayName: cleanName, phone: cleanPhone },
+    });
+
+    res.json({
+      success: true,
+      user: mapUserRow(upd.rows[0], req.user.permittedForms || []),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Self-service password change (ONLY own password after verifying currentPassword)
+app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Current password and new password are required.' });
+  }
+  const cleanNew = String(newPassword).trim();
+  if (cleanNew.length < 6) {
+    return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
+  }
+
+  try {
+    if (!isDatabaseConnected) {
+      const fb = fallbackUsers.get(req.user.id);
+      if (!fb || !verifyPassword(String(currentPassword), fb.password_hash)) {
+        return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+      }
+      fb.password_hash = hashPassword(cleanNew);
+      fb.token_version = Number(fb.token_version || 1) + 1;
+      const newToken = signAuthToken({ userId: fb.id, tokenVersion: fb.token_version });
+      return res.json({ success: true, token: newToken, message: 'Your password has been changed.' });
+    }
+
+    const r = await pool.query(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [req.user.id]);
+    if (r.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Account not found.' });
+    }
+    const userRow = r.rows[0];
+    if (!verifyPassword(String(currentPassword), userRow.password_hash)) {
+      return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+    }
+
+    const newHash = hashPassword(cleanNew);
+    const upd = await pool.query(
+      `UPDATE users SET password_hash = $2, token_version = COALESCE(token_version, 1) + 1, updated_at = NOW()
+       WHERE id = $1 RETURNING token_version`,
+      [req.user.id, newHash]
+    );
+    const newVersion = upd.rows[0]?.token_version || 1;
+    const newToken = signAuthToken({ userId: req.user.id, tokenVersion: newVersion });
+
+    await logAuditEvent(pool, {
+      entityType: 'USER',
+      entityId: req.user.id,
+      action: 'PASSWORD_CHANGE',
+      user: req.user,
+      details: { selfService: true },
+    });
+
+    res.json({ success: true, token: newToken, message: 'Password updated successfully.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // ==============================================================================
-// 10. USER MANAGEMENT & FORM PERMISSIONS API
+// 10. USER MANAGEMENT & FORM PERMISSIONS API (ADMIN-ONLY)
 // ==============================================================================
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    if (!isDatabaseConnected) return res.json([]);
+    if (!isDatabaseConnected) {
+      return res.json(Array.from(fallbackUsers.values()).map(u => mapUserRow(u, u.permittedForms || [])));
+    }
     const usersRes = await pool.query(
-      `SELECT id, username, employee_code, display_name, email, role, department_id, department_name, phone, is_active, created_at, updated_at FROM users ORDER BY display_name ASC`
+      `SELECT id, username, employee_code, display_name, email, role, department_id, department_name, phone, is_active, can_edit_entries, can_delete_entries, permitted_modules, data_scope, token_version, created_at, updated_at FROM users ORDER BY display_name ASC`
     );
 
     const permsRes = await pool.query(`SELECT user_id, form_code FROM user_form_permissions`);
@@ -1386,21 +1934,65 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-app.post('/api/users', async (req, res) => {
-  const u = req.body;
+app.post('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+  const u = req.body || {};
   if (!u.displayName && !u.username) {
     return res.status(400).json({ success: false, message: 'Display name or username is required.' });
   }
 
   try {
     if (!isDatabaseConnected) {
-      return res.json({ success: true, user: { ...u, id: u.id || `usr-${Date.now()}` } });
+      if (isLegacyElevatedRole(u.role)) {
+        return res.status(400).json({ success: false, message: 'Invalid role selected.' });
+      }
+      const existing = fallbackUsers.get(u.id);
+      const role = sanitizeRole(u.role || existing?.role);
+      const password = u.password && String(u.password).trim();
+      if (!existing && (!password || password.length < 6)) {
+        return res.status(400).json({ success: false, message: 'Password of at least 6 characters is required.' });
+      }
+      const id = existing ? existing.id : (u.id || `usr-${Date.now()}`);
+      const next = {
+        id,
+        username: u.username || existing?.username || id,
+        password_hash: password ? hashPassword(password) : existing.password_hash,
+        employee_code: u.employeeCode ?? existing?.employee_code ?? '',
+        display_name: u.displayName || existing?.display_name || u.username,
+        email: u.email || existing?.email || `${u.username}@ballyjute.com`,
+        role,
+        department_id: u.departmentId ?? existing?.department_id ?? '',
+        department_name: u.departmentName ?? existing?.department_name ?? '',
+        phone: u.phone ?? existing?.phone ?? '',
+        is_active: u.isActive !== undefined ? Boolean(u.isActive) : (existing?.is_active ?? true),
+        can_edit_entries: isAdminRole(role) ? true : Boolean(u.canEditEntries ?? existing?.can_edit_entries),
+        can_delete_entries: isAdminRole(role) ? true : Boolean(u.canDeleteEntries ?? existing?.can_delete_entries),
+        permitted_modules: sanitizeModules(u.permittedModules ?? existing?.permitted_modules, role),
+        data_scope: sanitizeDataScope(u.dataScope ?? existing?.data_scope, role),
+        token_version: Number(existing?.token_version || 1) + (password ? 1 : 0),
+        permittedForms: isAdminRole(role) ? ['*'] : (Array.isArray(u.permittedForms) ? u.permittedForms : (existing?.permittedForms || [])),
+      };
+      fallbackUsers.set(id, next);
+      return res.json({ success: true, user: mapUserRow(next, next.permittedForms) });
     }
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const savedUser = await upsertUserRecord(client, u);
+      const savedUser = await upsertUserRecord(client, u, req.user.id);
+      await logAuditEvent(client, {
+        entityType: 'USER',
+        entityId: savedUser.id,
+        action: 'USER_SAVED',
+        user: req.user,
+        details: {
+          username: savedUser.username,
+          role: savedUser.role,
+          dataScope: savedUser.dataScope,
+          permittedModules: savedUser.permittedModules,
+          permittedFormsCount: savedUser.permittedForms?.length || 0,
+          isActive: savedUser.isActive,
+        },
+      });
       await client.query('COMMIT');
       res.json({ success: true, user: savedUser });
     } catch (e) {
@@ -1410,16 +2002,94 @@ app.post('/api/users', async (req, res) => {
       client.release();
     }
   } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+});
+
+// Admin-only password reset for another user (invalidates user's existing tokens)
+app.post('/api/users/:id/reset-password', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { newPassword } = req.body || {};
+  const cleanPw = String(newPassword || '').trim();
+  if (cleanPw.length < 6) {
+    return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
+  }
+
+  try {
+    if (!isDatabaseConnected) {
+      const fb = fallbackUsers.get(id);
+      if (!fb) return res.status(404).json({ success: false, message: 'User not found.' });
+      fb.password_hash = hashPassword(cleanPw);
+      fb.token_version = Number(fb.token_version || 1) + 1;
+      return res.json({ success: true, message: 'Password reset successfully.' });
+    }
+
+    const newHash = hashPassword(cleanPw);
+    const upd = await pool.query(
+      `UPDATE users SET password_hash = $2, token_version = COALESCE(token_version, 1) + 1, updated_at = NOW()
+       WHERE id = $1 RETURNING id, username, display_name`,
+      [id, newHash]
+    );
+    if (upd.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    await logAuditEvent(pool, {
+      entityType: 'USER',
+      entityId: id,
+      action: 'ADMIN_PASSWORD_RESET',
+      user: req.user,
+      details: { targetUsername: upd.rows[0].username },
+    });
+
+    res.json({ success: true, message: `Password reset for ${upd.rows[0].display_name}.` });
+  } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
+  if (id === req.user.id) {
+    return res.status(400).json({ success: false, message: 'You cannot delete your own active Administrator account.' });
+  }
+
   try {
-    if (isDatabaseConnected) {
-      await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
+    if (!isDatabaseConnected) {
+      const target = fallbackUsers.get(id);
+      if (target && isAdminRole(target.role)) {
+        const otherAdmins = Array.from(fallbackUsers.values()).filter(u => u.id !== id && isAdminRole(u.role) && u.is_active);
+        if (otherAdmins.length === 0) {
+          return res.status(400).json({ success: false, message: 'Cannot delete the last active Administrator account.' });
+        }
+      }
+      fallbackUsers.delete(id);
+      return res.json({ success: true, message: `User ${id} removed.` });
     }
+
+    const targetRes = await pool.query(`SELECT id, username, role FROM users WHERE id = $1 LIMIT 1`, [id]);
+    if (targetRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    const target = targetRes.rows[0];
+    if (isAdminRole(target.role)) {
+      const otherAdmins = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM users WHERE role = 'Admin' AND is_active = TRUE AND id <> $1`,
+        [id]
+      );
+      if (Number(otherAdmins.rows[0]?.cnt || 0) === 0) {
+        return res.status(400).json({ success: false, message: 'Cannot delete the last active Administrator account.' });
+      }
+    }
+
+    await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
+    await logAuditEvent(pool, {
+      entityType: 'USER',
+      entityId: id,
+      action: 'DELETE',
+      user: req.user,
+      details: { deletedUsername: target.username },
+    });
     res.json({ success: true, message: `User ${id} removed.` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -1427,65 +2097,172 @@ app.delete('/api/users/:id', async (req, res) => {
 });
 
 // ==============================================================================
-// 11. INSPECTIONS API (Writes to BOTH `inspections` AND dedicated `form_*` tables)
+// 10B. ADMIN AUDIT LOGS & SYSTEM SETTINGS APIS
 // ==============================================================================
 
-app.get('/api/inspections', async (req, res) => {
-  const { formCode, status, result, departmentId, fromDate, toDate, limit = 500 } = req.query;
+app.get('/api/audit-logs', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (!isDatabaseConnected) return res.json([]);
-
-    let query = `SELECT * FROM inspections WHERE 1=1`;
-    const params = [];
-
-    if (formCode) {
-      params.push(formCode);
-      query += ` AND form_code = $${params.length}`;
-    }
-    if (status) {
-      params.push(status);
-      query += ` AND status = $${params.length}`;
-    }
-    if (result) {
-      params.push(result);
-      query += ` AND result = $${params.length}`;
-    }
-    if (departmentId) {
-      params.push(departmentId);
-      query += ` AND department_id = $${params.length}`;
-    }
-    if (fromDate) {
-      params.push(fromDate);
-      query += ` AND inspection_date >= $${params.length}`;
-    }
-    if (toDate) {
-      params.push(toDate);
-      query += ` AND inspection_date <= $${params.length}`;
-    }
-
-    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
-    params.push(parseInt(limit, 10));
-
-    const r = await pool.query(query, params);
-    res.json(r.rows.map(mapInspectionRow));
+    const r = await pool.query(
+      `SELECT id, entity_type, entity_id, action, performed_by_id, performed_by_name, timestamp, details
+       FROM audit_logs ORDER BY timestamp DESC LIMIT 500`
+    );
+    const formatted = r.rows.map(row => {
+      const det = parseJsonSafe(row.details, {});
+      return {
+        id: row.id,
+        timestamp: row.timestamp,
+        userId: row.performed_by_id || 'SYSTEM',
+        userEmail: det.username || row.performed_by_id || 'SYSTEM',
+        userRole: det.role || 'System',
+        action: row.action,
+        module: row.entity_type,
+        recordId: row.entity_id,
+        details: typeof row.details === 'string' ? row.details : JSON.stringify(det),
+        performedByName: row.performed_by_name,
+      };
+    });
+    res.json(formatted);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-app.get('/api/inspections/:id', async (req, res) => {
-  const { id } = req.params;
+app.get('/api/settings', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    if (!isDatabaseConnected) return res.status(404).json({ success: false, message: 'Not found' });
-    const r = await pool.query(`SELECT * FROM inspections WHERE id = $1 OR inspection_no = $1 LIMIT 1`, [id]);
-    if (r.rows.length === 0) return res.status(404).json({ success: false, message: 'Inspection not found' });
-    res.json(mapInspectionRow(r.rows[0]));
+    if (!isDatabaseConnected) return res.json({ success: true, settings: null });
+    const r = await pool.query(`SELECT value FROM system_settings WHERE key = 'app_settings' LIMIT 1`);
+    res.json({ success: true, settings: r.rows[0]?.value ? parseJsonSafe(r.rows[0].value, null) : null });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-app.post('/api/inspections/truncate', async (req, res) => {
+app.post('/api/settings', authenticateToken, requireAdmin, async (req, res) => {
+  const s = req.body || {};
+  const sanitized = {
+    companyName: String(s.companyName || 'SQC').trim(),
+    companySubtitle: String(s.companySubtitle || 'SQC').trim(),
+    address: String(s.address || '').trim(),
+    inspectionPrefix: String(s.inspectionPrefix || 'SQC/2026-27/').trim(),
+    financialYear: String(s.financialYear || '2026-2027').trim(),
+    requireDualApproval: Boolean(s.requireDualApproval),
+    autoApprovePass: Boolean(s.autoApprovePass),
+  };
+  try {
+    if (isDatabaseConnected) {
+      await pool.query(
+        `INSERT INTO system_settings (key, value, updated_by, updated_at)
+         VALUES ('app_settings', $1::jsonb, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET
+           value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
+        [JSON.stringify(sanitized), req.user.display_name || req.user.username]
+      );
+      await logAuditEvent(pool, {
+        entityType: 'SETTINGS',
+        entityId: 'app_settings',
+        action: 'SETTINGS',
+        user: req.user,
+        details: sanitized,
+      });
+    }
+    res.json({ success: true, settings: sanitized });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==============================================================================
+// 11. INSPECTIONS API (Enforces Module, Form, Edit/Delete, & Data Scope RBAC)
+// ==============================================================================
+
+app.get(
+  '/api/inspections',
+  authenticateToken,
+  requireAnyModule(['DASHBOARD', 'INSPECTIONS', 'APPROVALS', 'REPORTS']),
+  async (req, res) => {
+    const { formCode, status, result, departmentId, fromDate, toDate, limit = 500 } = req.query;
+    try {
+      if (!isDatabaseConnected) return res.json([]);
+
+      if (formCode && !isAdminRole(req.user.role) && !hasModuleAccess(req.user, 'APPROVALS')) {
+        const canViewForm = await verifyFormPermission(req.user.id, req.user.role, formCode, req.user.permittedForms);
+        if (!canViewForm) {
+          return res.status(403).json({
+            success: false,
+            message: `Access Denied: You are not permitted to view records for ${formCode}.`,
+          });
+        }
+      }
+
+      let query = `SELECT * FROM inspections WHERE 1=1`;
+      const params = [];
+
+      // Enforce Data Scope + Permitted Forms at the SQL query layer
+      query += buildInspectionScopeWhere(req.user, params);
+
+      if (formCode) {
+        const aliases = expandFormCodeAliases(formCode);
+        params.push(aliases);
+        query += ` AND UPPER(form_code) = ANY($${params.length}::text[])`;
+      }
+      if (status) {
+        params.push(status);
+        query += ` AND status = $${params.length}`;
+      }
+      if (result) {
+        params.push(result);
+        query += ` AND result = $${params.length}`;
+      }
+      if (departmentId) {
+        params.push(departmentId);
+        query += ` AND department_id = $${params.length}`;
+      }
+      if (fromDate) {
+        params.push(fromDate);
+        query += ` AND inspection_date >= $${params.length}`;
+      }
+      if (toDate) {
+        params.push(toDate);
+        query += ` AND inspection_date <= $${params.length}`;
+      }
+
+      query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+      params.push(Math.min(parseInt(limit, 10) || 500, 1000));
+
+      const r = await pool.query(query, params);
+      res.json(r.rows.map(mapInspectionRow));
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
+app.get(
+  '/api/inspections/:id',
+  authenticateToken,
+  requireAnyModule(['DASHBOARD', 'INSPECTIONS', 'APPROVALS', 'REPORTS']),
+  async (req, res) => {
+    const { id } = req.params;
+    try {
+      if (!isDatabaseConnected) return res.status(404).json({ success: false, message: 'Not found' });
+      const r = await pool.query(`SELECT * FROM inspections WHERE id = $1 OR inspection_no = $1 LIMIT 1`, [id]);
+      if (r.rows.length === 0) return res.status(404).json({ success: false, message: 'Inspection not found' });
+      const row = r.rows[0];
+      if (!canAccessInspectionRow(req.user, row)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: This inspection record is outside your authorized scope or form permissions.',
+        });
+      }
+      res.json(mapInspectionRow(row));
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
+app.post('/api/inspections/truncate', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (!isDatabaseConnected) {
       return res.json({ success: true, message: 'Truncated (fallback mode).' });
@@ -1497,6 +2274,13 @@ app.post('/api/inspections/truncate', async (req, res) => {
       for (const tbl of UNIQUE_FORM_TABLES) {
         await client.query(`TRUNCATE TABLE ${tbl} RESTART IDENTITY CASCADE`);
       }
+      await logAuditEvent(client, {
+        entityType: 'SYSTEM',
+        entityId: 'inspections',
+        action: 'TRUNCATE',
+        user: req.user,
+        details: { truncatedBy: req.user.username },
+      });
       await client.query('COMMIT');
       res.json({ success: true, message: 'All inspections and 38 form tables truncated cleanly.' });
     } catch (e) {
@@ -1510,25 +2294,30 @@ app.post('/api/inspections/truncate', async (req, res) => {
   }
 });
 
-app.post('/api/inspections', attachUserIfPresent, async (req, res) => {
+app.post('/api/inspections', authenticateToken, async (req, res) => {
   const normalized = normalizeInspectionPayload(req.body);
   if (!normalized.formCode || !normalized.inspectionNo) {
     return res.status(400).json({ success: false, message: 'Form code and inspection number are required.' });
   }
 
   const isWorkflowAction = ['Approved', 'Rejected', 'Returned'].includes(normalized.status);
-  if (req.user && !isAdminRole(req.user.role) && !(isHodRole(req.user.role) && isWorkflowAction)) {
-    const hasPerm = await verifyFormPermission(req.user.id, req.user.role, normalized.formCode);
-    if (!hasPerm) {
-      return res.status(403).json({
-        success: false,
-        message: `Permission Denied: You do not have permission to create or save inspections for ${normalized.formCode}.`,
-      });
-    }
-  }
+  const actorName = req.user.display_name || req.user.username || 'SQC User';
 
   try {
     if (!isDatabaseConnected) {
+      if (isWorkflowAction) {
+        if (!isAdminRole(req.user.role) && !(isHodRole(req.user.role) && hasModuleAccess(req.user, 'APPROVALS'))) {
+          return res.status(403).json({ success: false, message: 'Permission Denied: Approvals module access required.' });
+        }
+      } else {
+        if (!hasModuleAccess(req.user, 'INSPECTIONS')) {
+          return res.status(403).json({ success: false, message: 'Permission Denied: Inspections module access required.' });
+        }
+      }
+      normalized.inspectorId = req.user.id;
+      normalized.inspectorName = actorName;
+      normalized.createdBy = actorName;
+      normalized.updatedBy = actorName;
       return res.json({
         success: true,
         inspection: normalized,
@@ -1537,29 +2326,115 @@ app.post('/api/inspections', attachUserIfPresent, async (req, res) => {
       });
     }
 
+    const existingIns = await pool.query(
+      `SELECT * FROM inspections WHERE id = $1 OR inspection_no = $2 LIMIT 1`,
+      [normalized.id, normalized.inspectionNo]
+    );
+    const existingRow = existingIns.rows[0];
+
+    if (isWorkflowAction) {
+      if (!existingRow) {
+        return res.status(404).json({ success: false, message: 'Inspection record not found for workflow action.' });
+      }
+      if (!isAdminRole(req.user.role)) {
+        if (!isHodRole(req.user.role) || !hasModuleAccess(req.user, 'APPROVALS')) {
+          return res.status(403).json({
+            success: false,
+            message: 'Permission Denied: You are not authorized to approve, reject, or return inspections.',
+          });
+        }
+        if (!canAccessInspectionRow(req.user, existingRow)) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access Denied: This record is outside your authorized data scope.',
+          });
+        }
+      }
+      // Preserve creator & inspector identity on approval transitions
+      normalized.id = existingRow.id;
+      normalized.inspectorId = existingRow.inspector_id;
+      normalized.inspectorName = existingRow.inspector_name;
+      normalized.createdBy = existingRow.created_by;
+      normalized.updatedBy = actorName;
+      if (normalized.status === 'Approved') {
+        normalized.approvedBy = actorName;
+        normalized.approvedAt = new Date().toISOString();
+      }
+    } else {
+      if (!hasModuleAccess(req.user, 'INSPECTIONS')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Permission Denied: You do not have access to the Inspections & Quality Forms module.',
+        });
+      }
+
+      const hasFormPerm = await verifyFormPermission(req.user.id, req.user.role, normalized.formCode, req.user.permittedForms);
+      if (!hasFormPerm) {
+        return res.status(403).json({
+          success: false,
+          message: `Permission Denied: You do not have permission to enter or save ${normalized.formCode}.`,
+        });
+      }
+
+      if (existingRow) {
+        if (!isAdminRole(req.user.role)) {
+          if (!req.user.can_edit_entries) {
+            return res.status(403).json({
+              success: false,
+              message: 'Permission Denied: Admin has not activated Edit permission for your account.',
+            });
+          }
+          if (!canAccessInspectionRow(req.user, existingRow)) {
+            return res.status(403).json({
+              success: false,
+              message: 'Access Denied: You can only edit inspection records within your authorized scope.',
+            });
+          }
+        }
+        normalized.id = existingRow.id;
+        normalized.inspectorId = existingRow.inspector_id || req.user.id;
+        normalized.inspectorName = existingRow.inspector_name || actorName;
+        normalized.createdBy = existingRow.created_by || actorName;
+        normalized.updatedBy = actorName;
+        if (!isAdminRole(req.user.role)) {
+          normalized.approvedBy = existingRow.approved_by || null;
+          normalized.approvedAt = existingRow.approved_at || null;
+        }
+      } else {
+        // Server-authoritative ownership on newly created inspections
+        if (!isAdminRole(req.user.role)) {
+          normalized.inspectorId = req.user.id;
+          normalized.inspectorName = actorName;
+          normalized.createdBy = actorName;
+          normalized.approvedBy = null;
+          normalized.approvedAt = null;
+        } else {
+          normalized.inspectorId = normalized.inspectorId || req.user.id;
+          normalized.inspectorName = normalized.inspectorName || actorName;
+          normalized.createdBy = normalized.createdBy || actorName;
+        }
+        normalized.updatedBy = actorName;
+      }
+    }
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       const { inspection, formTable } = await upsertInspectionAndFormTable(client, normalized);
 
-      await client.query(
-        `INSERT INTO audit_logs (id, entity_type, entity_id, action, performed_by_id, performed_by_name, details)
-         VALUES ($1, 'INSPECTION', $2, $3, $4, $5, $6)`,
-        [
-          `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          inspection.id,
-          inspection.status === 'Submitted' ? 'SUBMIT' : 'SAVE',
-          inspection.inspectorId || req.user?.id || 'SYSTEM',
-          inspection.updatedBy || inspection.inspectorName || req.user?.display_name || 'SQC User',
-          JSON.stringify({
-            inspectionNo: inspection.inspectionNo,
-            formCode: inspection.formCode,
-            formTable,
-            status: inspection.status,
-            result: inspection.result,
-          }),
-        ]
-      );
+      await logAuditEvent(client, {
+        entityType: 'INSPECTION',
+        entityId: inspection.id,
+        action: isWorkflowAction ? normalized.status.toUpperCase() : (inspection.status === 'Submitted' ? 'SUBMIT' : 'SAVE'),
+        user: req.user,
+        details: {
+          inspectionNo: inspection.inspectionNo,
+          formCode: inspection.formCode,
+          formTable,
+          status: inspection.status,
+          result: inspection.result,
+        },
+      });
 
       await client.query('COMMIT');
       res.json({
@@ -1580,22 +2455,49 @@ app.post('/api/inspections', attachUserIfPresent, async (req, res) => {
   }
 });
 
-app.delete('/api/inspections/:id', async (req, res) => {
+app.delete('/api/inspections/:id', authenticateToken, requireModule('INSPECTIONS'), async (req, res) => {
   const { id } = req.params;
+  if (!isAdminRole(req.user.role) && !req.user.can_delete_entries) {
+    return res.status(403).json({
+      success: false,
+      message: 'Permission Denied: Admin has not activated Delete permission for your account.',
+    });
+  }
   try {
     if (isDatabaseConnected) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
         const found = await client.query(
-          `SELECT id, inspection_no, form_code FROM inspections WHERE id = $1 OR inspection_no = $1`,
+          `SELECT * FROM inspections WHERE id = $1 OR inspection_no = $1`,
           [id]
         );
+        if (found.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ success: false, message: 'Inspection not found.' });
+        }
         for (const row of found.rows) {
+          if (!isAdminRole(req.user.role)) {
+            const hasFormPerm = await verifyFormPermission(req.user.id, req.user.role, row.form_code, req.user.permittedForms);
+            if (!hasFormPerm || !canAccessInspectionRow(req.user, row)) {
+              await client.query('ROLLBACK');
+              return res.status(403).json({
+                success: false,
+                message: 'Access Denied: You can only delete permitted inspection records within your authorized scope.',
+              });
+            }
+          }
           const formTable = resolveFormTable(row.form_code);
           if (formTable) {
             await client.query(`DELETE FROM ${formTable} WHERE id = $1 OR inspection_no = $2`, [row.id, row.inspection_no]);
           }
+          await logAuditEvent(client, {
+            entityType: 'INSPECTION',
+            entityId: row.id,
+            action: 'DELETE',
+            user: req.user,
+            details: { inspectionNo: row.inspection_no, formCode: row.form_code },
+          });
         }
         await client.query(`DELETE FROM inspections WHERE id = $1 OR inspection_no = $1`, [id]);
         await client.query('COMMIT');
@@ -1774,8 +2676,12 @@ async function upsertStandard(client, s) {
   return mapStandardRow(r.rows[0]);
 }
 
+// Master Data Read & Write Authorization Guards
+const requireMasterReadAccess = [authenticateToken, requireAnyModule(GRANTABLE_MODULES)];
+const requireMasterWriteAccess = [authenticateToken, requireModule('MASTERS')];
+
 // Departments
-app.get('/api/departments', async (req, res) => {
+app.get('/api/departments', ...requireMasterReadAccess, async (req, res) => {
   try {
     if (!isDatabaseConnected) return res.json([]);
     const r = await pool.query('SELECT * FROM departments ORDER BY order_index ASC, name ASC');
@@ -1785,7 +2691,7 @@ app.get('/api/departments', async (req, res) => {
   }
 });
 
-app.post('/api/departments', async (req, res) => {
+app.post('/api/departments', ...requireMasterWriteAccess, async (req, res) => {
   const d = req.body;
   if (!d.code || !d.name) return res.status(400).json({ success: false, message: 'code and name required' });
   try {
@@ -1797,7 +2703,7 @@ app.post('/api/departments', async (req, res) => {
   }
 });
 
-app.delete('/api/departments/:id', async (req, res) => {
+app.delete('/api/departments/:id', ...requireMasterWriteAccess, async (req, res) => {
   try {
     if (isDatabaseConnected) await pool.query('DELETE FROM departments WHERE id = $1 OR code = $1', [req.params.id]);
     res.json({ success: true });
@@ -1807,7 +2713,7 @@ app.delete('/api/departments/:id', async (req, res) => {
 });
 
 // Sections
-app.get('/api/sections', async (req, res) => {
+app.get('/api/sections', ...requireMasterReadAccess, async (req, res) => {
   try {
     if (!isDatabaseConnected) return res.json([]);
     const r = await pool.query('SELECT * FROM sections ORDER BY name ASC');
@@ -1817,7 +2723,7 @@ app.get('/api/sections', async (req, res) => {
   }
 });
 
-app.post('/api/sections', async (req, res) => {
+app.post('/api/sections', ...requireMasterWriteAccess, async (req, res) => {
   const s = req.body;
   if (!s.code || !s.name) return res.status(400).json({ success: false, message: 'code and name required' });
   try {
@@ -1829,7 +2735,7 @@ app.post('/api/sections', async (req, res) => {
   }
 });
 
-app.delete('/api/sections/:id', async (req, res) => {
+app.delete('/api/sections/:id', ...requireMasterWriteAccess, async (req, res) => {
   try {
     if (isDatabaseConnected) await pool.query('DELETE FROM sections WHERE id = $1 OR code = $1', [req.params.id]);
     res.json({ success: true });
@@ -1839,7 +2745,7 @@ app.delete('/api/sections/:id', async (req, res) => {
 });
 
 // Machines
-app.get('/api/machines', async (req, res) => {
+app.get('/api/machines', ...requireMasterReadAccess, async (req, res) => {
   try {
     if (!isDatabaseConnected) return res.json([]);
     const r = await pool.query('SELECT * FROM machines ORDER BY name ASC');
@@ -1849,7 +2755,7 @@ app.get('/api/machines', async (req, res) => {
   }
 });
 
-app.post('/api/machines', async (req, res) => {
+app.post('/api/machines', ...requireMasterWriteAccess, async (req, res) => {
   const m = req.body;
   if (!m.code || !m.name) return res.status(400).json({ success: false, message: 'code and name required' });
   try {
@@ -1861,7 +2767,7 @@ app.post('/api/machines', async (req, res) => {
   }
 });
 
-app.delete('/api/machines/:id', async (req, res) => {
+app.delete('/api/machines/:id', ...requireMasterWriteAccess, async (req, res) => {
   try {
     if (isDatabaseConnected) await pool.query('DELETE FROM machines WHERE id = $1 OR code = $1', [req.params.id]);
     res.json({ success: true });
@@ -1871,7 +2777,7 @@ app.delete('/api/machines/:id', async (req, res) => {
 });
 
 // Looms
-app.get('/api/looms', async (req, res) => {
+app.get('/api/looms', ...requireMasterReadAccess, async (req, res) => {
   try {
     if (!isDatabaseConnected) return res.json([]);
     const r = await pool.query('SELECT * FROM looms ORDER BY loom_no ASC');
@@ -1881,7 +2787,7 @@ app.get('/api/looms', async (req, res) => {
   }
 });
 
-app.post('/api/looms', async (req, res) => {
+app.post('/api/looms', ...requireMasterWriteAccess, async (req, res) => {
   const l = req.body;
   if (!l.code || !l.name) return res.status(400).json({ success: false, message: 'code and name required' });
   try {
@@ -1893,7 +2799,7 @@ app.post('/api/looms', async (req, res) => {
   }
 });
 
-app.delete('/api/looms/:id', async (req, res) => {
+app.delete('/api/looms/:id', ...requireMasterWriteAccess, async (req, res) => {
   try {
     if (isDatabaseConnected) await pool.query('DELETE FROM looms WHERE id = $1 OR code = $1', [req.params.id]);
     res.json({ success: true });
@@ -1903,7 +2809,7 @@ app.delete('/api/looms/:id', async (req, res) => {
 });
 
 // Qualities
-app.get('/api/qualities', async (req, res) => {
+app.get('/api/qualities', ...requireMasterReadAccess, async (req, res) => {
   try {
     if (!isDatabaseConnected) return res.json([]);
     const r = await pool.query('SELECT * FROM qualities ORDER BY name ASC');
@@ -1913,7 +2819,7 @@ app.get('/api/qualities', async (req, res) => {
   }
 });
 
-app.post('/api/qualities', async (req, res) => {
+app.post('/api/qualities', ...requireMasterWriteAccess, async (req, res) => {
   const q = req.body;
   if (!q.code || !q.name) return res.status(400).json({ success: false, message: 'code and name required' });
   try {
@@ -1925,7 +2831,7 @@ app.post('/api/qualities', async (req, res) => {
   }
 });
 
-app.delete('/api/qualities/:id', async (req, res) => {
+app.delete('/api/qualities/:id', ...requireMasterWriteAccess, async (req, res) => {
   try {
     if (isDatabaseConnected) await pool.query('DELETE FROM qualities WHERE id = $1 OR code = $1', [req.params.id]);
     res.json({ success: true });
@@ -1935,7 +2841,7 @@ app.delete('/api/qualities/:id', async (req, res) => {
 });
 
 // Standards
-app.get('/api/standards', async (req, res) => {
+app.get('/api/standards', ...requireMasterReadAccess, async (req, res) => {
   try {
     if (!isDatabaseConnected) return res.json([]);
     const r = await pool.query('SELECT * FROM quality_standards ORDER BY form_code ASC, parameter_name ASC');
@@ -1945,7 +2851,7 @@ app.get('/api/standards', async (req, res) => {
   }
 });
 
-app.post('/api/standards', async (req, res) => {
+app.post('/api/standards', ...requireMasterWriteAccess, async (req, res) => {
   const s = req.body;
   if (!s.formCode) return res.status(400).json({ success: false, message: 'formCode required' });
   try {
@@ -1957,7 +2863,7 @@ app.post('/api/standards', async (req, res) => {
   }
 });
 
-app.delete('/api/standards/:id', async (req, res) => {
+app.delete('/api/standards/:id', ...requireMasterWriteAccess, async (req, res) => {
   try {
     if (isDatabaseConnected) await pool.query('DELETE FROM quality_standards WHERE id = $1 OR standard_code = $1', [req.params.id]);
     res.json({ success: true });
@@ -1966,12 +2872,16 @@ app.delete('/api/standards/:id', async (req, res) => {
   }
 });
 
-// Full Combined Snapshot Sync (/api/all-data)
-app.get('/api/all-data', async (req, res) => {
+// Full Combined Snapshot Sync (/api/all-data) - Strictly Scoped Per Authenticated User
+app.get('/api/all-data', authenticateToken, async (req, res) => {
   try {
+    const admin = isAdminRole(req.user.role);
+    const hasAnyGranted = admin || hasAnyModuleAccess(req.user, GRANTABLE_MODULES);
+    const canViewInspections = admin || hasAnyModuleAccess(req.user, ['DASHBOARD', 'INSPECTIONS', 'APPROVALS', 'REPORTS']);
+
     if (!isDatabaseConnected) {
       const empty = {
-        users: [],
+        users: admin ? Array.from(fallbackUsers.values()).map(u => mapUserRow(u, u.permittedForms || [])) : [],
         departments: [],
         sections: [],
         machines: [],
@@ -1983,16 +2893,25 @@ app.get('/api/all-data', async (req, res) => {
       return res.json({ success: true, ...empty, data: empty });
     }
 
+    const insParams = [];
+    const insScopeSql = canViewInspections ? buildInspectionScopeWhere(req.user, insParams) : ' AND 1=0';
+
     const [u, perms, d, s, m, l, q, std, ins] = await Promise.all([
-      pool.query('SELECT id, username, employee_code, display_name, email, role, department_id, department_name, phone, is_active, created_at, updated_at FROM users ORDER BY display_name ASC'),
-      pool.query('SELECT user_id, form_code FROM user_form_permissions'),
-      pool.query('SELECT * FROM departments ORDER BY order_index ASC, name ASC'),
-      pool.query('SELECT * FROM sections ORDER BY name ASC'),
-      pool.query('SELECT * FROM machines ORDER BY name ASC'),
-      pool.query('SELECT * FROM looms ORDER BY loom_no ASC'),
-      pool.query('SELECT * FROM qualities ORDER BY name ASC'),
-      pool.query('SELECT * FROM quality_standards ORDER BY form_code ASC'),
-      pool.query('SELECT * FROM inspections ORDER BY created_at DESC LIMIT 500'),
+      admin
+        ? pool.query('SELECT id, username, employee_code, display_name, email, role, department_id, department_name, phone, is_active, can_edit_entries, can_delete_entries, permitted_modules, data_scope, token_version, created_at, updated_at FROM users ORDER BY display_name ASC')
+        : Promise.resolve({ rows: [] }),
+      admin
+        ? pool.query('SELECT user_id, form_code FROM user_form_permissions')
+        : Promise.resolve({ rows: [] }),
+      hasAnyGranted ? pool.query('SELECT * FROM departments ORDER BY order_index ASC, name ASC') : Promise.resolve({ rows: [] }),
+      hasAnyGranted ? pool.query('SELECT * FROM sections ORDER BY name ASC') : Promise.resolve({ rows: [] }),
+      hasAnyGranted ? pool.query('SELECT * FROM machines ORDER BY name ASC') : Promise.resolve({ rows: [] }),
+      hasAnyGranted ? pool.query('SELECT * FROM looms ORDER BY loom_no ASC') : Promise.resolve({ rows: [] }),
+      hasAnyGranted ? pool.query('SELECT * FROM qualities ORDER BY name ASC') : Promise.resolve({ rows: [] }),
+      hasAnyGranted ? pool.query('SELECT * FROM quality_standards ORDER BY form_code ASC') : Promise.resolve({ rows: [] }),
+      canViewInspections
+        ? pool.query(`SELECT * FROM inspections WHERE 1=1 ${insScopeSql} ORDER BY created_at DESC LIMIT 500`, insParams)
+        : Promise.resolve({ rows: [] }),
     ]);
 
     const permsMap = {};
@@ -2002,7 +2921,7 @@ app.get('/api/all-data', async (req, res) => {
     });
 
     const payload = {
-      users: u.rows.map(row => mapUserRow(row, permsMap[row.id] || [])),
+      users: admin ? u.rows.map(row => mapUserRow(row, permsMap[row.id] || [])) : [],
       departments: d.rows.map(mapDepartmentRow),
       sections: s.rows.map(mapSectionRow),
       machines: m.rows.map(mapMachineRow),
@@ -2024,7 +2943,7 @@ app.get('/api/all-data', async (req, res) => {
   }
 });
 
-// Bulk Push Sync handler (mounted on both /api/sync/all and /api/sync-all)
+// Bulk Push Sync handler (Admin-only)
 async function handleBulkSync(req, res) {
   const { users, departments, sections, machines, looms, qualities, standards, inspections } = req.body || {};
   try {
@@ -2050,7 +2969,13 @@ async function handleBulkSync(req, res) {
       if (Array.isArray(users)) {
         for (const u of users) {
           if (!u || (!u.displayName && !u.username)) continue;
-          await upsertUserRecord(client, u);
+          // Skip inserting new users via bulk sync if they don't carry a password/existing record
+          const exists = await client.query(
+            `SELECT id FROM users WHERE id = $1 OR LOWER(username) = LOWER($2) LIMIT 1`,
+            [u.id || '', u.username || '']
+          );
+          if (exists.rows.length === 0 && !u.password) continue;
+          await upsertUserRecord(client, u, req.user.id);
           counts.users++;
         }
       }
@@ -2119,12 +3044,12 @@ async function handleBulkSync(req, res) {
     }
   } catch (err) {
     console.error('❌ [Bulk Sync] Error:', err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 }
 
-app.post('/api/sync/all', handleBulkSync);
-app.post('/api/sync-all', handleBulkSync);
+app.post('/api/sync/all', authenticateToken, requireAdmin, handleBulkSync);
+app.post('/api/sync-all', authenticateToken, requireAdmin, handleBulkSync);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {

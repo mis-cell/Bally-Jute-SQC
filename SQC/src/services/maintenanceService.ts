@@ -44,10 +44,6 @@ function resolveApiUrl(): string {
 function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'x-api-key':
-      (typeof window !== 'undefined' ? localStorage.getItem('bj_sqc_pg_api_key') : null) ||
-      (import.meta as any).env?.VITE_API_KEY ||
-      'change-this-to-a-long-secret-key-123456',
     'ngrok-skip-browser-warning': 'true',
   };
   try {

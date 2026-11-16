@@ -17,9 +17,8 @@ import {
   LogOut,
   Layers,
   History,
-  Shield,
-  KeyRound,
   Wrench,
+  KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { dataService } from '../services/dataService';
@@ -28,12 +27,10 @@ import { FORM_REGISTRY } from '../constants/formsRegistry';
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
     currentUser,
-    allUsers,
-    switchUser,
+    isAdmin,
     logout,
+    canAccessModule,
     canAccessForm,
-    isRole,
-    hasPermission,
     maintenanceStatus,
     toggleMaintenanceMode,
   } = useAuth();
@@ -51,7 +48,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() || !canAccessModule('INSPECTIONS')) return;
     navigate(`/inspections?search=${encodeURIComponent(searchQuery)}`);
   };
 
@@ -80,19 +77,25 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     }))
     .filter(group => group.forms.length > 0);
 
-  const roleStr = currentUser?.role as string;
-  const isAdmin = roleStr === 'Super Admin' || roleStr === 'SuperAdmin' || roleStr === 'Admin';
+  const showDashboard = canAccessModule('DASHBOARD');
+  const showInspections = canAccessModule('INSPECTIONS');
+  const showApprovals = canAccessModule('APPROVALS');
+  const showReports = canAccessModule('REPORTS');
+  const showMasters = canAccessModule('MASTERS');
 
   return (
-    <div className="min-h-screen bg-[#FFF9F9] flex flex-col font-sans text-[#393334]">
+    <div className="min-h-screen bg-[#FCF8EE] flex flex-col font-sans text-[#2B1114]">
       {/* Top Header */}
-      <header id="main-topbar" className="bg-[#E87578] text-white sticky top-0 z-40 shadow-sm border-b border-[#F4C4C5]">
-        <div className="px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header
+        id="main-topbar"
+        className="bg-gradient-to-r from-[#63050B] via-[#8B0A12] to-[#75070E] text-[#FFFDF8] sticky top-0 z-40 shadow-sm border-b-2 border-[#D4AF37]"
+      >
+        <div className="px-4 py-2.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               id="sidebar-toggle-btn"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 rounded-lg hover:bg-[#D95F68] text-white transition-colors flex items-center gap-1.5 border border-white/30 bg-white/10"
+              className="p-1.5 rounded-lg hover:bg-[#D4AF37]/20 text-[#FFFDF8] transition-colors flex items-center gap-1.5 border border-[#D4AF37]/45 bg-[#4E0308]/40 cursor-pointer whitespace-nowrap shrink-0"
               aria-label="Toggle Sidebar"
               title="Toggle Menu"
             >
@@ -100,104 +103,77 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <span className="text-xs font-bold hidden sm:inline">Menu</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#D95F68] flex items-center justify-center font-black text-white text-sm shadow-inner border border-white/50">
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-[#4E0308] flex items-center justify-center font-black text-[#D4AF37] text-xs shadow-inner border border-[#D4AF37]">
                 SQC
               </div>
-              <div>
-                <h1 className="text-sm font-black tracking-tight text-white flex items-center gap-2">
-                  <span>SQC</span>
+              <div className="leading-tight">
+                <h1 className="text-sm font-black tracking-tight text-[#FFFDF8] whitespace-nowrap">
+                  SQC Quality Portal
                 </h1>
-                <p className="text-[11px] text-white/90 font-medium">
-                  SQC
+                <p className="text-[10px] text-[#FCF8EE]/80 font-medium whitespace-nowrap">
+                  Statistical Quality Control
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Quick Search */}
-          <div className="hidden md:flex items-center max-w-md w-full mx-6">
-            <form onSubmit={handleSearchSubmit} className="relative w-full">
-              <input
-                id="header-global-search-input"
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search inspections, lot #, machine, quality, form code..."
-                className="w-full bg-white/20 text-white placeholder-white/80 text-xs rounded-lg pl-9 pr-4 py-1.5 border border-white/30 focus:outline-none focus:ring-1 focus:ring-white"
-              />
-              <Search className="absolute left-2.5 top-2 text-white/80" size={14} />
-            </form>
-          </div>
+          {/* Quick Search (Only shown when INSPECTIONS module is permitted) */}
+          {showInspections ? (
+            <div className="hidden md:flex items-center max-w-md w-full mx-4">
+              <form onSubmit={handleSearchSubmit} className="relative w-full">
+                <input
+                  id="header-global-search-input"
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search inspections, lot #, machine, quality, form code..."
+                  className="w-full bg-[#4E0308]/45 text-[#FFFDF8] placeholder-[#FCF8EE]/70 text-xs rounded-lg pl-9 pr-4 py-1.5 border border-[#E4D0A3]/40 focus:outline-none"
+                />
+                <Search className="absolute left-2.5 top-2 text-[#E4D0A3]" size={14} />
+              </form>
+            </div>
+          ) : (
+            <div className="hidden md:block flex-1" />
+          )}
 
           {/* User Account & Actions Menu */}
-          <div className="flex items-center gap-3">
-            {/* Admin Persona Quick Switcher (Available to Admins for Floor Verification) */}
-            {isAdmin && (
-              <div className="hidden lg:flex items-center bg-[#500D28]/90 rounded-lg p-1 border border-[#9D174D]/70 shadow-2xs">
-                <span className="text-[10px] text-[#F9C5D8] uppercase px-1.5 font-bold">
-                  Active User:
-                </span>
-                <select
-                  id="active-role-switcher"
-                  value={currentUser.id}
-                  onChange={e => switchUser(e.target.value)}
-                  aria-label="Switch User Persona / Role"
-                  className="bg-[#831843] text-white text-xs rounded px-2 py-0.5 border border-[#BE185D] focus:outline-none cursor-pointer font-semibold"
-                >
-                  {allUsers.map(u => {
-                    const isOptionAdmin = u.role === 'Super Admin' || u.role === 'SuperAdmin' || u.role === 'Admin';
-                    const disabledOption = maintenanceStatus.enabled && !isOptionAdmin;
-                    return (
-                      <option
-                        key={u.id}
-                        value={u.id}
-                        disabled={disabledOption}
-                        className="bg-[#500D28] text-white"
-                      >
-                        {u.displayName} [{u.role}]{disabledOption ? ' (Locked)' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            )}
-
+          <div className="flex items-center gap-3 shrink-0">
             {/* Notification Bell */}
             <div className="relative">
               <button
                 id="notifications-bell-btn"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="p-1.5 rounded-lg hover:bg-[#D95F68] text-white relative transition-colors"
+                className="p-1.5 rounded-lg hover:bg-[#D4AF37]/20 text-[#FFFDF8] relative transition-colors cursor-pointer"
                 aria-label="Notifications"
               >
                 <Bell size={17} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-white text-[#D95F68] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-[#2B1114] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs tabular-nums">
                     {unreadCount}
                   </span>
                 )}
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-[#F4C4C5] p-3 z-50 text-slate-800 space-y-2">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#F4C4C5]">
-                    <span className="font-bold text-xs text-[#393334]">Notifications</span>
+                <div className="absolute right-0 mt-2 w-80 bg-[#FFFDF8] rounded-xl shadow-xl border border-[#DFC378] p-3 z-50 text-[#2B1114] space-y-2">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#EFE2C2]">
+                    <span className="font-bold text-xs text-[#5C080E]">Notifications</span>
                     <button
                       onClick={() => dataService.markNotificationsAsRead()}
-                      className="text-[10px] text-[#D95F68] hover:underline font-semibold"
+                      className="text-[10px] text-[#8B0A12] hover:underline font-semibold cursor-pointer"
                     >
                       Mark all read
                     </button>
                   </div>
                   <div className="max-h-60 overflow-y-auto space-y-2 text-xs">
                     {notifications.length === 0 ? (
-                      <p className="text-slate-400 text-center py-4 text-xs">No notifications</p>
+                      <p className="text-[#6E524B] text-center py-4 text-xs">No notifications</p>
                     ) : (
                       notifications.slice(0, 5).map(n => (
-                        <div key={n.id} className="p-2 rounded bg-[#FFF9F9] border border-[#F4C4C5]/50">
-                          <p className="font-semibold text-slate-800 text-[11px]">{n.title}</p>
-                          <p className="text-slate-600 text-[10px]">{n.message}</p>
+                        <div key={n.id} className="p-2 rounded bg-[#FCF8EE] border border-[#E4D0A3]">
+                          <p className="font-semibold text-[#2B1114] text-[11px]">{n.title}</p>
+                          <p className="text-[#6E524B] text-[10px]">{n.message}</p>
                         </div>
                       ))
                     )}
@@ -206,21 +182,26 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               )}
             </div>
 
-            {/* User Profile Pill & Logout */}
-            <div className="flex items-center gap-2 pl-2 border-l border-white/30">
-              <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-bold text-white truncate max-w-[130px]">
+            {/* User Profile Link & Logout */}
+            <div className="flex items-center gap-2 pl-2 border-l border-[#D4AF37]/35">
+              <button
+                type="button"
+                onClick={() => navigate('/profile')}
+                className="hidden sm:flex flex-col text-right hover:opacity-85 transition-opacity cursor-pointer"
+                title="Open My Profile & Password"
+              >
+                <span className="text-xs font-bold text-[#FFFDF8] truncate max-w-[140px]">
                   {currentUser.displayName}
                 </span>
-                <span className="text-[10px] text-white/80 font-medium">
+                <span className="text-[10px] text-[#E9C96B] font-medium">
                   {currentUser.role}
                 </span>
-              </div>
+              </button>
 
               <button
                 id="header-logout-btn"
                 onClick={handleLogout}
-                className="px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-[#D95F68] text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors border border-white/20 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-lg bg-[#4E0308]/50 hover:bg-[#D4AF37]/25 text-[#FFFDF8] text-xs font-bold inline-flex items-center gap-1.5 transition-colors border border-[#D4AF37]/45 cursor-pointer whitespace-nowrap shrink-0"
                 title="Sign out of SQC"
               >
                 <LogOut size={14} />
@@ -235,12 +216,12 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       {isAdmin && maintenanceStatus.enabled && (
         <div
           id="admin-maintenance-banner"
-          className="bg-amber-600 text-white px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm border-b border-amber-700"
+          className="bg-[#FDF5DC] text-[#2B1114] px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 shadow-xs border-b border-[#DFC378]"
         >
           <div className="flex items-center gap-2 font-semibold">
-            <Wrench size={15} className="shrink-0" />
+            <Wrench size={15} className="shrink-0 text-[#9B6E14]" />
             <span>
-              <strong>MAINTENANCE MODE ACTIVE:</strong> All non-admin users are automatically logged out and locked out (&quot;{maintenanceStatus.message}&quot;).
+              <strong className="text-[#8B0A12]">MAINTENANCE MODE ACTIVE:</strong> All non-admin users are automatically logged out and locked out (&quot;{maintenanceStatus.message}&quot;).
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -255,7 +236,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   setDisablingMaintenance(false);
                 }
               }}
-              className="px-3 py-1 rounded-md bg-white text-amber-900 hover:bg-amber-50 font-bold text-[11px] shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
+              className="px-3 py-1 rounded-md bg-[#8B0A12] text-[#FFFDF8] hover:bg-[#68050B] font-bold text-[11px] shadow-2xs transition-colors cursor-pointer disabled:opacity-60 whitespace-nowrap shrink-0"
             >
               {disablingMaintenance ? 'Restoring...' : 'Turn Off Maintenance Mode'}
             </button>
@@ -268,168 +249,178 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         {/* Left-Hand Sidebar Navigation */}
         <aside
           id="main-sidebar"
-          className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#FFFAFA] border-r border-[#F4C4C5] flex flex-col transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#FFFBF1] border-r border-[#E4D0A3] flex flex-col transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
           }`}
         >
           {/* Sidebar Header */}
-          <div className="p-3.5 bg-white border-b border-[#F4C4C5] flex items-center justify-between">
-            <span className="text-xs font-black text-[#574448] uppercase tracking-wider">
+          <div className="p-3.5 bg-[#FBF4E1] border-b border-[#E4D0A3] flex items-center justify-between">
+            <span className="text-xs font-black text-[#5C080E] uppercase tracking-wider">
               SQC Navigation
             </span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] px-2 py-0.5 rounded bg-[#FCE7E6] text-[#D95F68] font-mono font-bold border border-[#F4C4C5]">
-                SQC System
-              </span>
-            </div>
+            <span className="text-[11px] font-mono font-bold text-[#9B6E14]">
+              {isAdmin ? 'Admin Access' : 'Scoped Access'}
+            </span>
           </div>
 
           {/* Navigation Links Scroll Container */}
           <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
             {/* Dashboard */}
-            <NavLink
-              to="/"
-              id="nav-link-dashboard"
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
-                  isActive
-                    ? 'bg-[#D95F68] text-white shadow-sm'
-                    : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
-                }`
-              }
-            >
-              <LayoutDashboard size={18} className="shrink-0" />
-              <span>Floor Dashboard</span>
-            </NavLink>
+            {showDashboard && (
+              <NavLink
+                to="/"
+                id="nav-link-dashboard"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] shadow-sm border border-[#D4AF37]/60'
+                      : 'text-[#5C080E] hover:bg-[#FBF4E1] hover:text-[#8B0A12]'
+                  }`
+                }
+              >
+                <LayoutDashboard size={18} className="shrink-0" />
+                <span>Floor Dashboard</span>
+              </NavLink>
+            )}
 
             {/* Inspections Master Container */}
-            <div className="space-y-1 pt-1">
-              <button
-                id="toggle-inspection-forms-menu"
-                onClick={() => setFormsSubmenuOpen(!formsSubmenuOpen)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-[#574448] font-bold text-[13px] rounded-lg hover:bg-[#FCE7E6] hover:text-[#C4515B] transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <ClipboardList size={18} className="shrink-0" />
-                  <span>Quality Forms ({visibleFormGroups.reduce((acc, g) => acc + g.forms.length, 0)})</span>
-                </div>
-                {formsSubmenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              </button>
-
-              {formsSubmenuOpen && (
-                <div className="pl-2 pr-1 space-y-2 bg-[#FFF9F9] rounded-lg p-2 border border-[#F4C4C5] text-xs">
-                  <NavLink
-                    to="/inspections"
-                    id="nav-link-all-inspections"
-                    onClick={() => setSidebarOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2 px-2.5 py-1.5 rounded-md font-bold transition-colors ${
-                        isActive ? 'text-[#D95F68] bg-[#FCE7E6] border border-[#F4C4C5]' : 'text-[#574448] hover:bg-[#FCE7E6]'
-                      }`
-                    }
-                  >
-                    <Layers size={14} className="text-[#D95F68]" />
-                    <span>All Inspection Records</span>
-                  </NavLink>
-
-                  <div className="pt-2 pb-1 text-[11px] font-black text-[#574448] uppercase tracking-wider px-2">
-                    Permitted Forms
+            {showInspections && (
+              <div className="space-y-1 pt-1">
+                <button
+                  id="toggle-inspection-forms-menu"
+                  onClick={() => setFormsSubmenuOpen(!formsSubmenuOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-[#5C080E] font-bold text-[13px] rounded-lg hover:bg-[#FBF4E1] hover:text-[#8B0A12] transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <div className="flex items-center gap-3">
+                    <ClipboardList size={18} className="shrink-0" />
+                    <span>
+                      Quality Forms ({visibleFormGroups.reduce((acc, g) => acc + g.forms.length, 0)})
+                    </span>
                   </div>
+                  {formsSubmenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
 
-                  {visibleFormGroups.length === 0 ? (
-                    <div className="p-3 text-center text-xs text-[#806B6C]">
-                      No individual forms assigned to your role. Contact SQC Administrator.
+                {formsSubmenuOpen && (
+                  <div className="pl-2 pr-1 space-y-2 bg-[#FCF8EE] rounded-lg p-2 border border-[#E4D0A3] text-xs">
+                    <NavLink
+                      to="/inspections"
+                      id="nav-link-all-inspections"
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-2.5 py-1.5 rounded-md font-bold transition-colors whitespace-nowrap ${
+                          isActive
+                            ? 'text-[#FFFDF8] bg-[#8B0A12] border border-[#D4AF37]'
+                            : 'text-[#5C080E] hover:bg-[#FBF4E1]'
+                        }`
+                      }
+                    >
+                      <Layers size={14} className="text-[#C9962B] shrink-0" />
+                      <span>All Inspection Records</span>
+                    </NavLink>
+
+                    <div className="pt-2 pb-1 text-[11px] font-black text-[#6E524B] uppercase tracking-wider px-2">
+                      Permitted Forms
                     </div>
-                  ) : (
-                    visibleFormGroups.map((group, gIdx) => (
-                      <div key={gIdx} className="space-y-0.5 pt-1">
-                        <div className="text-[11px] font-black text-[#701638] px-2 pt-1 uppercase tracking-tight">
-                          {group.title}
-                        </div>
 
-                        {group.forms.map((fCode) => {
-                          const meta = FORM_REGISTRY[fCode];
-                          if (!meta) return null;
-
-                          const isMatch = new URLSearchParams(location.search).get('form') === fCode;
-
-                          return (
-                            <NavLink
-                              key={fCode}
-                              to={`/new-inspection?form=${fCode}`}
-                              id={`nav-form-${fCode.toLowerCase()}`}
-                              onClick={() => setSidebarOpen(false)}
-                              className={`flex items-center px-2 py-1.5 rounded-md text-xs font-semibold truncate transition-all duration-200 border ${
-                                isMatch
-                                  ? 'bg-gradient-to-r from-[#701638] to-[#9D174D] text-white font-bold border-[#701638] shadow-md'
-                                  : 'bg-transparent text-[#831843] border-transparent hover:bg-[#F8D7E5] hover:text-[#701638] hover:border-[#D98BAA]'
-                              }`}
-                              title={`${meta.code}: ${meta.title}`}
-                            >
-                              <span
-                                className={`inline-flex items-center justify-center font-mono font-black min-w-[42px] h-[22px] mr-2 px-1.5 rounded text-[10px] leading-none shrink-0 border ${
-                                  isMatch
-                                    ? 'bg-[#500D28] text-white border-[#500D28]'
-                                    : 'bg-[#701638] text-white border-[#701638]'
-                                }`}
-                              >
-                                {meta.code.replace('FORM-', 'F')}
-                              </span>
-                              <span className="truncate">
-                                {meta.title.split('–')[1]?.trim() || meta.title}
-                              </span>
-                            </NavLink>
-                          );
-                        })}
+                    {visibleFormGroups.length === 0 ? (
+                      <div className="p-3 text-center text-xs text-[#6E524B]">
+                        No individual forms assigned to your account. Contact SQC Administrator.
                       </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
+                    ) : (
+                      visibleFormGroups.map((group, gIdx) => (
+                        <div key={gIdx} className="space-y-0.5 pt-1">
+                          <div className="text-[11px] font-black text-[#5C080E] px-2 pt-1 uppercase tracking-tight">
+                            {group.title}
+                          </div>
+
+                          {group.forms.map(fCode => {
+                            const meta = FORM_REGISTRY[fCode];
+                            if (!meta) return null;
+
+                            const isMatch = new URLSearchParams(location.search).get('form') === fCode;
+
+                            return (
+                              <NavLink
+                                key={fCode}
+                                to={`/new-inspection?form=${fCode}`}
+                                id={`nav-form-${fCode.toLowerCase()}`}
+                                onClick={() => setSidebarOpen(false)}
+                                className={`flex items-center px-2 py-1.5 rounded-md text-xs font-semibold truncate transition-all duration-150 border ${
+                                  isMatch
+                                    ? 'bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] font-bold border-[#D4AF37] shadow-sm'
+                                    : 'bg-transparent text-[#2B1114] border-transparent hover:bg-[#FBF4E1] hover:text-[#8B0A12] hover:border-[#E4D0A3]'
+                                }`}
+                                title={`${meta.code}: ${meta.title}`}
+                              >
+                                <span
+                                  className={`inline-flex items-center justify-center font-mono font-black min-w-[42px] h-[22px] mr-2 px-1.5 rounded text-[10px] leading-none shrink-0 border tabular-nums ${
+                                    isMatch
+                                      ? 'bg-[#4E0308] text-[#E9C96B] border-[#D4AF37]'
+                                      : 'bg-[#8B0A12] text-[#FFFDF8] border-[#68050B]'
+                                  }`}
+                                >
+                                  {meta.code.replace('FORM-', 'F')}
+                                </span>
+                                <span className="truncate">
+                                  {meta.title.split('–')[1]?.trim() || meta.title}
+                                </span>
+                              </NavLink>
+                            );
+                          })}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Approvals */}
-            <NavLink
-              to="/approvals"
-              id="nav-link-approvals"
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
-                  isActive
-                    ? 'bg-[#D95F68] text-white shadow-sm'
-                    : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
-                }`
-              }
-            >
-              <CheckCircle2 size={18} className="shrink-0" />
-              <span>Approvals Workflow</span>
-            </NavLink>
+            {showApprovals && (
+              <NavLink
+                to="/approvals"
+                id="nav-link-approvals"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] shadow-sm border border-[#D4AF37]/60'
+                      : 'text-[#5C080E] hover:bg-[#FBF4E1] hover:text-[#8B0A12]'
+                  }`
+                }
+              >
+                <CheckCircle2 size={18} className="shrink-0" />
+                <span>Approvals Workflow</span>
+              </NavLink>
+            )}
 
             {/* Reports */}
-            <NavLink
-              to="/reports"
-              id="nav-link-reports"
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
-                  isActive
-                    ? 'bg-[#D95F68] text-white shadow-sm'
-                    : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
-                }`
-              }
-            >
-              <FileBarChart size={18} className="shrink-0" />
-              <span>Reports & Analytics</span>
-            </NavLink>
+            {showReports && (
+              <NavLink
+                to="/reports"
+                id="nav-link-reports"
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] shadow-sm border border-[#D4AF37]/60'
+                      : 'text-[#5C080E] hover:bg-[#FBF4E1] hover:text-[#8B0A12]'
+                  }`
+                }
+              >
+                <FileBarChart size={18} className="shrink-0" />
+                <span>Reports &amp; Analytics</span>
+              </NavLink>
+            )}
 
-            {/* Masters (Visible to Admins / HODs) */}
-            {hasPermission('MANAGE_MASTERS') && (
+            {/* Master Data (Visible only if MASTERS module granted or Admin) */}
+            {showMasters && (
               <div>
                 <button
                   id="toggle-masters-menu"
                   onClick={() => setMastersSubmenuOpen(!mastersSubmenuOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 text-[#574448] font-bold text-[13px] rounded-lg hover:bg-[#FCE7E6] hover:text-[#C4515B] transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-[#5C080E] font-bold text-[13px] rounded-lg hover:bg-[#FBF4E1] hover:text-[#8B0A12] transition-colors cursor-pointer whitespace-nowrap"
                 >
                   <div className="flex items-center gap-3">
                     <Database size={18} className="shrink-0" />
@@ -439,23 +430,95 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 </button>
 
                 {mastersSubmenuOpen && (
-                  <div className="mt-1 pl-2 pr-1 space-y-1 bg-white rounded-lg p-2.5 border border-[#F4C4C5] text-xs font-bold">
-                    <NavLink to="/masters/departments" id="nav-master-dept" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Departments & HODs</NavLink>
-                    <NavLink to="/masters/sections" id="nav-master-sec" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Sections & Stages</NavLink>
-                    <NavLink to="/masters/machines" id="nav-master-mach" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Machines & Speeds</NavLink>
-                    <NavLink to="/masters/looms" id="nav-master-loom" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Looms Master</NavLink>
-                    <NavLink to="/masters/qualities" id="nav-master-qual" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Qualities & Counts</NavLink>
-                    <NavLink to="/masters/specs" id="nav-master-spec" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Product & Bag Specs</NavLink>
-                    <NavLink to="/masters/standards" id="nav-master-std" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Standards & Tolerances</NavLink>
+                  <div className="mt-1 pl-2 pr-1 space-y-1 bg-[#FFFDF8] rounded-lg p-2.5 border border-[#E4D0A3] text-xs font-bold">
+                    <NavLink
+                      to="/masters/departments"
+                      id="nav-master-dept"
+                      onClick={() => setSidebarOpen(false)}
+                      className="block px-2.5 py-1.5 text-[#5C080E] hover:text-[#8B0A12] hover:bg-[#FBF4E1] rounded"
+                    >
+                      Departments &amp; HODs
+                    </NavLink>
+                    <NavLink
+                      to="/masters/sections"
+                      id="nav-master-sec"
+                      onClick={() => setSidebarOpen(false)}
+                      className="block px-2.5 py-1.5 text-[#5C080E] hover:text-[#8B0A12] hover:bg-[#FBF4E1] rounded"
+                    >
+                      Sections &amp; Stages
+                    </NavLink>
+                    <NavLink
+                      to="/masters/machines"
+                      id="nav-master-mach"
+                      onClick={() => setSidebarOpen(false)}
+                      className="block px-2.5 py-1.5 text-[#5C080E] hover:text-[#8B0A12] hover:bg-[#FBF4E1] rounded"
+                    >
+                      Machines &amp; Speeds
+                    </NavLink>
+                    <NavLink
+                      to="/masters/looms"
+                      id="nav-master-loom"
+                      onClick={() => setSidebarOpen(false)}
+                      className="block px-2.5 py-1.5 text-[#5C080E] hover:text-[#8B0A12] hover:bg-[#FBF4E1] rounded"
+                    >
+                      Looms Master
+                    </NavLink>
+                    <NavLink
+                      to="/masters/qualities"
+                      id="nav-master-qual"
+                      onClick={() => setSidebarOpen(false)}
+                      className="block px-2.5 py-1.5 text-[#5C080E] hover:text-[#8B0A12] hover:bg-[#FBF4E1] rounded"
+                    >
+                      Qualities &amp; Counts
+                    </NavLink>
+                    <NavLink
+                      to="/masters/specs"
+                      id="nav-master-spec"
+                      onClick={() => setSidebarOpen(false)}
+                      className="block px-2.5 py-1.5 text-[#5C080E] hover:text-[#8B0A12] hover:bg-[#FBF4E1] rounded"
+                    >
+                      Product &amp; Bag Specs
+                    </NavLink>
+                    <NavLink
+                      to="/masters/standards"
+                      id="nav-master-std"
+                      onClick={() => setSidebarOpen(false)}
+                      className="block px-2.5 py-1.5 text-[#5C080E] hover:text-[#8B0A12] hover:bg-[#FBF4E1] rounded"
+                    >
+                      Standards &amp; Tolerances
+                    </NavLink>
                   </div>
                 )}
               </div>
             )}
 
-            {/* System Administration (Admins Only) */}
+            {/* Self-Service Profile & Password */}
+            <NavLink
+              to="/profile"
+              id="nav-link-profile"
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] shadow-sm border border-[#D4AF37]/60'
+                    : 'text-[#5C080E] hover:bg-[#FBF4E1] hover:text-[#8B0A12]'
+                }`
+              }
+            >
+              <KeyRound size={17} className="shrink-0" />
+              <span>My Profile &amp; Password</span>
+            </NavLink>
+
+            {!showDashboard && !showInspections && !showApprovals && !showReports && !showMasters && !isAdmin && (
+              <div className="p-3 rounded-lg bg-[#FDF5DC] border border-[#DFC378] text-[11px] text-[#7A560B] leading-relaxed">
+                No modules are currently assigned to your account. Contact an SQC Administrator to request access.
+              </div>
+            )}
+
+            {/* System Administration (Strictly Admin Only) */}
             {isAdmin && (
-              <div className="pt-3 border-t border-[#F4C4C5] mt-2">
-                <div className="text-[11px] font-black text-[#754D50] uppercase tracking-wider px-3 py-1 bg-[#FCE7E6] rounded-md border border-[#F4C4C5] mb-1.5">
+              <div className="pt-3 border-t border-[#E4D0A3] mt-2">
+                <div className="text-[11px] font-black text-[#7A560B] uppercase tracking-wider px-3 py-1 bg-[#FDF5DC] rounded-md border border-[#DFC378] mb-1.5">
                   Administration
                 </div>
                 <NavLink
@@ -463,25 +526,25 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   id="nav-link-users"
                   onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
+                    `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors whitespace-nowrap ${
                       isActive
-                        ? 'bg-[#D95F68] text-white shadow-sm'
-                        : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                        ? 'bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] shadow-sm border border-[#D4AF37]/60'
+                        : 'text-[#5C080E] hover:bg-[#FBF4E1] hover:text-[#8B0A12]'
                     }`
                   }
                 >
                   <User size={17} className="shrink-0" />
-                  <span>Users & Form Permissions</span>
+                  <span>Users &amp; Form Permissions</span>
                 </NavLink>
                 <NavLink
                   to="/admin/audit-logs"
                   id="nav-link-audit-logs"
                   onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
+                    `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors whitespace-nowrap ${
                       isActive
-                        ? 'bg-[#D95F68] text-white shadow-sm'
-                        : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                        ? 'bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] shadow-sm border border-[#D4AF37]/60'
+                        : 'text-[#5C080E] hover:bg-[#FBF4E1] hover:text-[#8B0A12]'
                     }`
                   }
                 >
@@ -493,10 +556,10 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   id="nav-link-settings"
                   onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
+                    `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors whitespace-nowrap ${
                       isActive
-                        ? 'bg-[#D95F68] text-white shadow-sm'
-                        : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                        ? 'bg-gradient-to-r from-[#8B0A12] to-[#68050B] text-[#FFFDF8] shadow-sm border border-[#D4AF37]/60'
+                        : 'text-[#5C080E] hover:bg-[#FBF4E1] hover:text-[#8B0A12]'
                     }`
                   }
                 >
@@ -508,20 +571,32 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </div>
 
           {/* User Profile Footer */}
-          <div className="p-3.5 bg-white border-t border-[#F4C4C5]">
+          <div className="p-3.5 bg-[#FBF4E1] border-t border-[#E4D0A3]">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-[#D95F68] text-white font-black flex items-center justify-center text-xs shrink-0 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarOpen(false);
+                  navigate('/profile');
+                }}
+                className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-85 cursor-pointer"
+                title="Open My Profile & Password"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8B0A12] to-[#68050B] text-[#FFFDF8] border border-[#D4AF37] font-black flex items-center justify-center text-xs shrink-0 shadow-2xs">
                   {currentUser.displayName.charAt(0)}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-[#393334] truncate">{currentUser.displayName}</p>
-                  <p className="text-[10px] font-semibold text-[#806B6C] truncate">{currentUser.role}</p>
+                  <p className="text-xs font-bold text-[#2B1114] truncate">
+                    {currentUser.displayName}
+                  </p>
+                  <p className="text-[10px] font-semibold text-[#6E524B] truncate">
+                    {currentUser.role}
+                  </p>
                 </div>
-              </div>
+              </button>
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-[#806B6C] hover:text-[#D95F68] hover:bg-[#FCE7E6] transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-[#6E524B] hover:text-[#8B0A12] hover:bg-[#FDF5DC] transition-colors shrink-0 cursor-pointer"
                 title="Log Out"
               >
                 <LogOut size={16} />
@@ -534,13 +609,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-black/50 backdrop-blur-2xs z-20 lg:hidden"
+            className="fixed inset-0 bg-[#2B1114]/55 backdrop-blur-2xs z-20 lg:hidden"
             aria-hidden="true"
           />
         )}
 
         {/* Main Content Viewport */}
-        <main id="app-main-content" className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#FFF9F9]">
+        <main id="app-main-content" className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#FCF8EE]">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
