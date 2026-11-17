@@ -15,6 +15,12 @@ import {
   Lock,
   Loader2,
   Database,
+  Eye,
+  Edit2,
+  Search,
+  ClipboardList,
+  PlusCircle,
+  X,
 } from 'lucide-react';
 import {
   FORM_REGISTRY,
@@ -27,6 +33,7 @@ import { postgresService } from '../services/postgresService';
 import { useAuth } from '../context/AuthContext';
 import { InspectionRecord, InspectionStatus, InspectionResult } from '../types';
 import { StatusBadge, ResultBadge } from '../components/common/Badges';
+import { useRealtimeData } from '../hooks/useRealtimeSync';
 
 interface SaveFeedbackState {
   type: 'success' | 'warning' | 'error';
@@ -64,6 +71,209 @@ export const InspectionFormPage: React.FC = () => {
     () => resolveFormByCode(selectedFormCode),
     [selectedFormCode]
   );
+
+  const allInspections = useRealtimeData(() => dataService.getInspections());
+  const [activeViewTab, setActiveViewTab] = useState<'form' | 'log'>('form');
+  const [logSearch, setLogSearch] = useState<string>('');
+  const [onlyMyEntries, setOnlyMyEntries] = useState<boolean>(false);
+  const [inspectingLogRecord, setInspectingLogRecord] = useState<InspectionRecord | null>(null);
+  const [deleteLogTarget, setDeleteLogTarget] = useState<InspectionRecord | null>(null);
+
+  const getFormCodeAliases = (code: string): string[] => {
+    const upper = String(code || '').toUpperCase().trim();
+    if (upper === 'FORM-09' || upper === 'FORM-09 A' || upper === 'FORM-09A') {
+      return ['FORM-09', 'FORM-09 A', 'FORM-09A'];
+    }
+    if (upper === 'FORM-37' || upper === 'FORM-09 B' || upper === 'FORM-09B') {
+      return ['FORM-37', 'FORM-09 B', 'FORM-09B'];
+    }
+    return [upper];
+  };
+
+  const formLogs = useMemo(() => {
+    const validCodes = getFormCodeAliases(formMeta.code);
+    return allInspections
+      .filter(rec => {
+        const recCode = String(rec.formCode || rec.formId || '').toUpperCase().trim();
+        return validCodes.includes(recCode);
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [allInspections, formMeta.code]);
+
+  const filteredFormLogs = useMemo(() => {
+    const q = logSearch.trim().toLowerCase();
+    return formLogs.filter(rec => {
+      if (onlyMyEntries) {
+        const isMine =
+          rec.inspectorId === currentUser.id ||
+          rec.inspectorName?.toLowerCase() === currentUser.displayName.toLowerCase();
+        if (!isMine) return false;
+      }
+      if (!q) return true;
+      return (
+        rec.inspectionNo.toLowerCase().includes(q) ||
+        (rec.inspectorName || '').toLowerCase().includes(q) ||
+        (rec.machineNo || '').toLowerCase().includes(q) ||
+        (rec.qualityName || '').toLowerCase().includes(q) ||
+        (rec.remarks || '').toLowerCase().includes(q)
+      );
+    });
+  }, [formLogs, logSearch, onlyMyEntries, currentUser.id, currentUser.displayName]);
+
+  const handleConfirmDeleteLog = () => {
+    if (!deleteLogTarget) return;
+    const removedId = deleteLogTarget.id;
+    const removedNo = deleteLogTarget.inspectionNo;
+    const removed = dataService.deleteInspection(removedId, currentUser);
+    setDeleteLogTarget(null);
+    if (inspectingLogRecord?.id === removedId) {
+      setInspectingLogRecord(null);
+    }
+    if (removed) {
+      setSaveFeedback({
+        type: 'success',
+        title: 'Entry Deleted',
+        message: `Removed ${removedNo} from local registry and PostgreSQL.`,
+      });
+      if (id === removedId) {
+        navigate(`/new-inspection?form=${encodeURIComponent(formMeta.code)}`, { replace: true });
+      }
+    }
+  };
+
+  const renderIndividualFormLog = () => {
+    return (
+      <div className="bg-white rounded-xl border border-[#F2D9D9] shadow-sm p-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F2D9D9]">
+          <div>
+            <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider">
+              {formMeta.title} - Individual Form Log ({filteredFormLogs.length} Records)
+            </h3>
+            <p className="text-[11px] text-[#98777B] mt-0.5">
+              View all submitted inspection entries for this form. Double-click any row to inspect complete details or delete entries.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#A47779]" />
+              <input
+                type="text"
+                value={logSearch}
+                onChange={e => setLogSearch(e.target.value)}
+                placeholder="Search log records..."
+                className="pl-8 pr-3 py-1.5 bg-white border border-[#DFA2BA] rounded-lg text-xs text-[#500D28] focus:outline-none focus:ring-1 focus:ring-[#BE185D]"
+              />
+            </div>
+
+            <label className="flex items-center gap-1.5 text-xs text-[#701638] font-semibold cursor-pointer">
+              <input
+                type="checkbox"
+                checked={onlyMyEntries}
+                onChange={e => setOnlyMyEntries(e.target.checked)}
+                className="rounded border-[#DFA2BA] text-[#701638] focus:ring-[#BE185D]"
+              />
+              <span>My Entries Only</span>
+            </label>
+          </div>
+        </div>
+
+        {filteredFormLogs.length === 0 ? (
+          <div className="py-12 text-center bg-[#FFF9F9] rounded-xl border border-dashed border-[#F4C4C5]">
+            <ClipboardList size={32} className="mx-auto text-[#D95F68] mb-2 opacity-60" />
+            <h4 className="text-xs font-bold text-[#701638]">No Inspection Logs Found</h4>
+            <p className="text-[11px] text-[#806B6C] mt-1">
+              No entries have been recorded yet for {formMeta.code} matching your filter criteria. Switch to "Entry Sheet" above to record a new inspection.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto border border-[#F4C4C5] rounded-xl">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="bg-[#FFF1F2] border-b border-[#F4C4C5] text-[#701638] font-semibold">
+                  <th className="py-2.5 px-3">Inspection #</th>
+                  <th className="py-2.5 px-3">Date &amp; Shift</th>
+                  <th className="py-2.5 px-3">Inspector</th>
+                  <th className="py-2.5 px-3">Quality / Machine</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center">Result</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F4C4C5]/50">
+                {filteredFormLogs.map(rec => {
+                  const isMine =
+                    rec.inspectorId === currentUser.id ||
+                    rec.inspectorName?.toLowerCase() === currentUser.displayName.toLowerCase();
+                  const canDelete = currentUser.role === 'Admin' || isMine;
+
+                  return (
+                    <tr
+                      key={rec.id}
+                      onDoubleClick={() => setInspectingLogRecord(rec)}
+                      className="hover:bg-[#FFF6F6] transition-colors cursor-pointer group"
+                      title="Double-click to inspect full record details"
+                    >
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#701638]">
+                        {rec.inspectionNo}
+                      </td>
+                      <td className="py-2.5 px-3 text-[#393334]">
+                        <div>{rec.inspectionDate}</div>
+                        <div className="text-[10px] text-[#806B6C]">{rec.shiftName}</div>
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-[#393334]">
+                        {rec.inspectorName || '—'}
+                      </td>
+                      <td className="py-2.5 px-3 text-[#393334]">
+                        <div className="font-medium truncate max-w-[180px]">{rec.qualityName}</div>
+                        <div className="text-[10px] font-mono text-[#806B6C]">
+                          {rec.machineNo || rec.loomNo || 'General'}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <StatusBadge status={rec.status} />
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <ResultBadge result={rec.result} />
+                      </td>
+                      <td className="py-2.5 px-3 text-right space-x-2">
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setInspectingLogRecord(rec);
+                          }}
+                          className="px-2 py-1 bg-white border border-[#DFA2BA] text-[#701638] rounded hover:bg-[#F5D5E2] font-semibold inline-flex items-center gap-1"
+                          title="View complete entry details"
+                        >
+                          <Eye size={12} />
+                          <span>View</span>
+                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation();
+                              setDeleteLogTarget(rec);
+                            }}
+                            className="px-2 py-1 bg-rose-50 border border-rose-200 text-rose-700 rounded hover:bg-rose-100 font-semibold inline-flex items-center gap-1"
+                            title="Permanently delete this entry"
+                          >
+                            <Trash2 size={12} />
+                            <span>Delete</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // General form metadata
   const [generalInfo, setGeneralInfo] = useState({
@@ -584,7 +794,35 @@ export const InspectionFormPage: React.FC = () => {
 
         {/* Action Toolbar */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pt-3 border-t border-[#DFA2BA]">
-          {/* <div className="flex items-center gap-2 flex-wrap">
+          {/* Segmented Switcher: Entry Sheet vs Individual Form Log */}
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center gap-1 p-1 bg-[#F5D5E2] rounded-lg border border-[#DFA2BA]">
+              <button
+                id="tab-entry-sheet"
+                type="button"
+                onClick={() => setActiveViewTab('form')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  activeViewTab === 'form'
+                    ? 'bg-[#701638] text-white shadow-2xs'
+                    : 'text-[#701638] hover:bg-[#FCEAF1]'
+                }`}
+              >
+                Entry Sheet
+              </button>
+              <button
+                id="tab-individual-log"
+                type="button"
+                onClick={() => setActiveViewTab('log')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer tabular-nums ${
+                  activeViewTab === 'log'
+                    ? 'bg-[#701638] text-white shadow-2xs'
+                    : 'text-[#701638] hover:bg-[#FCEAF1]'
+                }`}
+              >
+                Log ({formLogs.length})
+              </button>
+            </div>
+
             {!id && Object.keys(FORM_REGISTRY).length > 1 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#831843] font-semibold whitespace-nowrap">
@@ -609,7 +847,7 @@ export const InspectionFormPage: React.FC = () => {
                 </select>
               </div>
             )}
-          </div> */}
+          </div>
 
           {/* Right: Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -709,24 +947,384 @@ export const InspectionFormPage: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-[#FFF4F3] text-[#574448] rounded-xl p-3.5 shadow-sm border border-[#F4C4C5] text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-1.5 text-[#D95F68] font-bold uppercase tracking-wider text-[11px]">
-            <Info size={14} />
-            <span>Controlled Factory Standard Specification</span>
-          </div>
-          <p className="text-[#754D50] mt-1 font-medium">{formMeta.sourceStandardText}</p>
-        </div>
+      {activeViewTab === 'log' ? (
+        renderIndividualFormLog()
+      ) : (
+        <>
+          <div className="bg-[#FFF4F3] text-[#574448] rounded-xl p-3.5 shadow-sm border border-[#F4C4C5] text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-1.5 text-[#D95F68] font-bold uppercase tracking-wider text-[11px]">
+                <Info size={14} />
+                <span>Controlled Factory Standard Specification</span>
+              </div>
+              <p className="text-[#754D50] mt-1 font-medium">{formMeta.sourceStandardText}</p>
+            </div>
 
-        <div className="bg-white px-3 py-2 rounded-lg border border-[#F4C4C5] text-right min-w-[200px] shadow-sm">
-          <span className="text-[10px] text-[#A47779] uppercase tracking-wider block">
-            Live Evaluation
-          </span>
-          <div className="flex items-center justify-end gap-2 mt-0.5">
-            <ResultBadge result={calculationResult.result} />
+            <div className="bg-white px-3 py-2 rounded-lg border border-[#F4C4C5] text-right min-w-[200px] shadow-sm">
+              <span className="text-[10px] text-[#A47779] uppercase tracking-wider block">
+                Live Evaluation
+              </span>
+              <div className="flex items-center justify-end gap-2 mt-0.5">
+                <ResultBadge result={calculationResult.result} />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+
+          {/* General Inspection Context Fields */}
+          <div className="bg-gradient-to-br from-[#FFF8FA] via-[#FCEAF1] to-[#F8E1EA] rounded-xl p-4 border border-[#DFA2BA] shadow-sm">
+            <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider mb-3 border-b border-[#E8B4C8] pb-2">
+              1. Common Inspection Context
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-[#831843] mb-1">Inspection #</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={generalInfo.inspectionNo || 'Auto Generated'}
+                  className="w-full bg-[#F5D5E2] border border-[#DFA2BA] rounded-md px-2.5 py-1.5 font-mono text-[#500D28] text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#831843] mb-1">
+                  Inspection Date
+                </label>
+                <input
+                  type="date"
+                  disabled={isReadOnly}
+                  value={generalInfo.inspectionDate}
+                  onChange={e => setGeneralInfo({ ...generalInfo, inspectionDate: e.target.value })}
+                  className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-semibold focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#831843] mb-1">Shift</label>
+                <select
+                  disabled={isReadOnly}
+                  value={generalInfo.shiftId}
+                  onChange={e =>
+                    setGeneralInfo({
+                      ...generalInfo,
+                      shiftId: e.target.value,
+                      shiftName: e.target.options[e.target.selectedIndex].text,
+                    })
+                  }
+                  aria-label="Inspection Shift"
+                  className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-semibold focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                >
+                  <option value="Shift-A">Shift A (06:00 - 14:00)</option>
+                  <option value="Shift-B">Shift B (14:00 - 22:00)</option>
+                  <option value="Shift-C">Shift C (22:00 - 06:00)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#831843] mb-1">
+                  Quality Master
+                </label>
+                <select
+                  disabled={isReadOnly}
+                  value={generalInfo.qualityId}
+                  onChange={e =>
+                    setGeneralInfo({
+                      ...generalInfo,
+                      qualityId: e.target.value,
+                      qualityName: e.target.options[e.target.selectedIndex].text,
+                    })
+                  }
+                  aria-label="Quality Master"
+                  className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-semibold focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                >
+                  {qualities.map(q => (
+                    <option key={q.id} value={q.id}>
+                      {q.code} - {q.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#831843] mb-1">
+                  Machine / Frame (if any)
+                </label>
+                <input
+                  type="text"
+                  disabled={isReadOnly}
+                  value={generalInfo.machineNo}
+                  placeholder="e.g. Card-01 / Frame-4"
+                  onChange={e => setGeneralInfo({ ...generalInfo, machineNo: e.target.value })}
+                  className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-semibold placeholder:text-[#B78398] focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#831843] mb-1">Inspector</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={existingRecord?.inspectorName || currentUser.displayName}
+                  className="w-full bg-[#F5D5E2] border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs font-bold text-[#500D28]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Form Specific Header Parameters */}
+          {formMeta.fields.length > 0 && (
+            <div className="bg-gradient-to-br from-[#FFF8FA] via-[#FCEAF1] to-[#F8E1EA] rounded-xl p-4 border border-[#DFA2BA] shadow-sm">
+              <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider mb-3 border-b border-[#E8B4C8] pb-2">
+                2. {formMeta.title} – Header Parameters
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                {formMeta.fields.map(field => (
+                  <div key={field.key}>
+                    <label className="block text-[11px] font-semibold text-[#831843] mb-1">
+                      {field.label}{' '}
+                      {field.unit && <span className="text-[#BE185D]">({field.unit})</span>}
+                      {field.required && <span className="text-[#BE123C] ml-0.5">*</span>}
+                    </label>
+
+                    {field.type === 'select' ? (
+                      <select
+                        disabled={isReadOnly}
+                        value={formData[field.key] ?? field.defaultValue ?? ''}
+                        onChange={e => handleFieldChange(field.key, e.target.value)}
+                        aria-label={field.label}
+                        className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-medium focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                      >
+                        {field.options?.map(opt => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={
+                          field.type === 'number'
+                            ? 'number'
+                            : field.type === 'date'
+                            ? 'date'
+                            : field.type === 'time'
+                            ? 'time'
+                            : 'text'
+                        }
+                        step={field.type === 'number' ? 'any' : undefined}
+                        readOnly={field.type === 'readonly'}
+                        disabled={isReadOnly}
+                        value={formData[field.key] ?? field.defaultValue ?? ''}
+                        onChange={e => {
+                          if (field.type === 'number') {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              handleFieldChange(field.key, '');
+                            } else {
+                              const parsed = parseFloat(raw);
+                              handleFieldChange(field.key, Number.isNaN(parsed) ? '' : parsed);
+                            }
+                          } else {
+                            handleFieldChange(field.key, e.target.value);
+                          }
+                        }}
+                        className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-medium placeholder:text-[#B78398] focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                      />
+                    )}
+
+                    {field.helpText && (
+                      <p className="text-[10px] text-[#A16B82] mt-0.5">{field.helpText}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Repeatable Readings Table */}
+          <div className="bg-white rounded-xl border border-[#F2D9D9] shadow-sm overflow-hidden">
+            <div className="p-3.5 bg-[#FFF1F1] border-b border-[#F2D9D9] flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider">
+                  3. Sample Readings &amp; Measurements Grid ({readingRows.length} Samples)
+                </h3>
+                <p className="text-[11px] text-[#98777B]">
+                  Unit: <strong className="text-[#A34F5B]">{formMeta.sampleUnit}</strong>
+                </p>
+              </div>
+
+              {!isReadOnly && (
+                <button
+                  id="add-reading-row-btn"
+                  type="button"
+                  onClick={handleAddRow}
+                  className="px-2.5 py-1 bg-white border border-[#E8BFC3] hover:border-[#C56B78] hover:bg-[#FFF0F1] hover:text-[#9F4654] text-[#79535A] rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-colors"
+                >
+                  <Plus size={13} />
+                  <span>Add Sample Row</span>
+                </button>
+              )}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="bg-[#FCEAEA] border-b border-[#EBCFD1] text-[#D95F68] font-semibold">
+                    <th className="py-2.5 px-3 w-12 text-center">#</th>
+                    {formMeta.columns.map(col => (
+                      <th
+                        key={col.key}
+                        style={{ width: col.width }}
+                        className="py-2.5 px-3 font-semibold text-[#D95F68]"
+                      >
+                        {col.label}{' '}
+                        {col.unit && <span className="text-[#D95F68] font-normal">({col.unit})</span>}
+                      </th>
+                    ))}
+                    {!isReadOnly && <th className="py-2.5 px-3 w-12 text-center">Action</th>}
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-[#F5E5E6]">
+                  {readingRows.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-[#FFF6F6] transition-colors">
+                      <td className="py-2 px-3 text-center text-[#B58D92] font-mono">{idx + 1}</td>
+
+                      {formMeta.columns.map(col => (
+                        <td key={col.key} className="py-1.5 px-2">
+                          {col.type === 'readonly' ? (
+                            <span className="font-mono text-[#815D63] font-semibold px-2 py-1 block">
+                              {row[col.key] !== undefined && row[col.key] !== ''
+                                ? row[col.key]
+                                : idx + 1}
+                            </span>
+                          ) : col.type === 'select' ? (
+                            <select
+                              disabled={isReadOnly}
+                              value={row[col.key] ?? col.options?.[0] ?? ''}
+                              onChange={e => handleRowChange(idx, col.key, e.target.value)}
+                              aria-label={`${col.label} Row ${idx + 1}`}
+                              className="w-full bg-white border border-[#E8CBCD] rounded px-2 py-1 text-xs text-[#633F46] font-medium focus:border-[#C56B78] focus:ring-1 focus:ring-[#EBC1C6] outline-none"
+                            >
+                              {col.options?.map(opt => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type={col.type === 'number' ? 'number' : 'text'}
+                              step="any"
+                              disabled={isReadOnly}
+                              value={row[col.key] ?? ''}
+                              placeholder={col.type === 'number' ? '0.00' : ''}
+                              onChange={e => {
+                                if (col.type === 'number') {
+                                  const raw = e.target.value;
+                                  const parsed = raw === '' ? '' : parseFloat(raw);
+                                  handleRowChange(
+                                    idx,
+                                    col.key,
+                                    raw === '' || Number.isNaN(parsed as number) ? '' : parsed
+                                  );
+                                } else {
+                                  handleRowChange(idx, col.key, e.target.value);
+                                }
+                              }}
+                              className="w-full bg-white border border-[#E8CBCD] rounded px-2 py-1 text-xs text-[#633F46] font-medium font-mono focus:border-[#C56B78] focus:bg-[#FFF1F2] focus:ring-1 focus:ring-[#EBC1C6] outline-none"
+                            />
+                          )}
+                        </td>
+                      ))}
+
+                      {!isReadOnly && (
+                        <td className="py-1.5 px-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRow(idx)}
+                            disabled={readingRows.length <= 1}
+                            className="text-[#C49A9F] hover:text-[#C43D50] hover:bg-[#FCE4E7] rounded p-1 disabled:opacity-30 transition-colors"
+                            title="Remove row"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Automatic System Calculations & Statistical Summary */}
+          <div className="bg-gradient-to-br from-[#FFF8F7] via-[#FCEDEC] to-[#F8DDDC] text-[#574448] rounded-xl p-4 shadow-md border border-[#EABFC0]">
+            <div className="flex items-center justify-between mb-3 border-b border-[#E8C1C1] pb-2">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-[#C94F5B]" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#D95F68]">
+                  4. System-Calculated Statistical Outputs &amp; Acceptance Result
+                </h3>
+              </div>
+
+              <span className="text-[10px] bg-[#F4D8D7] text-[#93434B] px-2 py-0.5 rounded font-mono border border-[#E6B9B9]">
+                Source Mathematical Standards Engine
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+              {Object.entries(calculationResult.metrics).map(([key, val]) => (
+                <div key={key} className="bg-white p-2.5 rounded-lg border border-[#E8C1C1] shadow-sm">
+                  <span className="text-[10px] text-[#806B6C] font-semibold uppercase tracking-wider block">
+                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                  </span>
+
+                  <span className="text-base font-bold font-mono text-[#D95F68] mt-1 block">
+                    {typeof val === 'number' ? val.toLocaleString() : String(val)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#E8C1C1] flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-[#D95F68] font-bold">Evaluation Verdict:</span>
+                <ResultBadge result={calculationResult.result} />
+                <span className="text-[#806B6C] text-[11px]">
+                  {calculationResult.result === 'PASS'
+                    ? 'All sampled readings conform to SQC tolerances.'
+                    : calculationResult.result === 'WARNING'
+                    ? 'Readings approach limit boundary. Close process monitoring required.'
+                    : 'Defect or deviation exceeds allowable mill standard.'}
+                </span>
+              </div>
+
+              <span className="text-[11px] text-[#93434B] font-semibold">
+                Read-only verified calculations · Cannot be manually altered
+              </span>
+            </div>
+          </div>
+
+          {/* Inspector Remarks */}
+          <div className="bg-white rounded-xl p-4 border border-[#F2D9D9] shadow-sm">
+            <label className="block text-xs font-bold text-[#D95F68] uppercase tracking-wider mb-2">
+              5. Inspector Observations &amp; Floor Remarks
+            </label>
+
+            <textarea
+              disabled={isReadOnly}
+              rows={2}
+              value={remarks}
+              onChange={e => setRemarks(e.target.value)}
+              placeholder="Enter machine condition, lot notes, corrective actions taken..."
+              className="w-full bg-white border border-[#E8CBCD] rounded-lg p-2.5 text-xs text-[#633F46] placeholder:text-[#B78398] focus:border-[#C56B78] focus:ring-1 focus:ring-[#EBC1C6] outline-none disabled:bg-[#FFF1F2] disabled:text-[#98777B]"
+            ></textarea>
+          </div>
+        </>
+      )}
 
       {/* General Inspection Context Fields */}
       <div className="bg-gradient-to-br from-[#FFF8FA] via-[#FCEAF1] to-[#F8E1EA] rounded-xl p-4 border border-[#DFA2BA] shadow-sm">
@@ -1178,6 +1776,183 @@ export const InspectionFormPage: React.FC = () => {
                 }`}
               >
                 Confirm {approvalActionModal.toUpperCase()}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Read-Only Verification Modal for Individual Entry Log */}
+      {inspectingLogRecord && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#F4C4C5] overflow-hidden">
+            <div className="px-5 py-4 bg-gradient-to-r from-[#701638] to-[#9D174D] text-white border-b border-[#F4C4C5] flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#500D28] text-white font-bold">
+                    {inspectingLogRecord.formCode}
+                  </span>
+                  <h4 className="text-sm font-bold truncate">
+                    Entry Verification — {inspectingLogRecord.inspectionNo}
+                  </h4>
+                </div>
+                <p className="text-[11px] text-white/85 mt-0.5">
+                  Submitted by <strong>{inspectingLogRecord.inspectorName}</strong> ·{' '}
+                  {inspectingLogRecord.inspectionDate} {inspectingLogRecord.inspectionTime || ''} ·{' '}
+                  {inspectingLogRecord.shiftName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectingLogRecord(null)}
+                className="p-1 rounded text-white/80 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#FFF9F9] p-3 rounded-xl border border-[#F4C4C5]">
+                <div>
+                  <span className="text-[10px] font-bold text-[#806B6C] uppercase block">Department</span>
+                  <span className="font-bold text-[#393334]">{inspectingLogRecord.departmentName}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#806B6C] uppercase block">Quality Master</span>
+                  <span className="font-bold text-[#393334]">{inspectingLogRecord.qualityName}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#806B6C] uppercase block">Machine / Loom</span>
+                  <span className="font-bold text-[#393334] font-mono">
+                    {inspectingLogRecord.machineNo || inspectingLogRecord.loomNo || '—'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={inspectingLogRecord.status} />
+                  <ResultBadge result={inspectingLogRecord.result} />
+                </div>
+              </div>
+
+              {formMeta.fields.length > 0 && (
+                <div>
+                  <h5 className="text-[11px] font-bold text-[#701638] uppercase tracking-wider mb-2">
+                    Entered Header Parameters
+                  </h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                    {formMeta.fields.map(field => {
+                      const val = inspectingLogRecord.formData?.[field.key];
+                      return (
+                        <div key={field.key} className="p-2.5 rounded-lg bg-white border border-[#F4C4C5]">
+                          <span className="text-[10px] text-[#806B6C] block">
+                            {field.label} {field.unit ? `(${field.unit})` : ''}
+                          </span>
+                          <span className="font-bold text-[#393334] font-mono mt-0.5 block">
+                            {val !== undefined && val !== '' ? String(val) : '—'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <h5 className="text-[11px] font-bold text-[#701638] uppercase tracking-wider mb-2">
+                  Entered Sample Readings ({inspectingLogRecord.readingRows?.length || 0} Rows)
+                </h5>
+                <div className="overflow-x-auto border border-[#F4C4C5] rounded-xl">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className="bg-[#FFF9F9] border-b border-[#F4C4C5] text-[#701638] font-semibold">
+                        <th className="py-2 px-3 w-10 text-center">#</th>
+                        {formMeta.columns.map(col => (
+                          <th key={col.key} className="py-2 px-3">
+                            {col.label} {col.unit ? `(${col.unit})` : ''}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F4C4C5]/50">
+                      {(inspectingLogRecord.readingRows || []).map((r, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-[#FFF9F9]">
+                          <td className="py-1.5 px-3 text-center font-mono text-[#806B6C]">{rIdx + 1}</td>
+                          {formMeta.columns.map(col => (
+                            <td key={col.key} className="py-1.5 px-3 font-mono text-[#393334] font-medium">
+                              {r[col.key] !== undefined && r[col.key] !== '' ? String(r[col.key]) : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {inspectingLogRecord.summaryMetrics &&
+                Object.keys(inspectingLogRecord.summaryMetrics).length > 0 && (
+                  <div>
+                    <h5 className="text-[11px] font-bold text-[#701638] uppercase tracking-wider mb-2">
+                      Calculated Statistical Outputs
+                    </h5>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                      {Object.entries(inspectingLogRecord.summaryMetrics).map(([k, v]) => (
+                        <div key={k} className="p-2.5 rounded-lg bg-[#FFF9F9] border border-[#F4C4C5]">
+                          <span className="text-[10px] text-[#806B6C] uppercase block">
+                            {k.replace(/([A-Z])/g, ' $1').trim()}
+                          </span>
+                          <span className="font-mono font-bold text-[#701638] text-sm mt-0.5 block">
+                            {typeof v === 'number' ? v.toLocaleString() : String(v)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+            </div>
+
+            <div className="px-5 py-3 bg-[#FFF9F9] border-t border-[#F4C4C5] flex items-center justify-between">
+              <span className="text-[11px] text-[#806B6C]">
+                Version {inspectingLogRecord.version} · Updated{' '}
+                {new Date(inspectingLogRecord.updatedAt || inspectingLogRecord.createdAt).toLocaleString()}
+              </span>
+              <button
+                type="button"
+                onClick={() => setInspectingLogRecord(null)}
+                className="px-4 py-1.5 bg-[#701638] text-white text-xs font-bold rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteLogTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-sm w-full p-5 shadow-2xl border border-rose-200 space-y-3">
+            <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
+              <AlertTriangle size={18} />
+              <span>Confirm Entry Deletion</span>
+            </div>
+            <p className="text-xs text-slate-600">
+              Are you sure you want to permanently delete inspection entry{' '}
+              <strong className="text-slate-900">{deleteLogTarget.inspectionNo}</strong>?
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteLogTarget(null)}
+                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs rounded-lg hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteLog}
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-xs"
+              >
+                Delete Entry
               </button>
             </div>
           </div>
