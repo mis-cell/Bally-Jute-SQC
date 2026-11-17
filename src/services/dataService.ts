@@ -188,6 +188,62 @@ class DataService {
     return record;
   }
 
+  saveInspection(record: InspectionRecord, _user?: any, _notify?: boolean): InspectionRecord {
+    return this.upsertInMemoryInspection(record);
+  }
+
+  submitInspection(id: string, _user?: any, _notify?: boolean): InspectionRecord | null {
+    const rec = this.getInspectionById(id);
+    if (!rec) return null;
+    const updated: InspectionRecord = { ...rec, status: 'Submitted', updatedAt: new Date().toISOString() };
+    return this.upsertInMemoryInspection(updated);
+  }
+
+  approveInspection(id: string, remarks?: string, user?: any, _notify?: boolean): InspectionRecord | null {
+    const rec = this.getInspectionById(id);
+    if (!rec) return null;
+    const nowIso = new Date().toISOString();
+    const updated: InspectionRecord = {
+      ...rec,
+      status: 'Approved',
+      approvedBy: user?.displayName || 'Admin',
+      approvedAt: nowIso,
+      approvalRemarks: remarks || 'Approved',
+      updatedAt: nowIso,
+    };
+    return this.upsertInMemoryInspection(updated);
+  }
+
+  rejectInspection(id: string, remarks?: string, user?: any, _notify?: boolean): InspectionRecord | null {
+    const rec = this.getInspectionById(id);
+    if (!rec) return null;
+    const nowIso = new Date().toISOString();
+    const updated: InspectionRecord = {
+      ...rec,
+      status: 'Rejected',
+      rejectedBy: user?.displayName || 'Admin',
+      rejectedAt: nowIso,
+      approvalRemarks: remarks || 'Rejected',
+      updatedAt: nowIso,
+    };
+    return this.upsertInMemoryInspection(updated);
+  }
+
+  returnInspectionForCorrection(id: string, remarks?: string, user?: any, _notify?: boolean): InspectionRecord | null {
+    const rec = this.getInspectionById(id);
+    if (!rec) return null;
+    const nowIso = new Date().toISOString();
+    const updated: InspectionRecord = {
+      ...rec,
+      status: 'Returned',
+      rejectedBy: user?.displayName || 'Admin',
+      rejectedAt: nowIso,
+      approvalRemarks: remarks || 'Returned for correction',
+      updatedAt: nowIso,
+    };
+    return this.upsertInMemoryInspection(updated);
+  }
+
   removeInMemoryInspection(idOrNo: string): boolean {
     const before = this.inspections.length;
     this.inspections = this.inspections.filter(
