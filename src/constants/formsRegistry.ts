@@ -251,6 +251,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           r.tenacityGtex = val;
           return val;
         }
+        r.tenacityGtex = '';
         return 0;
       }).filter(v => v > 0);
 
