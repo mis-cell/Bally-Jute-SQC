@@ -2,27 +2,27 @@
 
 /* =====================================================================
    SQC QUALITY CONTROL PORTAL
-   ROYAL CRIMSON VELVET, SILK IVORY & ANTIQUE GOLD THEME
+   NATURAL JUTE MILL OLIVE-MOSS, BURLAP CREAM & ESPRESSO THEME
    ===================================================================== */
 
 :root {
-  --sqc-primary: #8B0A12;
-  --sqc-primary-deep: #68050B;
-  --sqc-primary-dark: #4E0308;
-  --sqc-primary-hover: #70070E;
-  --sqc-gold: #C9962B;
-  --sqc-gold-bright: #D4AF37;
-  --sqc-gold-dark: #9B6E14;
-  --sqc-gold-tint: #FDF5DC;
-  --sqc-ivory: #FCF8EE;
-  --sqc-surface: #FFFDF8;
-  --sqc-cream: #FBF4E1;
-  --sqc-sidebar: #FFFBF1;
-  --sqc-border: #E4D0A3;
-  --sqc-border-soft: #EFE2C2;
-  --sqc-text: #2B1114;
-  --sqc-text-secondary: #6E524B;
-  --sqc-text-dark: #5C080E;
+  --sqc-primary: #4B5420;
+  --sqc-primary-deep: #3F471A;
+  --sqc-primary-dark: #343B14;
+  --sqc-primary-hover: #555E27;
+  --sqc-gold: #8E7F54;
+  --sqc-gold-bright: #DFD2A6;
+  --sqc-gold-dark: #6B5B2E;
+  --sqc-gold-tint: #E3DAB6;
+  --sqc-ivory: #F5EEDB;
+  --sqc-surface: #FBF6E8;
+  --sqc-cream: #F4ECD2;
+  --sqc-sidebar: #FAF5E6;
+  --sqc-border: #C6BA96;
+  --sqc-border-soft: #D7CBB0;
+  --sqc-text: #3B2311;
+  --sqc-text-secondary: #5B4735;
+  --sqc-text-dark: #4C5324;
   --sqc-white: #FFFFFF;
 }
 
@@ -55,12 +55,12 @@ pre,
 }
 
 /* =====================================================================
-   MAIN HEADER (ROYAL CRIMSON VELVET + ANTIQUE GOLD TRIM)
+   MAIN HEADER (DEEP OLIVE-MOSS + NATURAL STRAW TRIM)
    ===================================================================== */
 
 #main-topbar {
-  background: linear-gradient(108deg, #63050B 0%, #8B0A12 52%, #75070E 100%) !important;
-  color: var(--sqc-white);
+  background: linear-gradient(108deg, #343B14 0%, #4B5420 52%, #3F471A 100%) !important;
+  color: #FAF6EA;
   border-bottom: 2px solid var(--sqc-gold-bright) !important;
 }
 
@@ -69,18 +69,18 @@ pre,
 }
 
 #main-topbar button:hover {
-  background-color: rgba(212, 175, 55, 0.22) !important;
-  color: #FFFDF8 !important;
+  background-color: rgba(223, 210, 166, 0.2) !important;
+  color: #FAF6EA !important;
 }
 
 #main-topbar input {
-  background-color: rgba(43, 17, 20, 0.35);
-  color: #FFFDF8;
-  border-color: rgba(228, 208, 163, 0.45);
+  background-color: rgba(52, 59, 20, 0.45);
+  color: #FAF6EA;
+  border-color: rgba(223, 210, 166, 0.45);
 }
 
 #main-topbar input::placeholder {
-  color: rgba(252, 248, 238, 0.72);
+  color: rgba(250, 246, 234, 0.72);
 }
 
 /* =====================================================================
@@ -92,7 +92,7 @@ pre,
 }
 
 /* =====================================================================
-   SIDEBAR (SILK IVORY & GOLD ACCENTS)
+   SIDEBAR (WARM JUTE CREAM & OLIVE ACCENTS)
    ===================================================================== */
 
 #main-sidebar {
@@ -108,20 +108,20 @@ pre,
 
 #main-sidebar a.active,
 #main-sidebar a[aria-current="page"] {
-  background: linear-gradient(95deg, #8B0A12 0%, #68050B 100%) !important;
-  color: #FFFDF8 !important;
-  border-color: var(--sqc-gold) !important;
+  background: linear-gradient(95deg, #4B5420 0%, #3F471A 100%) !important;
+  color: #FAF6EA !important;
+  border-color: var(--sqc-border) !important;
 }
 
 #main-sidebar a.active svg,
 #main-sidebar a[aria-current="page"] svg,
 #main-sidebar a.active span,
 #main-sidebar a[aria-current="page"] span {
-  color: #FFFDF8 !important;
+  color: #FAF6EA !important;
 }
 
 /* =====================================================================
-   LEGACY EMERALD UTILITY FALLBACKS (FOR CONSISTENCY)
+   LEGACY UTILITY FALLBACKS (FOR CONSISTENCY)
    ===================================================================== */
 
 .bg-emerald-900,
@@ -143,7 +143,7 @@ select:focus,
 textarea:focus {
   border-color: var(--sqc-primary) !important;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(201, 150, 43, 0.22);
+  box-shadow: 0 0 0 3px rgba(75, 84, 32, 0.18);
 }
 
 select option:checked {
@@ -162,7 +162,7 @@ table thead th {
 }
 
 table tbody tr:hover {
-  background-color: #FCF3DE;
+  background-color: #EFE6CE;
 }
 
 table td {
@@ -174,7 +174,7 @@ table td {
    ===================================================================== */
 
 * {
-  scrollbar-color: #D4B475 #FBF4E1;
+  scrollbar-color: #B7AA86 #F4ECD2;
   scrollbar-width: thin;
 }
 
@@ -184,14 +184,14 @@ table td {
 }
 
 ::-webkit-scrollbar-track {
-  background: #FBF4E1;
+  background: #F4ECD2;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D4B475;
+  background: #B7AA86;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #8B0A12;
+  background: #4B5420;
 }

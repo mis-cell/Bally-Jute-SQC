@@ -36,15 +36,15 @@ const AccessDeniedScreen: React.FC<{ title?: string; message?: string }> = ({
   const firstAllowed = MODULE_HOME_ROUTES.find(r => canAccessModule(r.module));
 
   return (
-    <div className="bg-[#FFFDF8] rounded-2xl p-8 border border-[#DFC378] max-w-lg mx-auto my-12 text-center shadow-sm space-y-4">
-      <div className="w-14 h-14 mx-auto rounded-2xl bg-[#FDF5DC] border border-[#DFC378] text-[#8B0A12] flex items-center justify-center">
+    <div className="bg-[#FBF6E8] rounded-2xl p-8 border border-[#C6BA96] max-w-lg mx-auto my-12 text-center shadow-sm space-y-4">
+      <div className="w-14 h-14 mx-auto rounded-2xl bg-[#E3DAB6] border border-[#C6BA96] text-[#4B5420] flex items-center justify-center">
         <ShieldAlert size={28} />
       </div>
       <div>
-        <h2 className="text-base font-bold text-[#2B1114]">{title}</h2>
-        <p className="text-xs text-[#6E524B] mt-1.5 leading-relaxed">{message}</p>
+        <h2 className="text-base font-bold text-[#3B2311]">{title}</h2>
+        <p className="text-xs text-[#5B4735] mt-1.5 leading-relaxed">{message}</p>
         {permittedModules.length === 0 && (
-          <p className="text-[11px] text-[#7A560B] font-semibold mt-2">
+          <p className="text-[11px] text-[#6B5B2E] font-semibold mt-2">
             Your account currently has no assigned modules. Contact an Administrator to grant access.
           </p>
         )}
@@ -54,7 +54,7 @@ const AccessDeniedScreen: React.FC<{ title?: string; message?: string }> = ({
           <button
             type="button"
             onClick={() => navigate(firstAllowed.path, { replace: true })}
-            className="px-4 py-2 rounded-lg bg-[#8B0A12] hover:bg-[#68050B] text-[#FFFDF8] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 rounded-lg bg-[#4B5420] hover:bg-[#3F471A] text-[#FAF6EA] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
           >
             <span>Go to {firstAllowed.label}</span>
             <ArrowRight size={14} />
@@ -63,7 +63,7 @@ const AccessDeniedScreen: React.FC<{ title?: string; message?: string }> = ({
         <button
           type="button"
           onClick={() => navigate('/profile', { replace: true })}
-          className="px-4 py-2 rounded-lg border border-[#E4D0A3] bg-[#FBF4E1] hover:bg-[#FDF5DC] text-[#5C080E] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+          className="px-4 py-2 rounded-lg border border-[#C6BA96] bg-[#F4ECD2] hover:bg-[#E3DAB6] text-[#4C5324] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
         >
           <User size={14} />
           <span>My Profile &amp; Password</span>

@@ -84,15 +84,15 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const isAdmin = roleStr === 'Super Admin' || roleStr === 'SuperAdmin' || roleStr === 'Admin';
 
   return (
-    <div className="min-h-screen bg-[#FFF9F9] flex flex-col font-sans text-[#393334]">
+    <div className="min-h-screen bg-[#F5EEDB] flex flex-col font-sans text-[#3B2311]">
       {/* Top Header */}
-      <header id="main-topbar" className="bg-[#E87578] text-white sticky top-0 z-40 shadow-sm border-b border-[#F4C4C5]">
+      <header id="main-topbar" className="bg-[#4B5420] text-[#FAF6EA] sticky top-0 z-40 shadow-sm border-b-2 border-[#DFD2A6]">
         <div className="px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               id="sidebar-toggle-btn"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 rounded-lg hover:bg-[#D95F68] text-white transition-colors flex items-center gap-1.5 border border-white/30 bg-white/10"
+              className="p-1.5 rounded-lg hover:bg-[#3F471A] text-[#FAF6EA] transition-colors flex items-center gap-1.5 border border-[#DFD2A6]/40 bg-white/10 cursor-pointer"
               aria-label="Toggle Sidebar"
               title="Toggle Menu"
             >
@@ -168,36 +168,36 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <button
                 id="notifications-bell-btn"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="p-1.5 rounded-lg hover:bg-[#D95F68] text-white relative transition-colors"
+                className="p-1.5 rounded-lg hover:bg-[#3F471A] text-[#FAF6EA] relative transition-colors cursor-pointer"
                 aria-label="Notifications"
               >
                 <Bell size={17} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-white text-[#D95F68] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 bg-[#DFD2A6] text-[#343B14] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                     {unreadCount}
                   </span>
                 )}
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-[#F4C4C5] p-3 z-50 text-slate-800 space-y-2">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#F4C4C5]">
-                    <span className="font-bold text-xs text-[#393334]">Notifications</span>
+                <div className="absolute right-0 mt-2 w-80 bg-[#FBF6E8] rounded-xl shadow-xl border border-[#C6BA96] p-3 z-50 text-[#3B2311] space-y-2">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#D7CBB0]">
+                    <span className="font-bold text-xs text-[#3B2311]">Notifications</span>
                     <button
                       onClick={() => dataService.markNotificationsAsRead()}
-                      className="text-[10px] text-[#D95F68] hover:underline font-semibold"
+                      className="text-[10px] text-[#4B5420] hover:underline font-semibold cursor-pointer"
                     >
                       Mark all read
                     </button>
                   </div>
                   <div className="max-h-60 overflow-y-auto space-y-2 text-xs">
                     {notifications.length === 0 ? (
-                      <p className="text-slate-400 text-center py-4 text-xs">No notifications</p>
+                      <p className="text-[#7B705D] text-center py-4 text-xs">No notifications</p>
                     ) : (
                       notifications.slice(0, 5).map(n => (
-                        <div key={n.id} className="p-2 rounded bg-[#FFF9F9] border border-[#F4C4C5]/50">
-                          <p className="font-semibold text-slate-800 text-[11px]">{n.title}</p>
-                          <p className="text-slate-600 text-[10px]">{n.message}</p>
+                        <div key={n.id} className="p-2 rounded bg-[#F4ECD2] border border-[#D7CBB0]">
+                          <p className="font-semibold text-[#3B2311] text-[11px]">{n.title}</p>
+                          <p className="text-[#5B4735] text-[10px]">{n.message}</p>
                         </div>
                       ))
                     )}
@@ -207,12 +207,12 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             </div>
 
             {/* User Profile Pill & Logout */}
-            <div className="flex items-center gap-2 pl-2 border-l border-white/30">
+            <div className="flex items-center gap-2 pl-2 border-l border-[#DFD2A6]/35">
               <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-bold text-white truncate max-w-[130px]">
+                <span className="text-xs font-bold text-[#FAF6EA] truncate max-w-[130px]">
                   {currentUser.displayName}
                 </span>
-                <span className="text-[10px] text-white/80 font-medium">
+                <span className="text-[10px] text-[#DFD2A6] font-medium">
                   {currentUser.role}
                 </span>
               </div>
@@ -220,7 +220,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <button
                 id="header-logout-btn"
                 onClick={handleLogout}
-                className="px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-[#D95F68] text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors border border-white/20 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-[#3F471A] text-[#FAF6EA] text-xs font-bold inline-flex items-center gap-1.5 transition-colors border border-[#DFD2A6]/35 cursor-pointer"
                 title="Sign out of SQC"
               >
                 <LogOut size={14} />
@@ -268,17 +268,17 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         {/* Left-Hand Sidebar Navigation */}
         <aside
           id="main-sidebar"
-          className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#FFFAFA] border-r border-[#F4C4C5] flex flex-col transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-30 w-72 bg-[#FAF5E6] border-r border-[#C6BA96] flex flex-col transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
           }`}
         >
           {/* Sidebar Header */}
-          <div className="p-3.5 bg-white border-b border-[#F4C4C5] flex items-center justify-between">
-           {/*  <span className="text-xs font-black text-[#574448] uppercase tracking-wider">
-              SQC Navigation
-            </span> */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] px-2 py-0.5 rounded bg-[#FCE7E6] text-[#D95F68] font-mono font-bold border border-[#F4C4C5]">
+          <div className="p-3.5 bg-[#FBF6E8] border-b border-[#C6BA96] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-gradient-to-b from-[#4F5822] to-[#343B14] border border-[#DFD2A6] flex items-center justify-center text-[#FAF6EA] shadow-2xs">
+                <Shield size={13} />
+              </div>
+              <span className="text-[11px] px-2.5 py-0.5 rounded bg-[#E3DAB6] text-[#4C5324] font-mono font-bold border border-[#C6BA96]">
                 SQC System
               </span>
             </div>
@@ -294,8 +294,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
-                    ? 'bg-[#D95F68] text-white shadow-sm'
-                    : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                    ? 'bg-[#4B5420] text-[#FAF6EA] shadow-sm'
+                    : 'text-[#3B2311] hover:bg-[#E3DAB6] hover:text-[#343B14]'
                 }`
               }
             >
@@ -308,7 +308,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <button
                 id="toggle-inspection-forms-menu"
                 onClick={() => setFormsSubmenuOpen(!formsSubmenuOpen)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-[#574448] font-bold text-[13px] rounded-lg hover:bg-[#FCE7E6] hover:text-[#C4515B] transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-[#3B2311] font-bold text-[13px] rounded-lg hover:bg-[#E3DAB6] hover:text-[#343B14] transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <ClipboardList size={18} className="shrink-0" />
@@ -318,33 +318,33 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               </button>
 
               {formsSubmenuOpen && (
-                <div className="pl-2 pr-1 space-y-2 bg-[#FFF9F9] rounded-lg p-2 border border-[#F4C4C5] text-xs">
+                <div className="pl-2 pr-1 space-y-2 bg-[#F4ECD2] rounded-lg p-2 border border-[#C6BA96] text-xs">
                   <NavLink
                     to="/inspections"
                     id="nav-link-all-inspections"
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-2 px-2.5 py-1.5 rounded-md font-bold transition-colors ${
-                        isActive ? 'text-[#D95F68] bg-[#FCE7E6] border border-[#F4C4C5]' : 'text-[#574448] hover:bg-[#FCE7E6]'
+                        isActive ? 'text-[#FAF6EA] bg-[#4B5420] border border-[#3F471A]' : 'text-[#3B2311] hover:bg-[#E3DAB6]'
                       }`
                     }
                   >
-                    <Layers size={14} className="text-[#D95F68]" />
+                    <Layers size={14} />
                     <span>All Inspection Records</span>
                   </NavLink>
 
-                  <div className="pt-2 pb-1 text-[11px] font-black text-[#574448] uppercase tracking-wider px-2">
+                  <div className="pt-2 pb-1 text-[11px] font-black text-[#4C5324] uppercase tracking-wider px-2">
                     Permitted Forms
                   </div>
 
                   {visibleFormGroups.length === 0 ? (
-                    <div className="p-3 text-center text-xs text-[#806B6C]">
+                    <div className="p-3 text-center text-xs text-[#5B4735]">
                       No individual forms assigned to your role. Contact SQC Administrator.
                     </div>
                   ) : (
                     visibleFormGroups.map((group, gIdx) => (
                       <div key={gIdx} className="space-y-0.5 pt-1">
-                        <div className="text-[11px] font-black text-[#701638] px-2 pt-1 uppercase tracking-tight">
+                        <div className="text-[11px] font-black text-[#4B5420] px-2 pt-1 uppercase tracking-tight">
                           {group.title}
                         </div>
 
@@ -362,16 +362,16 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                               onClick={() => setSidebarOpen(false)}
                               className={`flex items-center px-2 py-1.5 rounded-md text-xs font-semibold truncate transition-all duration-200 border ${
                                 isMatch
-                                  ? 'bg-gradient-to-r from-[#701638] to-[#9D174D] text-white font-bold border-[#701638] shadow-md'
-                                  : 'bg-transparent text-[#831843] border-transparent hover:bg-[#F8D7E5] hover:text-[#701638] hover:border-[#D98BAA]'
+                                  ? 'bg-gradient-to-r from-[#4B5420] to-[#3F471A] text-[#FAF6EA] font-bold border-[#3F471A] shadow-md'
+                                  : 'bg-transparent text-[#3B2311] border-transparent hover:bg-[#E3DAB6] hover:text-[#343B14] hover:border-[#B7AA86]'
                               }`}
                               title={`${meta.code}: ${meta.title}`}
                             >
                               <span
                                 className={`inline-flex items-center justify-center font-mono font-black min-w-[42px] h-[22px] mr-2 px-1.5 rounded text-[10px] leading-none shrink-0 border ${
                                   isMatch
-                                    ? 'bg-[#500D28] text-white border-[#500D28]'
-                                    : 'bg-[#701638] text-white border-[#701638]'
+                                    ? 'bg-[#343B14] text-[#DFD2A6] border-[#343B14]'
+                                    : 'bg-[#4B5420] text-[#FAF6EA] border-[#4B5420]'
                                 }`}
                               >
                                 {meta.code.replace('FORM-', 'F')}
@@ -397,8 +397,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
-                    ? 'bg-[#D95F68] text-white shadow-sm'
-                    : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                    ? 'bg-[#4B5420] text-[#FAF6EA] shadow-sm'
+                    : 'text-[#3B2311] hover:bg-[#E3DAB6] hover:text-[#343B14]'
                 }`
               }
             >
@@ -414,8 +414,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
-                    ? 'bg-[#D95F68] text-white shadow-sm'
-                    : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                    ? 'bg-[#4B5420] text-[#FAF6EA] shadow-sm'
+                    : 'text-[#3B2311] hover:bg-[#E3DAB6] hover:text-[#343B14]'
                 }`
               }
             >
@@ -429,7 +429,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <button
                   id="toggle-masters-menu"
                   onClick={() => setMastersSubmenuOpen(!mastersSubmenuOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 text-[#574448] font-bold text-[13px] rounded-lg hover:bg-[#FCE7E6] hover:text-[#C4515B] transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-[#3B2311] font-bold text-[13px] rounded-lg hover:bg-[#E3DAB6] hover:text-[#343B14] transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Database size={18} className="shrink-0" />
@@ -439,14 +439,14 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 </button>
 
                 {mastersSubmenuOpen && (
-                  <div className="mt-1 pl-2 pr-1 space-y-1 bg-white rounded-lg p-2.5 border border-[#F4C4C5] text-xs font-bold">
-                    <NavLink to="/masters/departments" id="nav-master-dept" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Departments & HODs</NavLink>
-                    <NavLink to="/masters/sections" id="nav-master-sec" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Sections & Stages</NavLink>
-                    <NavLink to="/masters/machines" id="nav-master-mach" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Machines & Speeds</NavLink>
-                    <NavLink to="/masters/looms" id="nav-master-loom" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Looms Master</NavLink>
-                    <NavLink to="/masters/qualities" id="nav-master-qual" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Qualities & Counts</NavLink>
-                    <NavLink to="/masters/specs" id="nav-master-spec" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Product & Bag Specs</NavLink>
-                    <NavLink to="/masters/standards" id="nav-master-std" className="block px-2.5 py-1.5 text-[#574448] hover:text-[#C4515B] hover:bg-[#FCE7E6] rounded">Standards & Tolerances</NavLink>
+                  <div className="mt-1 pl-2 pr-1 space-y-1 bg-[#FBF6E8] rounded-lg p-2.5 border border-[#C6BA96] text-xs font-bold">
+                    <NavLink to="/masters/departments" id="nav-master-dept" className="block px-2.5 py-1.5 text-[#3B2311] hover:text-[#343B14] hover:bg-[#E3DAB6] rounded">Departments & HODs</NavLink>
+                    <NavLink to="/masters/sections" id="nav-master-sec" className="block px-2.5 py-1.5 text-[#3B2311] hover:text-[#343B14] hover:bg-[#E3DAB6] rounded">Sections & Stages</NavLink>
+                    <NavLink to="/masters/machines" id="nav-master-mach" className="block px-2.5 py-1.5 text-[#3B2311] hover:text-[#343B14] hover:bg-[#E3DAB6] rounded">Machines & Speeds</NavLink>
+                    <NavLink to="/masters/looms" id="nav-master-loom" className="block px-2.5 py-1.5 text-[#3B2311] hover:text-[#343B14] hover:bg-[#E3DAB6] rounded">Looms Master</NavLink>
+                    <NavLink to="/masters/qualities" id="nav-master-qual" className="block px-2.5 py-1.5 text-[#3B2311] hover:text-[#343B14] hover:bg-[#E3DAB6] rounded">Qualities & Counts</NavLink>
+                    <NavLink to="/masters/specs" id="nav-master-spec" className="block px-2.5 py-1.5 text-[#3B2311] hover:text-[#343B14] hover:bg-[#E3DAB6] rounded">Product & Bag Specs</NavLink>
+                    <NavLink to="/masters/standards" id="nav-master-std" className="block px-2.5 py-1.5 text-[#3B2311] hover:text-[#343B14] hover:bg-[#E3DAB6] rounded">Standards & Tolerances</NavLink>
                   </div>
                 )}
               </div>
@@ -454,8 +454,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
             {/* System Administration (Admins Only) */}
             {isAdmin && (
-              <div className="pt-3 border-t border-[#F4C4C5] mt-2">
-                <div className="text-[11px] font-black text-[#754D50] uppercase tracking-wider px-3 py-1 bg-[#FCE7E6] rounded-md border border-[#F4C4C5] mb-1.5">
+              <div className="pt-3 border-t border-[#C6BA96] mt-2">
+                <div className="text-[11px] font-black text-[#4C5324] uppercase tracking-wider px-3 py-1 bg-[#E3DAB6] rounded-md border border-[#C6BA96] mb-1.5">
                   Administration
                 </div>
                 <NavLink
@@ -465,8 +465,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
-                        ? 'bg-[#D95F68] text-white shadow-sm'
-                        : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                        ? 'bg-[#4B5420] text-[#FAF6EA] shadow-sm'
+                        : 'text-[#3B2311] hover:bg-[#E3DAB6] hover:text-[#343B14]'
                     }`
                   }
                 >
@@ -480,8 +480,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
-                        ? 'bg-[#D95F68] text-white shadow-sm'
-                        : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                        ? 'bg-[#4B5420] text-[#FAF6EA] shadow-sm'
+                        : 'text-[#3B2311] hover:bg-[#E3DAB6] hover:text-[#343B14]'
                     }`
                   }
                 >
@@ -495,8 +495,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
-                        ? 'bg-[#D95F68] text-white shadow-sm'
-                        : 'text-[#574448] hover:bg-[#FCE7E6] hover:text-[#C4515B]'
+                        ? 'bg-[#4B5420] text-[#FAF6EA] shadow-sm'
+                        : 'text-[#3B2311] hover:bg-[#E3DAB6] hover:text-[#343B14]'
                     }`
                   }
                 >
@@ -508,20 +508,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           </div>
 
           {/* User Profile Footer */}
-          <div className="p-3.5 bg-white border-t border-[#F4C4C5]">
+          <div className="p-3.5 bg-[#FBF6E8] border-t border-[#C6BA96]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-[#D95F68] text-white font-black flex items-center justify-center text-xs shrink-0 shadow-2xs">
+                <div className="w-8 h-8 rounded-full bg-[#4B5420] text-[#FAF6EA] border border-[#DFD2A6] font-black flex items-center justify-center text-xs shrink-0 shadow-2xs">
                   {currentUser.displayName.charAt(0)}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-[#393334] truncate">{currentUser.displayName}</p>
-                  <p className="text-[10px] font-semibold text-[#806B6C] truncate">{currentUser.role}</p>
+                  <p className="text-xs font-bold text-[#3B2311] truncate">{currentUser.displayName}</p>
+                  <p className="text-[10px] font-semibold text-[#5B4735] truncate">{currentUser.role}</p>
                 </div>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-[#806B6C] hover:text-[#D95F68] hover:bg-[#FCE7E6] transition-colors shrink-0"
+                className="p-1.5 rounded-lg text-[#5B4735] hover:text-[#4B5420] hover:bg-[#E3DAB6] transition-colors shrink-0 cursor-pointer"
                 title="Log Out"
               >
                 <LogOut size={16} />
@@ -534,13 +534,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-black/50 backdrop-blur-2xs z-20 lg:hidden"
+            className="fixed inset-0 bg-[#3B2311]/50 backdrop-blur-2xs z-20 lg:hidden"
             aria-hidden="true"
           />
         )}
 
         {/* Main Content Viewport */}
-        <main id="app-main-content" className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#FFF9F9]">
+        <main id="app-main-content" className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#F5EEDB]">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>

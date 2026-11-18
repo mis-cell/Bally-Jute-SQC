@@ -80,22 +80,22 @@ export const ApprovalsPage: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* Top Banner */}
-      <div className="bg-[#FFFDF8] rounded-xl p-4 border border-[#E4D0A3] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-[#FBF6E8] rounded-xl p-4 border border-[#C6BA96] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck size={20} className="text-[#8B0A12]" />
-            <h2 className="text-base font-bold text-[#2B1114]">
+            <ShieldCheck size={20} className="text-[#4B5420]" />
+            <h2 className="text-base font-bold text-[#3B2311]">
               Department Approvals &amp; Compliance Workflow
             </h2>
           </div>
-          <p className="text-xs text-[#6E524B] mt-0.5">
+          <p className="text-xs text-[#5B4735] mt-0.5">
             Two-stage validation for SQC quality tests: Inspector Submission → HOD / Chief SQC Locking
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {!canApprove && (
-            <div className="text-xs bg-[#FDF5DC] text-[#7A560B] border border-[#DFC378] px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
+            <div className="text-xs bg-[#E3DAB6] text-[#4C5324] border border-[#C6BA96] px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
               <AlertCircle size={14} />
               <span>Current role ({currentUser.role}) has Read-Only access to Approvals</span>
             </div>
@@ -116,15 +116,15 @@ export const ApprovalsPage: React.FC = () => {
       )}
 
       {/* Pending Approval Inbox */}
-      <div className="bg-[#FFFDF8] rounded-xl border border-[#E4D0A3] shadow-xs overflow-hidden">
-        <div className="p-3.5 bg-[#FBF4E1] border-b border-[#E4D0A3] flex items-center justify-between flex-wrap gap-2">
+      <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] shadow-xs overflow-hidden">
+        <div className="p-3.5 bg-[#F4ECD2] border-b border-[#C6BA96] flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-[#9B6E14]" />
-            <h3 className="text-xs font-bold text-[#5C080E] uppercase tracking-wider">
+            <Clock size={16} className="text-[#6B5B2E]" />
+            <h3 className="text-xs font-bold text-[#4C5324] uppercase tracking-wider">
               Pending Inspection Submissions ({pendingList.length})
             </h3>
           </div>
-          <span className="text-[11px] text-[#6E524B]">
+          <span className="text-[11px] text-[#5B4735]">
             Awaiting HOD sign-off before manufacturing lot clearance
           </span>
         </div>
@@ -132,7 +132,7 @@ export const ApprovalsPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="bg-[#FBF4E1] border-b border-[#E4D0A3] text-[#5C080E] font-semibold">
+              <tr className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-semibold">
                 <th className="py-2.5 px-3">Inspection #</th>
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Form Description</th>
@@ -142,28 +142,28 @@ export const ApprovalsPage: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Workflow Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EFE2C2]">
+            <tbody className="divide-y divide-[#D7CBB0]">
               {pendingList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-[#6E524B] font-medium">
+                  <td colSpan={7} className="py-8 text-center text-[#5B4735] font-medium">
                     All inspection reports have been processed. No pending submissions in queue.
                   </td>
                 </tr>
               ) : (
                 pendingList.map(item => (
-                  <tr key={item.id} className="hover:bg-[#FCF3DE] transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-[#8B0A12] tabular-nums">
+                  <tr key={item.id} className="hover:bg-[#EFE6CE] transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420] tabular-nums">
                       {item.inspectionNo}
                     </td>
-                    <td className="py-2.5 px-3 text-[#2B1114] tabular-nums">{item.inspectionDate}</td>
+                    <td className="py-2.5 px-3 text-[#3B2311] tabular-nums">{item.inspectionDate}</td>
                     <td className="py-2.5 px-3">
-                      <span className="font-mono text-[#7A560B] font-bold mr-1 tabular-nums">
+                      <span className="font-mono text-[#4C5324] font-bold mr-1 tabular-nums">
                         {item.formCode}
                       </span>
-                      <span className="text-[#2B1114] font-medium">{item.formTitle}</span>
+                      <span className="text-[#3B2311] font-medium">{item.formTitle}</span>
                     </td>
-                    <td className="py-2.5 px-3 text-[#2B1114]">{item.departmentName}</td>
-                    <td className="py-2.5 px-3 text-[#2B1114] font-medium">
+                    <td className="py-2.5 px-3 text-[#3B2311]">{item.departmentName}</td>
+                    <td className="py-2.5 px-3 text-[#3B2311] font-medium">
                       {item.submittedBy || item.inspectorName}
                     </td>
                     <td className="py-2.5 px-3">
@@ -173,7 +173,7 @@ export const ApprovalsPage: React.FC = () => {
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => navigate(`/inspection/${item.id}`)}
-                          className="px-2 py-1 text-[#5C080E] hover:bg-[#FBF4E1] rounded border border-[#E4D0A3] text-[11px] font-medium whitespace-nowrap cursor-pointer"
+                          className="px-2 py-1 text-[#4C5324] hover:bg-[#F4ECD2] rounded border border-[#C6BA96] text-[11px] font-medium whitespace-nowrap cursor-pointer"
                         >
                           View Form
                         </button>
@@ -196,7 +196,7 @@ export const ApprovalsPage: React.FC = () => {
                               setActionType('return');
                               setRemarks('Please re-check reading values and provide verification.');
                             }}
-                            className="px-2.5 py-1 bg-[#C9962B] hover:bg-[#9B6E14] text-[#FFFDF8] rounded text-[11px] font-bold whitespace-nowrap cursor-pointer"
+                            className="px-2.5 py-1 bg-[#555E27] hover:bg-[#6B5B2E] text-[#FBF6E8] rounded text-[11px] font-bold whitespace-nowrap cursor-pointer"
                           >
                             Return
                           </button>
@@ -212,12 +212,12 @@ export const ApprovalsPage: React.FC = () => {
       </div>
 
       {/* Recently Processed Records */}
-      <div className="bg-[#FFFDF8] rounded-xl border border-[#E4D0A3] shadow-xs overflow-hidden">
-        <div className="p-3.5 bg-[#FBF4E1] border-b border-[#E4D0A3] flex items-center justify-between flex-wrap gap-2">
-          <h3 className="text-xs font-bold text-[#5C080E] uppercase tracking-wider">
+      <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] shadow-xs overflow-hidden">
+        <div className="p-3.5 bg-[#F4ECD2] border-b border-[#C6BA96] flex items-center justify-between flex-wrap gap-2">
+          <h3 className="text-xs font-bold text-[#4C5324] uppercase tracking-wider">
             Recently Processed / Locked Inspections
           </h3>
-          <span className="text-[11px] text-[#6E524B]">
+          <span className="text-[11px] text-[#5B4735]">
             History of approved, returned, or rejected reports
           </span>
         </div>
@@ -225,7 +225,7 @@ export const ApprovalsPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="bg-[#FBF4E1] border-b border-[#E4D0A3] text-[#5C080E] font-semibold">
+              <tr className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-semibold">
                 <th className="py-2.5 px-3">Inspection #</th>
                 <th className="py-2.5 px-3">Form</th>
                 <th className="py-2.5 px-3">Department</th>
@@ -235,30 +235,30 @@ export const ApprovalsPage: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EFE2C2]">
+            <tbody className="divide-y divide-[#D7CBB0]">
               {recentlyApproved.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-[#6E524B]">
+                  <td colSpan={7} className="py-6 text-center text-[#5B4735]">
                     No approved, rejected, or returned inspections on record.
                   </td>
                 </tr>
               ) : (
                 recentlyApproved.map(item => (
-                  <tr key={item.id} className="hover:bg-[#FCF3DE] transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-[#8B0A12] tabular-nums">
+                  <tr key={item.id} className="hover:bg-[#EFE6CE] transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420] tabular-nums">
                       {item.inspectionNo}
                     </td>
-                    <td className="py-2.5 px-3 text-[#2B1114] font-mono tabular-nums">
+                    <td className="py-2.5 px-3 text-[#3B2311] font-mono tabular-nums">
                       {item.formCode}
                     </td>
-                    <td className="py-2.5 px-3 text-[#2B1114]">{item.departmentName}</td>
+                    <td className="py-2.5 px-3 text-[#3B2311]">{item.departmentName}</td>
                     <td className="py-2.5 px-3">
                       <StatusBadge status={item.status} />
                     </td>
-                    <td className="py-2.5 px-3 text-[#2B1114] font-medium">
+                    <td className="py-2.5 px-3 text-[#3B2311] font-medium">
                       {item.approvedBy || item.rejectedBy || 'HOD Staff'}
                     </td>
-                    <td className="py-2.5 px-3 text-[#6E524B] tabular-nums">
+                    <td className="py-2.5 px-3 text-[#5B4735] tabular-nums">
                       {item.approvedAt || item.rejectedAt
                         ? new Date(item.approvedAt || item.rejectedAt || '').toLocaleString()
                         : 'Recent'}
@@ -266,7 +266,7 @@ export const ApprovalsPage: React.FC = () => {
                     <td className="py-2.5 px-3 text-right">
                       <button
                         onClick={() => navigate(`/inspection/${item.id}`)}
-                        className="text-xs font-semibold text-[#8B0A12] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        className="text-xs font-semibold text-[#4B5420] hover:underline inline-flex items-center gap-1 cursor-pointer"
                       >
                         <span>View</span>
                         <ArrowUpRight size={13} />
@@ -282,24 +282,24 @@ export const ApprovalsPage: React.FC = () => {
 
       {/* Confirmation Modal */}
       {selectedRecord && actionType && (
-        <div className="fixed inset-0 bg-[#2B1114]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-[#FFFDF8] rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#DFC378] space-y-4">
-            <h4 className="text-sm font-bold text-[#2B1114] capitalize">
+        <div className="fixed inset-0 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-[#FBF6E8] rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#C6BA96] space-y-4">
+            <h4 className="text-sm font-bold text-[#3B2311] capitalize">
               Execute Workflow: {actionType} {selectedRecord.inspectionNo}
             </h4>
-            <p className="text-xs text-[#6E524B]">
+            <p className="text-xs text-[#5B4735]">
               {selectedRecord.formTitle} ({selectedRecord.departmentName})
             </p>
 
             <div>
-              <label className="block text-xs font-semibold text-[#5C080E] mb-1">
+              <label className="block text-xs font-semibold text-[#4C5324] mb-1">
                 Approver Notes &amp; Instructions:
               </label>
               <textarea
                 rows={3}
                 value={remarks}
                 onChange={e => setRemarks(e.target.value)}
-                className="w-full bg-[#FFFDF8] border border-[#E4D0A3] rounded-lg p-2 text-xs text-[#2B1114]"
+                className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 text-xs text-[#3B2311]"
               ></textarea>
             </div>
 
@@ -309,13 +309,13 @@ export const ApprovalsPage: React.FC = () => {
                   setSelectedRecord(null);
                   setActionType(null);
                 }}
-                className="px-3 py-1.5 border border-[#E4D0A3] text-[#5C080E] text-xs rounded-lg hover:bg-[#FBF4E1] cursor-pointer"
+                className="px-3 py-1.5 border border-[#C6BA96] text-[#4C5324] text-xs rounded-lg hover:bg-[#F4ECD2] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleExecuteAction}
-                className="px-4 py-1.5 bg-[#8B0A12] hover:bg-[#68050B] text-[#FFFDF8] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
+                className="px-4 py-1.5 bg-[#4B5420] hover:bg-[#3F471A] text-[#FBF6E8] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
               >
                 Confirm Decision
               </button>

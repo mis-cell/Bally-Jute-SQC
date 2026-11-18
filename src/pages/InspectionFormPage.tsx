@@ -143,35 +143,35 @@ export const InspectionFormPage: React.FC = () => {
 
   const renderIndividualFormLog = () => {
     return (
-      <div className="bg-white rounded-xl border border-[#F2D9D9] shadow-sm p-4 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F2D9D9]">
+      <div className="bg-white rounded-xl border border-[#D7CBB0] shadow-sm p-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#D7CBB0]">
           <div>
-            <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-[#4B5420] uppercase tracking-wider">
               {formMeta.title} - Individual Form Log ({filteredFormLogs.length} Records)
             </h3>
-            <p className="text-[11px] text-[#98777B] mt-0.5">
+            <p className="text-[11px] text-[#5B4735] mt-0.5">
               View all submitted inspection entries for this form. Double-click any row to inspect complete details or delete entries.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#A47779]" />
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5B4735]" />
               <input
                 type="text"
                 value={logSearch}
                 onChange={e => setLogSearch(e.target.value)}
                 placeholder="Search log records..."
-                className="pl-8 pr-3 py-1.5 bg-white border border-[#DFA2BA] rounded-lg text-xs text-[#500D28] focus:outline-none focus:ring-1 focus:ring-[#BE185D]"
+                className="pl-8 pr-3 py-1.5 bg-white border border-[#C6BA96] rounded-lg text-xs text-[#343B14] focus:outline-none focus:ring-1 focus:ring-[#4B5420]"
               />
             </div>
 
-            <label className="flex items-center gap-1.5 text-xs text-[#701638] font-semibold cursor-pointer">
+            <label className="flex items-center gap-1.5 text-xs text-[#4B5420] font-semibold cursor-pointer">
               <input
                 type="checkbox"
                 checked={onlyMyEntries}
                 onChange={e => setOnlyMyEntries(e.target.checked)}
-                className="rounded border-[#DFA2BA] text-[#701638] focus:ring-[#BE185D]"
+                className="rounded border-[#C6BA96] text-[#4B5420] focus:ring-[#4B5420]"
               />
               <span>My Entries Only</span>
             </label>
@@ -179,18 +179,18 @@ export const InspectionFormPage: React.FC = () => {
         </div>
 
         {filteredFormLogs.length === 0 ? (
-          <div className="py-12 text-center bg-[#FFF9F9] rounded-xl border border-dashed border-[#F4C4C5]">
-            <ClipboardList size={32} className="mx-auto text-[#D95F68] mb-2 opacity-60" />
-            <h4 className="text-xs font-bold text-[#701638]">No Inspection Logs Found</h4>
-            <p className="text-[11px] text-[#806B6C] mt-1">
+          <div className="py-12 text-center bg-[#F5EEDB] rounded-xl border border-dashed border-[#C6BA96]">
+            <ClipboardList size={32} className="mx-auto text-[#4B5420] mb-2 opacity-60" />
+            <h4 className="text-xs font-bold text-[#4B5420]">No Inspection Logs Found</h4>
+            <p className="text-[11px] text-[#5B4735] mt-1">
               No entries have been recorded yet for {formMeta.code} matching your filter criteria. Switch to "Entry Sheet" above to record a new inspection.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto border border-[#F4C4C5] rounded-xl">
+          <div className="overflow-x-auto border border-[#C6BA96] rounded-xl">
             <table className="w-full text-xs text-left">
               <thead>
-                <tr className="bg-[#FFF1F2] border-b border-[#F4C4C5] text-[#701638] font-semibold">
+                <tr className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4B5420] font-semibold">
                   <th className="py-2.5 px-3">Inspection #</th>
                   <th className="py-2.5 px-3">Date &amp; Shift</th>
                   <th className="py-2.5 px-3">Inspector</th>
@@ -200,7 +200,7 @@ export const InspectionFormPage: React.FC = () => {
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F4C4C5]/50">
+              <tbody className="divide-y divide-[#C6BA96]/50">
                 {filteredFormLogs.map(rec => {
                   const isMine =
                     rec.inspectorId === currentUser.id ||
@@ -211,22 +211,22 @@ export const InspectionFormPage: React.FC = () => {
                     <tr
                       key={rec.id}
                       onDoubleClick={() => setInspectingLogRecord(rec)}
-                      className="hover:bg-[#FFF6F6] transition-colors cursor-pointer group"
+                      className="hover:bg-[#F4ECD2] transition-colors cursor-pointer group"
                       title="Double-click to inspect full record details"
                     >
-                      <td className="py-2.5 px-3 font-mono font-bold text-[#701638]">
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420]">
                         {rec.inspectionNo}
                       </td>
-                      <td className="py-2.5 px-3 text-[#393334]">
+                      <td className="py-2.5 px-3 text-[#3B2311]">
                         <div>{rec.inspectionDate}</div>
-                        <div className="text-[10px] text-[#806B6C]">{rec.shiftName}</div>
+                        <div className="text-[10px] text-[#5B4735]">{rec.shiftName}</div>
                       </td>
-                      <td className="py-2.5 px-3 font-semibold text-[#393334]">
+                      <td className="py-2.5 px-3 font-semibold text-[#3B2311]">
                         {rec.inspectorName || '—'}
                       </td>
-                      <td className="py-2.5 px-3 text-[#393334]">
+                      <td className="py-2.5 px-3 text-[#3B2311]">
                         <div className="font-medium truncate max-w-[180px]">{rec.qualityName}</div>
-                        <div className="text-[10px] font-mono text-[#806B6C]">
+                        <div className="text-[10px] font-mono text-[#5B4735]">
                           {rec.machineNo || rec.loomNo || 'General'}
                         </div>
                       </td>
@@ -243,7 +243,7 @@ export const InspectionFormPage: React.FC = () => {
                             e.stopPropagation();
                             setInspectingLogRecord(rec);
                           }}
-                          className="px-2 py-1 bg-white border border-[#DFA2BA] text-[#701638] rounded hover:bg-[#F5D5E2] font-semibold inline-flex items-center gap-1"
+                          className="px-2 py-1 bg-white border border-[#C6BA96] text-[#4B5420] rounded hover:bg-[#EFE6CE] font-semibold inline-flex items-center gap-1"
                           title="View complete entry details"
                         >
                           <Eye size={12} />
@@ -676,20 +676,20 @@ export const InspectionFormPage: React.FC = () => {
   const isPermitted = canAccessForm(formMeta.code);
   if (!isPermitted) {
     return (
-      <div className="bg-white rounded-2xl p-8 border border-[#F4C4C5] text-center max-w-lg mx-auto my-12 shadow-sm space-y-4">
-        <div className="w-14 h-14 bg-[#FCE7E6] text-[#D95F68] rounded-2xl flex items-center justify-center mx-auto border border-[#F4C4C5]">
+      <div className="bg-white rounded-2xl p-8 border border-[#C6BA96] text-center max-w-lg mx-auto my-12 shadow-sm space-y-4">
+        <div className="w-14 h-14 bg-[#E3DAB6] text-[#4B5420] rounded-2xl flex items-center justify-center mx-auto border border-[#C6BA96]">
           <Lock size={26} />
         </div>
         <div>
-          <h2 className="text-base font-bold text-[#393334]">Form Access Restricted</h2>
-          <p className="text-xs text-[#806B6C] mt-1.5 leading-relaxed">
+          <h2 className="text-base font-bold text-[#3B2311]">Form Access Restricted</h2>
+          <p className="text-xs text-[#5B4735] mt-1.5 leading-relaxed">
             Your user account is not currently authorized to access or submit inspections for{' '}
-            <strong className="text-[#393334]">
+            <strong className="text-[#3B2311]">
               {formMeta.code} ({formMeta.title})
             </strong>
             .
           </p>
-          <p className="text-[11px] text-[#806B6C] mt-1">
+          <p className="text-[11px] text-[#5B4735] mt-1">
             Please ask an SQC Administrator to assign permission for this form in the{' '}
             <strong>Users &amp; Form Permissions</strong> panel.
           </p>
@@ -697,7 +697,7 @@ export const InspectionFormPage: React.FC = () => {
         <div className="pt-2">
           <button
             onClick={() => navigate('/inspections')}
-            className="px-4 py-2 bg-[#D95F68] hover:bg-[#C94E59] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            className="px-4 py-2 bg-[#4B5420] hover:bg-[#3F471A] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
           >
             Back to Inspections List
           </button>
@@ -708,9 +708,9 @@ export const InspectionFormPage: React.FC = () => {
 
   if (isLoadingRecord) {
     return (
-      <div className="bg-white rounded-xl p-10 border border-[#DFA2BA] text-center max-w-md mx-auto my-12 shadow-sm flex flex-col items-center gap-3">
-        <Loader2 size={28} className="animate-spin text-[#701638]" />
-        <p className="text-xs font-semibold text-[#701638]">
+      <div className="bg-white rounded-xl p-10 border border-[#C6BA96] text-center max-w-md mx-auto my-12 shadow-sm flex flex-col items-center gap-3">
+        <Loader2 size={28} className="animate-spin text-[#4B5420]" />
+        <p className="text-xs font-semibold text-[#4B5420]">
           Loading inspection record from PostgreSQL...
         </p>
       </div>
@@ -761,50 +761,50 @@ export const InspectionFormPage: React.FC = () => {
       )}
 
       {/* Header bar */}
-      <div className="bg-gradient-to-r from-[#FFF8FA] via-[#FCEAF1] to-[#F8E1EA] rounded-xl p-4 border border-[#DFA2BA] shadow-sm flex flex-col gap-4">
+      <div className="bg-gradient-to-r from-[#FAF5E6] via-[#F4ECD2] to-[#EDE5C9] rounded-xl p-4 border border-[#C6BA96] shadow-sm flex flex-col gap-4">
         {/* Header Section */}
         <div className="flex items-start gap-3">
           <button
             id="back-to-inspections-btn"
             type="button"
             onClick={() => navigate('/inspections')}
-            className="p-2 rounded-lg border border-[#DFA2BA] hover:bg-[#F5D5E2] bg-white text-[#701638] transition-colors shrink-0"
+            className="p-2 rounded-lg border border-[#C6BA96] hover:bg-[#EFE6CE] bg-white text-[#4B5420] transition-colors shrink-0"
           >
             <ArrowLeft size={16} />
           </button>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs px-2.5 py-1 rounded-md bg-[#701638] text-white font-bold border border-[#500D28] shadow-sm">
+              <span className="font-mono text-xs px-2.5 py-1 rounded-md bg-[#4B5420] text-white font-bold border border-[#343B14] shadow-sm">
                 {formMeta.code}
               </span>
 
-              <h2 className="text-base font-bold text-[#D95F68]">{formMeta.title}</h2>
+              <h2 className="text-base font-bold text-[#4B5420]">{formMeta.title}</h2>
 
               {existingRecord && <StatusBadge status={existingRecord.status} />}
             </div>
 
-            <p className="text-xs text-[#D95F68] mt-2">
-              Department: <strong className="text-[#D95F68]">{formMeta.department}</strong>
-              <span className="mx-2 text-[#D18AA8]">•</span>
-              Section: <strong className="text-[#D95F68]">{formMeta.section}</strong>
+            <p className="text-xs text-[#4B5420] mt-2">
+              Department: <strong className="text-[#4B5420]">{formMeta.department}</strong>
+              <span className="mx-2 text-[#B7AA86]">•</span>
+              Section: <strong className="text-[#4B5420]">{formMeta.section}</strong>
             </p>
           </div>
         </div>
 
         {/* Action Toolbar */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pt-3 border-t border-[#DFA2BA]">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pt-3 border-t border-[#C6BA96]">
           {/* Segmented Switcher: Entry Sheet vs Individual Form Log */}
           <div className="flex items-center gap-2">
-            <div className="inline-flex items-center gap-1 p-1 bg-[#F5D5E2] rounded-lg border border-[#DFA2BA]">
+            <div className="inline-flex items-center gap-1 p-1 bg-[#EFE6CE] rounded-lg border border-[#C6BA96]">
               <button
                 id="tab-entry-sheet"
                 type="button"
                 onClick={() => setActiveViewTab('form')}
                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   activeViewTab === 'form'
-                    ? 'bg-[#701638] text-white shadow-2xs'
-                    : 'text-[#701638] hover:bg-[#FCEAF1]'
+                    ? 'bg-[#4B5420] text-white shadow-2xs'
+                    : 'text-[#4B5420] hover:bg-[#F4ECD2]'
                 }`}
               >
                 Entry Sheet
@@ -815,8 +815,8 @@ export const InspectionFormPage: React.FC = () => {
                 onClick={() => setActiveViewTab('log')}
                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer tabular-nums ${
                   activeViewTab === 'log'
-                    ? 'bg-[#701638] text-white shadow-2xs'
-                    : 'text-[#701638] hover:bg-[#FCEAF1]'
+                    ? 'bg-[#4B5420] text-white shadow-2xs'
+                    : 'text-[#4B5420] hover:bg-[#F4ECD2]'
                 }`}
               >
                 Log ({formLogs.length})
@@ -825,7 +825,7 @@ export const InspectionFormPage: React.FC = () => {
 
             {!id && Object.keys(FORM_REGISTRY).length > 1 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[#831843] font-semibold whitespace-nowrap">
+                <span className="text-xs text-[#4C5324] font-semibold whitespace-nowrap">
                   Form:
                 </span>
                 <select
@@ -835,7 +835,7 @@ export const InspectionFormPage: React.FC = () => {
                     navigate(`/new-inspection?form=${encodeURIComponent(e.target.value)}`)
                   }
                   aria-label="Select Active Form Code"
-                  className="text-xs bg-white border border-[#DFA2BA] rounded-lg px-2.5 py-1.5 font-semibold text-[#500D28] focus:outline-none focus:ring-1 focus:ring-[#BE185D] max-w-[340px]"
+                  className="text-xs bg-white border border-[#C6BA96] rounded-lg px-2.5 py-1.5 font-semibold text-[#343B14] focus:outline-none focus:ring-1 focus:ring-[#4B5420] max-w-[340px]"
                 >
                   {Object.entries(FORM_REGISTRY)
                     .filter(([, meta]) => canAccessForm(meta.code))
@@ -858,7 +858,7 @@ export const InspectionFormPage: React.FC = () => {
                   type="button"
                   disabled={isSaving}
                   onClick={handleSaveDraft}
-                  className="px-3.5 py-2 rounded-lg border border-[#831843] bg-white text-[#701638] hover:bg-[#F5D5E2] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="px-3.5 py-2 rounded-lg border border-[#4C5324] bg-white text-[#4B5420] hover:bg-[#EFE6CE] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   <span>Save Draft</span>
@@ -869,7 +869,7 @@ export const InspectionFormPage: React.FC = () => {
                   type="button"
                   disabled={isSaving}
                   onClick={handleSubmitInspectionClick}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#701638] to-[#9D174D] text-white hover:from-[#500D28] hover:to-[#831843] text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#4B5420] to-[#3F471A] text-white hover:from-[#343B14] hover:to-[#4C5324] text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
                 >
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                   <span>{isSaving ? 'Saving to PostgreSQL...' : 'Submit to HOD'}</span>
@@ -879,7 +879,7 @@ export const InspectionFormPage: React.FC = () => {
 
             {/* Approver Actions */}
             {/* {isSubmitted && hasPermission('APPROVE') && (
-              <div className="flex items-center gap-2 pl-2 border-l border-[#DFA2BA]">
+              <div className="flex items-center gap-2 pl-2 border-l border-[#C6BA96]">
                 <button
                   id="btn-approve-inspection"
                   type="button"
@@ -888,7 +888,7 @@ export const InspectionFormPage: React.FC = () => {
                     setApprovalActionModal('approve');
                     setWorkflowRemarks('Conforms to SQC standards. Approved for production lot.');
                   }}
-                  className="px-3 py-2 rounded-lg bg-[#701638] text-white text-xs font-bold hover:bg-[#500D28] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="px-3 py-2 rounded-lg bg-[#4B5420] text-white text-xs font-bold hover:bg-[#343B14] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <CheckCircle2 size={14} />
                   <span>Approve1</span>
@@ -902,7 +902,7 @@ export const InspectionFormPage: React.FC = () => {
                     setApprovalActionModal('return');
                     setWorkflowRemarks('Please verify the reading deviation.');
                   }}
-                  className="px-3 py-2 rounded-lg bg-[#9D174D] text-white text-xs font-bold hover:bg-[#701638] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="px-3 py-2 rounded-lg bg-[#3F471A] text-white text-xs font-bold hover:bg-[#4B5420] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <RotateCcw size={14} />
                   <span>Return</span>
@@ -916,7 +916,7 @@ export const InspectionFormPage: React.FC = () => {
                     setApprovalActionModal('reject');
                     setWorkflowRemarks('Readings severely out of specification limit.');
                   }}
-                  className="px-3 py-2 rounded-lg bg-[#500D28] text-white text-xs font-bold hover:bg-[#35081B] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="px-3 py-2 rounded-lg bg-[#343B14] text-white text-xs font-bold hover:bg-[#2B3110] inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <XCircle size={14} />
                   <span>Reject</span>
@@ -951,17 +951,17 @@ export const InspectionFormPage: React.FC = () => {
         renderIndividualFormLog()
       ) : (
         <>
-          <div className="bg-[#FFF4F3] text-[#574448] rounded-xl p-3.5 shadow-sm border border-[#F4C4C5] text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="bg-[#F4ECD2] text-[#5B4735] rounded-xl p-3.5 shadow-sm border border-[#C6BA96] text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
-              <div className="flex items-center gap-1.5 text-[#D95F68] font-bold uppercase tracking-wider text-[11px]">
+              <div className="flex items-center gap-1.5 text-[#4B5420] font-bold uppercase tracking-wider text-[11px]">
                 <Info size={14} />
                 <span>Controlled Factory Standard Specification</span>
               </div>
-              <p className="text-[#754D50] mt-1 font-medium">{formMeta.sourceStandardText}</p>
+              <p className="text-[#5B4735] mt-1 font-medium">{formMeta.sourceStandardText}</p>
             </div>
 
-            <div className="bg-white px-3 py-2 rounded-lg border border-[#F4C4C5] text-right min-w-[200px] shadow-sm">
-              <span className="text-[10px] text-[#A47779] uppercase tracking-wider block">
+            <div className="bg-white px-3 py-2 rounded-lg border border-[#C6BA96] text-right min-w-[200px] shadow-sm">
+              <span className="text-[10px] text-[#5B4735] uppercase tracking-wider block">
                 Live Evaluation
               </span>
               <div className="flex items-center justify-end gap-2 mt-0.5">
@@ -971,24 +971,24 @@ export const InspectionFormPage: React.FC = () => {
           </div>
 
           {/* General Inspection Context Fields */}
-          <div className="bg-gradient-to-br from-[#FFF8FA] via-[#FCEAF1] to-[#F8E1EA] rounded-xl p-4 border border-[#DFA2BA] shadow-sm">
-            <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider mb-3 border-b border-[#E8B4C8] pb-2">
+          <div className="bg-gradient-to-br from-[#FAF5E6] via-[#F4ECD2] to-[#EDE5C9] rounded-xl p-4 border border-[#C6BA96] shadow-sm">
+            <h3 className="text-xs font-bold text-[#4B5420] uppercase tracking-wider mb-3 border-b border-[#D7CBB0] pb-2">
               1. Common Inspection Context
             </h3>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
               <div>
-                <label className="block text-[11px] font-bold text-[#831843] mb-1">Inspection #</label>
+                <label className="block text-[11px] font-bold text-[#4C5324] mb-1">Inspection #</label>
                 <input
                   type="text"
                   readOnly
                   value={generalInfo.inspectionNo || 'Auto Generated'}
-                  className="w-full bg-[#F5D5E2] border border-[#DFA2BA] rounded-md px-2.5 py-1.5 font-mono text-[#500D28] text-xs font-bold"
+                  className="w-full bg-[#EFE6CE] border border-[#C6BA96] rounded-md px-2.5 py-1.5 font-mono text-[#343B14] text-xs font-bold"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[#831843] mb-1">
+                <label className="block text-[11px] font-bold text-[#4C5324] mb-1">
                   Inspection Date
                 </label>
                 <input
@@ -996,12 +996,12 @@ export const InspectionFormPage: React.FC = () => {
                   disabled={isReadOnly}
                   value={generalInfo.inspectionDate}
                   onChange={e => setGeneralInfo({ ...generalInfo, inspectionDate: e.target.value })}
-                  className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-semibold focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                  className="w-full bg-white border border-[#C6BA96] rounded-md px-2.5 py-1.5 text-xs text-[#343B14] font-semibold focus:outline-none focus:ring-1 focus:ring-[#4B5420] focus:border-[#3F471A] disabled:bg-[#EFE6CE] disabled:text-[#4C5324]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[#831843] mb-1">Shift</label>
+                <label className="block text-[11px] font-bold text-[#4C5324] mb-1">Shift</label>
                 <select
                   disabled={isReadOnly}
                   value={generalInfo.shiftId}
@@ -1013,7 +1013,7 @@ export const InspectionFormPage: React.FC = () => {
                     })
                   }
                   aria-label="Inspection Shift"
-                  className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-semibold focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                  className="w-full bg-white border border-[#C6BA96] rounded-md px-2.5 py-1.5 text-xs text-[#343B14] font-semibold focus:outline-none focus:ring-1 focus:ring-[#4B5420] focus:border-[#3F471A] disabled:bg-[#EFE6CE] disabled:text-[#4C5324]"
                 >
                   <option value="Shift-A">Shift A (06:00 - 14:00)</option>
                   <option value="Shift-B">Shift B (14:00 - 22:00)</option>
@@ -1022,7 +1022,7 @@ export const InspectionFormPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[#831843] mb-1">
+                <label className="block text-[11px] font-bold text-[#4C5324] mb-1">
                   Quality Master
                 </label>
                 <select
@@ -1036,7 +1036,7 @@ export const InspectionFormPage: React.FC = () => {
                     })
                   }
                   aria-label="Quality Master"
-                  className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-semibold focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                  className="w-full bg-white border border-[#C6BA96] rounded-md px-2.5 py-1.5 text-xs text-[#343B14] font-semibold focus:outline-none focus:ring-1 focus:ring-[#4B5420] focus:border-[#3F471A] disabled:bg-[#EFE6CE] disabled:text-[#4C5324]"
                 >
                   {qualities.map(q => (
                     <option key={q.id} value={q.id}>
@@ -1047,7 +1047,7 @@ export const InspectionFormPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[#831843] mb-1">
+                <label className="block text-[11px] font-bold text-[#4C5324] mb-1">
                   Machine / Frame (if any)
                 </label>
                 <input
@@ -1056,17 +1056,17 @@ export const InspectionFormPage: React.FC = () => {
                   value={generalInfo.machineNo}
                   placeholder="e.g. Card-01 / Frame-4"
                   onChange={e => setGeneralInfo({ ...generalInfo, machineNo: e.target.value })}
-                  className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-semibold placeholder:text-[#B78398] focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                  className="w-full bg-white border border-[#C6BA96] rounded-md px-2.5 py-1.5 text-xs text-[#343B14] font-semibold placeholder:text-[#7B705D] focus:outline-none focus:ring-1 focus:ring-[#4B5420] focus:border-[#3F471A] disabled:bg-[#EFE6CE] disabled:text-[#4C5324]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[#831843] mb-1">Inspector</label>
+                <label className="block text-[11px] font-bold text-[#4C5324] mb-1">Inspector</label>
                 <input
                   type="text"
                   readOnly
                   value={existingRecord?.inspectorName || currentUser.displayName}
-                  className="w-full bg-[#F5D5E2] border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs font-bold text-[#500D28]"
+                  className="w-full bg-[#EFE6CE] border border-[#C6BA96] rounded-md px-2.5 py-1.5 text-xs font-bold text-[#343B14]"
                 />
               </div>
             </div>
@@ -1074,17 +1074,17 @@ export const InspectionFormPage: React.FC = () => {
 
           {/* Form Specific Header Parameters */}
           {formMeta.fields.length > 0 && (
-            <div className="bg-gradient-to-br from-[#FFF8FA] via-[#FCEAF1] to-[#F8E1EA] rounded-xl p-4 border border-[#DFA2BA] shadow-sm">
-              <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider mb-3 border-b border-[#E8B4C8] pb-2">
+            <div className="bg-gradient-to-br from-[#FAF5E6] via-[#F4ECD2] to-[#EDE5C9] rounded-xl p-4 border border-[#C6BA96] shadow-sm">
+              <h3 className="text-xs font-bold text-[#4B5420] uppercase tracking-wider mb-3 border-b border-[#D7CBB0] pb-2">
                 2. {formMeta.title} – Header Parameters
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                 {formMeta.fields.map(field => (
                   <div key={field.key}>
-                    <label className="block text-[11px] font-semibold text-[#831843] mb-1">
+                    <label className="block text-[11px] font-semibold text-[#4C5324] mb-1">
                       {field.label}{' '}
-                      {field.unit && <span className="text-[#BE185D]">({field.unit})</span>}
+                      {field.unit && <span className="text-[#4B5420]">({field.unit})</span>}
                       {field.required && <span className="text-[#BE123C] ml-0.5">*</span>}
                     </label>
 
@@ -1094,7 +1094,7 @@ export const InspectionFormPage: React.FC = () => {
                         value={formData[field.key] ?? field.defaultValue ?? ''}
                         onChange={e => handleFieldChange(field.key, e.target.value)}
                         aria-label={field.label}
-                        className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-medium focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                        className="w-full bg-white border border-[#C6BA96] rounded-md px-2.5 py-1.5 text-xs text-[#343B14] font-medium focus:outline-none focus:ring-1 focus:ring-[#4B5420] focus:border-[#3F471A] disabled:bg-[#EFE6CE] disabled:text-[#4C5324]"
                       >
                         {field.options?.map(opt => (
                           <option key={opt} value={opt}>
@@ -1130,12 +1130,12 @@ export const InspectionFormPage: React.FC = () => {
                             handleFieldChange(field.key, e.target.value);
                           }
                         }}
-                        className="w-full bg-white border border-[#DFA2BA] rounded-md px-2.5 py-1.5 text-xs text-[#500D28] font-medium placeholder:text-[#B78398] focus:outline-none focus:ring-1 focus:ring-[#BE185D] focus:border-[#9D174D] disabled:bg-[#F5D5E2] disabled:text-[#831843]"
+                        className="w-full bg-white border border-[#C6BA96] rounded-md px-2.5 py-1.5 text-xs text-[#343B14] font-medium placeholder:text-[#7B705D] focus:outline-none focus:ring-1 focus:ring-[#4B5420] focus:border-[#3F471A] disabled:bg-[#EFE6CE] disabled:text-[#4C5324]"
                       />
                     )}
 
                     {field.helpText && (
-                      <p className="text-[10px] text-[#A16B82] mt-0.5">{field.helpText}</p>
+                      <p className="text-[10px] text-[#7B705D] mt-0.5">{field.helpText}</p>
                     )}
                   </div>
                 ))}
@@ -1144,14 +1144,14 @@ export const InspectionFormPage: React.FC = () => {
           )}
 
           {/* Repeatable Readings Table */}
-          <div className="bg-white rounded-xl border border-[#F2D9D9] shadow-sm overflow-hidden">
-            <div className="p-3.5 bg-[#FFF1F1] border-b border-[#F2D9D9] flex items-center justify-between flex-wrap gap-2">
+          <div className="bg-white rounded-xl border border-[#D7CBB0] shadow-sm overflow-hidden">
+            <div className="p-3.5 bg-[#F4ECD2] border-b border-[#D7CBB0] flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h3 className="text-xs font-bold text-[#D95F68] uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-[#4B5420] uppercase tracking-wider">
                   3. Sample Readings &amp; Measurements Grid ({readingRows.length} Samples)
                 </h3>
-                <p className="text-[11px] text-[#98777B]">
-                  Unit: <strong className="text-[#A34F5B]">{formMeta.sampleUnit}</strong>
+                <p className="text-[11px] text-[#5B4735]">
+                  Unit: <strong className="text-[#4C5324]">{formMeta.sampleUnit}</strong>
                 </p>
               </div>
 
@@ -1160,7 +1160,7 @@ export const InspectionFormPage: React.FC = () => {
                   id="add-reading-row-btn"
                   type="button"
                   onClick={handleAddRow}
-                  className="px-2.5 py-1 bg-white border border-[#E8BFC3] hover:border-[#C56B78] hover:bg-[#FFF0F1] hover:text-[#9F4654] text-[#79535A] rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-colors"
+                  className="px-2.5 py-1 bg-white border border-[#C6BA96] hover:border-[#4B5420] hover:bg-[#E3DAB6] hover:text-[#4C5324] text-[#5B4735] rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-colors"
                 >
                   <Plus size={13} />
                   <span>Add Sample Row</span>
@@ -1171,31 +1171,31 @@ export const InspectionFormPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
-                  <tr className="bg-[#FCEAEA] border-b border-[#EBCFD1] text-[#D95F68] font-semibold">
+                  <tr className="bg-[#EFE6CE] border-b border-[#D7CBB0] text-[#4B5420] font-semibold">
                     <th className="py-2.5 px-3 w-12 text-center">#</th>
                     {formMeta.columns.map(col => (
                       <th
                         key={col.key}
                         style={{ width: col.width }}
-                        className="py-2.5 px-3 font-semibold text-[#D95F68]"
+                        className="py-2.5 px-3 font-semibold text-[#4B5420]"
                       >
                         {col.label}{' '}
-                        {col.unit && <span className="text-[#D95F68] font-normal">({col.unit})</span>}
+                        {col.unit && <span className="text-[#4B5420] font-normal">({col.unit})</span>}
                       </th>
                     ))}
                     {!isReadOnly && <th className="py-2.5 px-3 w-12 text-center">Action</th>}
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-[#F5E5E6]">
+                <tbody className="divide-y divide-[#D7CBB0]">
                   {readingRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-[#FFF6F6] transition-colors">
-                      <td className="py-2 px-3 text-center text-[#B58D92] font-mono">{idx + 1}</td>
+                    <tr key={idx} className="hover:bg-[#F4ECD2] transition-colors">
+                      <td className="py-2 px-3 text-center text-[#7B705D] font-mono">{idx + 1}</td>
 
                       {formMeta.columns.map(col => (
                         <td key={col.key} className="py-1.5 px-2">
                           {col.type === 'readonly' ? (
-                            <span className="font-mono text-[#815D63] font-semibold px-2 py-1 block">
+                            <span className="font-mono text-[#4C5324] font-semibold px-2 py-1 block">
                               {row[col.key] !== undefined && row[col.key] !== ''
                                 ? row[col.key]
                                 : idx + 1}
@@ -1206,7 +1206,7 @@ export const InspectionFormPage: React.FC = () => {
                               value={row[col.key] ?? col.options?.[0] ?? ''}
                               onChange={e => handleRowChange(idx, col.key, e.target.value)}
                               aria-label={`${col.label} Row ${idx + 1}`}
-                              className="w-full bg-white border border-[#E8CBCD] rounded px-2 py-1 text-xs text-[#633F46] font-medium focus:border-[#C56B78] focus:ring-1 focus:ring-[#EBC1C6] outline-none"
+                              className="w-full bg-white border border-[#7E7657] rounded px-2 py-1 text-xs text-[#3B2311] font-medium focus:border-[#4B5420] focus:ring-1 focus:ring-[#C6BA96] outline-none"
                             >
                               {col.options?.map(opt => (
                                 <option key={opt} value={opt}>
@@ -1234,7 +1234,7 @@ export const InspectionFormPage: React.FC = () => {
                                   handleRowChange(idx, col.key, e.target.value);
                                 }
                               }}
-                              className="w-full bg-white border border-[#E8CBCD] rounded px-2 py-1 text-xs text-[#633F46] font-medium font-mono focus:border-[#C56B78] focus:bg-[#FFF1F2] focus:ring-1 focus:ring-[#EBC1C6] outline-none"
+                              className="w-full bg-white border border-[#7E7657] rounded px-2 py-1 text-xs text-[#3B2311] font-medium font-mono focus:border-[#4B5420] focus:bg-[#F4ECD2] focus:ring-1 focus:ring-[#C6BA96] outline-none"
                             />
                           )}
                         </td>
@@ -1246,7 +1246,7 @@ export const InspectionFormPage: React.FC = () => {
                             type="button"
                             onClick={() => handleRemoveRow(idx)}
                             disabled={readingRows.length <= 1}
-                            className="text-[#C49A9F] hover:text-[#C43D50] hover:bg-[#FCE4E7] rounded p-1 disabled:opacity-30 transition-colors"
+                            className="text-[#7B705D] hover:text-[#C43D50] hover:bg-[#E3DAB6] rounded p-1 disabled:opacity-30 transition-colors"
                             title="Remove row"
                           >
                             <Trash2 size={13} />
@@ -1261,39 +1261,39 @@ export const InspectionFormPage: React.FC = () => {
           </div>
 
           {/* Automatic System Calculations & Statistical Summary */}
-          <div className="bg-gradient-to-br from-[#FFF8F7] via-[#FCEDEC] to-[#F8DDDC] text-[#574448] rounded-xl p-4 shadow-md border border-[#EABFC0]">
-            <div className="flex items-center justify-between mb-3 border-b border-[#E8C1C1] pb-2">
+          <div className="bg-gradient-to-br from-[#FAF5E6] via-[#F4ECD2] to-[#EDE5C9] text-[#5B4735] rounded-xl p-4 shadow-md border border-[#C6BA96]">
+            <div className="flex items-center justify-between mb-3 border-b border-[#C6BA96] pb-2">
               <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-[#C94F5B]" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#D95F68]">
+                <Sparkles size={16} className="text-[#4B5420]" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#4B5420]">
                   4. System-Calculated Statistical Outputs &amp; Acceptance Result
                 </h3>
               </div>
 
-              <span className="text-[10px] bg-[#F4D8D7] text-[#93434B] px-2 py-0.5 rounded font-mono border border-[#E6B9B9]">
+              <span className="text-[10px] bg-[#E3DAB6] text-[#4C5324] px-2 py-0.5 rounded font-mono border border-[#C6BA96]">
                 Source Mathematical Standards Engine
               </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
               {Object.entries(calculationResult.metrics).map(([key, val]) => (
-                <div key={key} className="bg-white p-2.5 rounded-lg border border-[#E8C1C1] shadow-sm">
-                  <span className="text-[10px] text-[#806B6C] font-semibold uppercase tracking-wider block">
+                <div key={key} className="bg-white p-2.5 rounded-lg border border-[#C6BA96] shadow-sm">
+                  <span className="text-[10px] text-[#5B4735] font-semibold uppercase tracking-wider block">
                     {key.replace(/([A-Z])/g, ' $1').trim()}
                   </span>
 
-                  <span className="text-base font-bold font-mono text-[#D95F68] mt-1 block">
+                  <span className="text-base font-bold font-mono text-[#4B5420] mt-1 block">
                     {typeof val === 'number' ? val.toLocaleString() : String(val)}
                   </span>
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[#E8C1C1] flex items-center justify-between flex-wrap gap-2">
+            <div className="mt-4 pt-3 border-t border-[#C6BA96] flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-[#D95F68] font-bold">Evaluation Verdict:</span>
+                <span className="text-[#4B5420] font-bold">Evaluation Verdict:</span>
                 <ResultBadge result={calculationResult.result} />
-                <span className="text-[#806B6C] text-[11px]">
+                <span className="text-[#5B4735] text-[11px]">
                   {calculationResult.result === 'PASS'
                     ? 'All sampled readings conform to SQC tolerances.'
                     : calculationResult.result === 'WARNING'
@@ -1302,15 +1302,15 @@ export const InspectionFormPage: React.FC = () => {
                 </span>
               </div>
 
-              <span className="text-[11px] text-[#93434B] font-semibold">
+              <span className="text-[11px] text-[#4C5324] font-semibold">
                 Read-only verified calculations · Cannot be manually altered
               </span>
             </div>
           </div>
 
           {/* Inspector Remarks */}
-          <div className="bg-white rounded-xl p-4 border border-[#F2D9D9] shadow-sm">
-            <label className="block text-xs font-bold text-[#D95F68] uppercase tracking-wider mb-2">
+          <div className="bg-white rounded-xl p-4 border border-[#D7CBB0] shadow-sm">
+            <label className="block text-xs font-bold text-[#4B5420] uppercase tracking-wider mb-2">
               5. Inspector Observations &amp; Floor Remarks
             </label>
 
@@ -1320,7 +1320,7 @@ export const InspectionFormPage: React.FC = () => {
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
               placeholder="Enter machine condition, lot notes, corrective actions taken..."
-              className="w-full bg-white border border-[#E8CBCD] rounded-lg p-2.5 text-xs text-[#633F46] placeholder:text-[#B78398] focus:border-[#C56B78] focus:ring-1 focus:ring-[#EBC1C6] outline-none disabled:bg-[#FFF1F2] disabled:text-[#98777B]"
+              className="w-full bg-white border border-[#7E7657] rounded-lg p-2.5 text-xs text-[#3B2311] placeholder:text-[#7B705D] focus:border-[#4B5420] focus:ring-1 focus:ring-[#C6BA96] outline-none disabled:bg-[#F4ECD2] disabled:text-[#5B4735]"
             ></textarea>
           </div>
         </>
@@ -1331,9 +1331,9 @@ export const InspectionFormPage: React.FC = () => {
       {/* Inline Submit Confirmation Modal (No native window.confirm) */}
       {showSubmitConfirmModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#DFA2BA] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#FCEAF1] pb-2">
-              <h4 className="text-sm font-bold text-[#701638]">
+          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#C6BA96] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#F4ECD2] pb-2">
+              <h4 className="text-sm font-bold text-[#4B5420]">
                 Confirm Submit Inspection Report
               </h4>
               <button
@@ -1345,7 +1345,7 @@ export const InspectionFormPage: React.FC = () => {
               </button>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-             {/*  Submit <strong className="font-mono text-[#701638]">{generalInfo.inspectionNo}</strong>{' '} */}
+             {/*  Submit <strong className="font-mono text-[#4B5420]">{generalInfo.inspectionNo}</strong>{' '} */}
               {/* (<strong>{formMeta.code}</strong>) a */}are you want to save this data?
             </p>
             <div className="flex justify-end gap-2 pt-1">
@@ -1359,7 +1359,7 @@ export const InspectionFormPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                className="px-4 py-1.5 bg-[#701638] hover:bg-[#500D28] text-white text-xs font-bold rounded-lg shadow-xs inline-flex items-center gap-1.5"
+                className="px-4 py-1.5 bg-[#4B5420] hover:bg-[#343B14] text-white text-xs font-bold rounded-lg shadow-xs inline-flex items-center gap-1.5"
               >
                 <Send size={13} />
                 <span>Confirm &amp; Save Data</span>
@@ -1429,11 +1429,11 @@ export const InspectionFormPage: React.FC = () => {
       {/* Read-Only Verification Modal for Individual Entry Log */}
       {inspectingLogRecord && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#F4C4C5] overflow-hidden">
-            <div className="px-5 py-4 bg-gradient-to-r from-[#701638] to-[#9D174D] text-white border-b border-[#F4C4C5] flex items-center justify-between gap-3">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#C6BA96] overflow-hidden">
+            <div className="px-5 py-4 bg-gradient-to-r from-[#4B5420] to-[#3F471A] text-white border-b border-[#C6BA96] flex items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#500D28] text-white font-bold">
+                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#343B14] text-white font-bold">
                     {inspectingLogRecord.formCode}
                   </span>
                   <h4 className="text-sm font-bold truncate">
@@ -1456,18 +1456,18 @@ export const InspectionFormPage: React.FC = () => {
             </div>
 
             <div className="p-5 overflow-y-auto space-y-4 text-xs">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#FFF9F9] p-3 rounded-xl border border-[#F4C4C5]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#F5EEDB] p-3 rounded-xl border border-[#C6BA96]">
                 <div>
-                  <span className="text-[10px] font-bold text-[#806B6C] uppercase block">Department</span>
-                  <span className="font-bold text-[#393334]">{inspectingLogRecord.departmentName}</span>
+                  <span className="text-[10px] font-bold text-[#5B4735] uppercase block">Department</span>
+                  <span className="font-bold text-[#3B2311]">{inspectingLogRecord.departmentName}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-[#806B6C] uppercase block">Quality Master</span>
-                  <span className="font-bold text-[#393334]">{inspectingLogRecord.qualityName}</span>
+                  <span className="text-[10px] font-bold text-[#5B4735] uppercase block">Quality Master</span>
+                  <span className="font-bold text-[#3B2311]">{inspectingLogRecord.qualityName}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-[#806B6C] uppercase block">Machine / Loom</span>
-                  <span className="font-bold text-[#393334] font-mono">
+                  <span className="text-[10px] font-bold text-[#5B4735] uppercase block">Machine / Loom</span>
+                  <span className="font-bold text-[#3B2311] font-mono">
                     {inspectingLogRecord.machineNo || inspectingLogRecord.loomNo || '—'}
                   </span>
                 </div>
@@ -1479,18 +1479,18 @@ export const InspectionFormPage: React.FC = () => {
 
               {formMeta.fields.length > 0 && (
                 <div>
-                  <h5 className="text-[11px] font-bold text-[#701638] uppercase tracking-wider mb-2">
+                  <h5 className="text-[11px] font-bold text-[#4B5420] uppercase tracking-wider mb-2">
                     Entered Header Parameters
                   </h5>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                     {formMeta.fields.map(field => {
                       const val = inspectingLogRecord.formData?.[field.key];
                       return (
-                        <div key={field.key} className="p-2.5 rounded-lg bg-white border border-[#F4C4C5]">
-                          <span className="text-[10px] text-[#806B6C] block">
+                        <div key={field.key} className="p-2.5 rounded-lg bg-white border border-[#C6BA96]">
+                          <span className="text-[10px] text-[#5B4735] block">
                             {field.label} {field.unit ? `(${field.unit})` : ''}
                           </span>
-                          <span className="font-bold text-[#393334] font-mono mt-0.5 block">
+                          <span className="font-bold text-[#3B2311] font-mono mt-0.5 block">
                             {val !== undefined && val !== '' ? String(val) : '—'}
                           </span>
                         </div>
@@ -1501,13 +1501,13 @@ export const InspectionFormPage: React.FC = () => {
               )}
 
               <div>
-                <h5 className="text-[11px] font-bold text-[#701638] uppercase tracking-wider mb-2">
+                <h5 className="text-[11px] font-bold text-[#4B5420] uppercase tracking-wider mb-2">
                   Entered Sample Readings ({inspectingLogRecord.readingRows?.length || 0} Rows)
                 </h5>
-                <div className="overflow-x-auto border border-[#F4C4C5] rounded-xl">
+                <div className="overflow-x-auto border border-[#C6BA96] rounded-xl">
                   <table className="w-full text-xs text-left">
                     <thead>
-                      <tr className="bg-[#FFF9F9] border-b border-[#F4C4C5] text-[#701638] font-semibold">
+                      <tr className="bg-[#F5EEDB] border-b border-[#C6BA96] text-[#4B5420] font-semibold">
                         <th className="py-2 px-3 w-10 text-center">#</th>
                         {formMeta.columns.map(col => (
                           <th key={col.key} className="py-2 px-3">
@@ -1516,12 +1516,12 @@ export const InspectionFormPage: React.FC = () => {
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#F4C4C5]/50">
+                    <tbody className="divide-y divide-[#C6BA96]/50">
                       {(inspectingLogRecord.readingRows || []).map((r, rIdx) => (
-                        <tr key={rIdx} className="hover:bg-[#FFF9F9]">
-                          <td className="py-1.5 px-3 text-center font-mono text-[#806B6C]">{rIdx + 1}</td>
+                        <tr key={rIdx} className="hover:bg-[#F5EEDB]">
+                          <td className="py-1.5 px-3 text-center font-mono text-[#5B4735]">{rIdx + 1}</td>
                           {formMeta.columns.map(col => (
-                            <td key={col.key} className="py-1.5 px-3 font-mono text-[#393334] font-medium">
+                            <td key={col.key} className="py-1.5 px-3 font-mono text-[#3B2311] font-medium">
                               {r[col.key] !== undefined && r[col.key] !== '' ? String(r[col.key]) : '—'}
                             </td>
                           ))}
@@ -1535,16 +1535,16 @@ export const InspectionFormPage: React.FC = () => {
               {inspectingLogRecord.summaryMetrics &&
                 Object.keys(inspectingLogRecord.summaryMetrics).length > 0 && (
                   <div>
-                    <h5 className="text-[11px] font-bold text-[#701638] uppercase tracking-wider mb-2">
+                    <h5 className="text-[11px] font-bold text-[#4B5420] uppercase tracking-wider mb-2">
                       Calculated Statistical Outputs
                     </h5>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                       {Object.entries(inspectingLogRecord.summaryMetrics).map(([k, v]) => (
-                        <div key={k} className="p-2.5 rounded-lg bg-[#FFF9F9] border border-[#F4C4C5]">
-                          <span className="text-[10px] text-[#806B6C] uppercase block">
+                        <div key={k} className="p-2.5 rounded-lg bg-[#F5EEDB] border border-[#C6BA96]">
+                          <span className="text-[10px] text-[#5B4735] uppercase block">
                             {k.replace(/([A-Z])/g, ' $1').trim()}
                           </span>
-                          <span className="font-mono font-bold text-[#701638] text-sm mt-0.5 block">
+                          <span className="font-mono font-bold text-[#4B5420] text-sm mt-0.5 block">
                             {typeof v === 'number' ? v.toLocaleString() : String(v)}
                           </span>
                         </div>
@@ -1554,15 +1554,15 @@ export const InspectionFormPage: React.FC = () => {
                 )}
             </div>
 
-            <div className="px-5 py-3 bg-[#FFF9F9] border-t border-[#F4C4C5] flex items-center justify-between">
-              <span className="text-[11px] text-[#806B6C]">
+            <div className="px-5 py-3 bg-[#F5EEDB] border-t border-[#C6BA96] flex items-center justify-between">
+              <span className="text-[11px] text-[#5B4735]">
                 Version {inspectingLogRecord.version} · Updated{' '}
                 {new Date(inspectingLogRecord.updatedAt || inspectingLogRecord.createdAt).toLocaleString()}
               </span>
               <button
                 type="button"
                 onClick={() => setInspectingLogRecord(null)}
-                className="px-4 py-1.5 bg-[#701638] text-white text-xs font-bold rounded-lg"
+                className="px-4 py-1.5 bg-[#4B5420] text-white text-xs font-bold rounded-lg"
               >
                 Close
               </button>
