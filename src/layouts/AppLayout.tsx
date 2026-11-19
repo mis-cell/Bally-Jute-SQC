@@ -159,7 +159,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               >
                 <Bell size={17} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#FFE0DA] text-[#EA5551] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 bg-[#FFFFFF] text-[#EA5551] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                     {unreadCount}
                   </span>
                 )}
@@ -198,7 +198,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <span className="text-xs font-bold text-[#FFFFFF] truncate max-w-[130px]">
                   {currentUser.displayName}
                 </span>
-                <span className="text-[10px] text-[#FFE0DA] font-medium">
+                <span className="text-[10px] text-[#FFFFFF] font-medium">
                   {currentUser.role}
                 </span>
               </div>
@@ -271,7 +271,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
                     ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
-                    : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
+                    : 'text-[#393334] hover:bg-[#FFFFFF] hover:text-[#EA5551]'
                 }`
               }
             >
@@ -284,7 +284,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <button
                 id="toggle-inspection-forms-menu"
                 onClick={() => setFormsSubmenuOpen(!formsSubmenuOpen)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-[#393334] font-bold text-[13px] rounded-lg hover:bg-[#FFE0DA] hover:text-[#EA5551] transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-[#393334] font-bold text-[13px] rounded-lg hover:bg-[#FFFFFF] hover:text-[#EA5551] transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <ClipboardList size={18} className="shrink-0" />
@@ -294,7 +294,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               </button>
 
               {formsSubmenuOpen && (
-                <div className="pl-2 pr-1 space-y-2 bg-[#FFF1EE] rounded-lg p-2 border border-[#F5D0CB] text-xs">
+                <div className="pl-2 pr-1 space-y-2 bg-[#FFFFFF] rounded-lg p-2 border border-[#F5D0CB] text-xs">
                   <NavLink
                     to="/inspections"
                     id="nav-link-all-inspections"
@@ -303,7 +303,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                       `flex items-center gap-2 px-2.5 py-1.5 rounded-md font-bold transition-all border shadow-2xs ${
                         isActive
                           ? 'text-[#FFFFFF] bg-[#B93E3A] border-[#A0322E] shadow-sm'
-                          : 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB] hover:bg-[#EA5551] hover:text-[#FFFFFF] hover:border-[#EA5551]'
+                          : 'bg-[#FFFFFF] text-[#EA5551] border-[#F5D0CB] hover:bg-[#EA5551] hover:text-[#FFFFFF] hover:border-[#EA5551]'
                       }`
                     }
                   >
@@ -341,7 +341,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                               className={`flex items-center px-2 py-1.5 rounded-md text-xs font-semibold truncate transition-all duration-200 border ${
                                 isMatch
                                   ? 'bg-[#B93E3A] text-[#FFFFFF] font-bold border-[#A0322E] shadow-sm'
-                                  : 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB] hover:bg-[#EA5551] hover:text-[#FFFFFF] hover:border-[#EA5551]'
+                                  : 'bg-[#FFFFFF] text-[#EA5551] border-[#F5D0CB] hover:bg-[#EA5551] hover:text-[#FFFFFF] hover:border-[#EA5551]'
                               }`}
                               title={`${meta.code}: ${meta.title}`}
                             >
@@ -376,7 +376,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
                     ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
-                    : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
+                    : 'text-[#393334] hover:bg-[#FFFFFF] hover:text-[#EA5551]'
                 }`
               }
             >
@@ -393,7 +393,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
                     ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
-                    : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
+                    : 'text-[#393334] hover:bg-[#FFFFFF] hover:text-[#EA5551]'
                 }`
               }
             >
@@ -407,7 +407,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <button
                   id="toggle-masters-menu"
                   onClick={() => setMastersSubmenuOpen(!mastersSubmenuOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 text-[#393334] font-bold text-[13px] rounded-lg hover:bg-[#FFE0DA] hover:text-[#EA5551] transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-[#393334] font-bold text-[13px] rounded-lg hover:bg-[#FFFFFF] hover:text-[#EA5551] transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Database size={18} className="shrink-0" />
@@ -418,13 +418,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
                 {mastersSubmenuOpen && (
                   <div className="mt-1 pl-2 pr-1 space-y-1 bg-[#FFFFFF] rounded-lg p-2.5 border border-[#F5D0CB] text-xs font-bold">
-                    <NavLink to="/masters/departments" id="nav-master-dept" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Departments & HODs</NavLink>
-                    <NavLink to="/masters/sections" id="nav-master-sec" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Sections & Stages</NavLink>
-                    <NavLink to="/masters/machines" id="nav-master-mach" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Machines & Speeds</NavLink>
-                    <NavLink to="/masters/looms" id="nav-master-loom" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Looms Master</NavLink>
-                    <NavLink to="/masters/qualities" id="nav-master-qual" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Qualities & Counts</NavLink>
-                    <NavLink to="/masters/specs" id="nav-master-spec" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Product & Bag Specs</NavLink>
-                    <NavLink to="/masters/standards" id="nav-master-std" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Standards & Tolerances</NavLink>
+                    <NavLink to="/masters/departments" id="nav-master-dept" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFFFFF]'}`}>Departments & HODs</NavLink>
+                    <NavLink to="/masters/sections" id="nav-master-sec" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFFFFF]'}`}>Sections & Stages</NavLink>
+                    <NavLink to="/masters/machines" id="nav-master-mach" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFFFFF]'}`}>Machines & Speeds</NavLink>
+                    <NavLink to="/masters/looms" id="nav-master-loom" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFFFFF]'}`}>Looms Master</NavLink>
+                    <NavLink to="/masters/qualities" id="nav-master-qual" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFFFFF]'}`}>Qualities & Counts</NavLink>
+                    <NavLink to="/masters/specs" id="nav-master-spec" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFFFFF]'}`}>Product & Bag Specs</NavLink>
+                    <NavLink to="/masters/standards" id="nav-master-std" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFFFFF]'}`}>Standards & Tolerances</NavLink>
                   </div>
                 )}
               </div>
@@ -433,7 +433,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             {/* System Administration (Admins Only) */}
             {isAdmin && (
               <div className="pt-3 border-t border-[#F5D0CB] mt-2">
-                <div className="text-[11px] font-black text-[#EA5551] uppercase tracking-wider px-3 py-1 bg-[#FFE0DA] rounded-md border border-[#F5D0CB] mb-1.5">
+                <div className="text-[11px] font-black text-[#EA5551] uppercase tracking-wider px-3 py-1 bg-[#FFFFFF] rounded-md border border-[#F5D0CB] mb-1.5">
                   Administration
                 </div>
                 <NavLink
@@ -444,7 +444,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
                         ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
-                        : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
+                        : 'text-[#393334] hover:bg-[#FFFFFF] hover:text-[#EA5551]'
                     }`
                   }
                 >
@@ -459,7 +459,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
                         ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
-                        : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
+                        : 'text-[#393334] hover:bg-[#FFFFFF] hover:text-[#EA5551]'
                     }`
                   }
                 >
@@ -474,7 +474,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
                         ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
-                        : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
+                        : 'text-[#393334] hover:bg-[#FFFFFF] hover:text-[#EA5551]'
                     }`
                   }
                 >
@@ -499,7 +499,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               </div>
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-[#806B68] hover:text-[#EA5551] hover:bg-[#FFE0DA] transition-colors shrink-0 cursor-pointer"
+                className="p-1.5 rounded-lg text-[#806B68] hover:text-[#EA5551] hover:bg-[#FFFFFF] transition-colors shrink-0 cursor-pointer"
                 title="Log Out"
               >
                 <LogOut size={16} />

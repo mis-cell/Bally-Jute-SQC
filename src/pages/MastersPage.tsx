@@ -243,7 +243,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(d)}
                           title="Edit Department"
-                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFFFFF] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -288,7 +288,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(s)}
                           title="Edit Section"
-                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFFFFF] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -337,7 +337,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(m)}
                           title="Edit Machine"
-                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFFFFF] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -388,7 +388,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(l)}
                           title="Edit Loom"
-                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFFFFF] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -441,7 +441,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(q)}
                           title="Edit Quality"
-                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFFFFF] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -482,7 +482,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                 <tr key={s.id} className="hover:bg-[#FFEAE6]">
                   <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">{s.code}</td>
                   <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">
-                    <span className="bg-[#FFE0DA] px-2 py-0.5 rounded border border-[#F5D0CB]">
+                    <span className="bg-[#FFFFFF] px-2 py-0.5 rounded border border-[#F5D0CB]">
                       {s.formCode}
                     </span>
                   </td>
@@ -503,7 +503,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(s)}
                           title="Edit Standard"
-                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFFFFF] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>

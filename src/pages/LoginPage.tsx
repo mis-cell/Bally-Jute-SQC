@@ -115,7 +115,7 @@ export const LoginPage: React.FC = () => {
 
             <div className="flex items-center gap-3 shrink-0 pt-1">
               <span className="h-6 w-px bg-[#F5D0CB]" aria-hidden="true" />
-              <span className="inline-flex items-center px-3.5 py-1 rounded-[10px] bg-[#FFE0DA] text-[#EA5551] text-[12.5px] font-bold whitespace-nowrap shrink-0">
+              <span className="inline-flex items-center px-3.5 py-1 rounded-[10px] bg-[#FFFFFF] text-[#EA5551] text-[12.5px] font-bold whitespace-nowrap shrink-0">
                 Mill Portal
               </span>
             </div>
@@ -221,7 +221,7 @@ export const LoginPage: React.FC = () => {
               >
                 {isLoading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-[#FFFFFF] border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[#FFE0DA] border-t-transparent rounded-full animate-spin" />
                     <span>Signing in...</span>
                   </>
                 ) : (

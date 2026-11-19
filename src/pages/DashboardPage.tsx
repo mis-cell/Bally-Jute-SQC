@@ -75,7 +75,7 @@ export const DashboardPage: React.FC = () => {
               Logged in as <strong className="text-[#EA5551]">{currentUser.displayName}</strong> (
               {currentUser.role})
             </span>
-            <span className="px-2 py-0.5 rounded bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB] text-[10px] font-bold font-mono">
+            <span className="px-2 py-0.5 rounded bg-[#FFFFFF] text-[#EA5551] border border-[#F5D0CB] text-[10px] font-bold font-mono">
               Scope: {scopeLabel}
             </span>
           </p>
@@ -96,7 +96,7 @@ export const DashboardPage: React.FC = () => {
             <button
               id="dash-view-all-reports-btn"
               onClick={() => navigate('/reports')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#FFF1EE] border border-[#F5D0CB] text-[#EA5551] rounded-lg text-xs font-semibold hover:bg-[#FFE0DA] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#FFF1EE] border border-[#F5D0CB] text-[#EA5551] rounded-lg text-xs font-semibold hover:bg-[#FFFFFF] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <FileSpreadsheet size={15} />
               <span>Generate Reports</span>
@@ -163,7 +163,7 @@ export const DashboardPage: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Pending Approval Table if any */}
           {submitted > 0 && (
-            <div className="bg-[#FFE0DA]/75 border border-[#F5D0CB] rounded-xl p-4 shadow-xs">
+            <div className="bg-[#FFFFFF]/75 border border-[#F5D0CB] rounded-xl p-4 shadow-xs">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider">
                   Attention Required: Pending Inspection Approvals ({submitted})
@@ -294,7 +294,7 @@ export const DashboardPage: React.FC = () => {
                           <button
                             id={`dash-open-record-${rec.id}`}
                             onClick={() => navigate(`/inspection/${rec.id}`)}
-                            className="text-xs font-semibold text-[#EA5551] hover:bg-[#FFE0DA] px-2 py-1 rounded whitespace-nowrap cursor-pointer"
+                            className="text-xs font-semibold text-[#EA5551] hover:bg-[#FFFFFF] px-2 py-1 rounded whitespace-nowrap cursor-pointer"
                           >
                             View / Check
                           </button>
@@ -358,7 +358,7 @@ export const DashboardPage: React.FC = () => {
               <button
                 id="dash-browse-all-forms-btn"
                 onClick={() => navigate(`/new-inspection?form=${encodeURIComponent(permittedForms[0])}`)}
-                className="w-full mt-3 py-2 text-center text-xs font-bold text-[#EA5551] hover:text-[#EA5551] bg-[#FFE0DA] border border-[#F5D0CB] rounded-lg hover:bg-[#FFE0DA] transition-colors cursor-pointer"
+                className="w-full mt-3 py-2 text-center text-xs font-bold text-[#EA5551] hover:text-[#EA5551] bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg hover:bg-[#FFFFFF] transition-colors cursor-pointer"
               >
                 Open Permitted Forms ({permittedForms.length}) →
               </button>

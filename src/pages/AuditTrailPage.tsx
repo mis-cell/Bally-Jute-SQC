@@ -56,7 +56,7 @@ export const AuditTrailPage: React.FC = () => {
       case 'DELETE':
         return 'bg-[#EA5551] text-[#FFFFFF] border-[#D46764]';
       case 'RETURN':
-        return 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB]';
+        return 'bg-[#FFFFFF] text-[#EA5551] border-[#F5D0CB]';
       case 'SETTINGS':
         return 'bg-[#FFF1EE] text-[#EA5551] border-[#D46764]';
       default:
@@ -83,12 +83,12 @@ export const AuditTrailPage: React.FC = () => {
             type="button"
             disabled={loading}
             onClick={() => void loadLogs()}
-            className="px-3 py-1.5 rounded-lg border border-[#F5D0CB] bg-[#FFF1EE] hover:bg-[#FFE0DA] text-[#EA5551] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+            className="px-3 py-1.5 rounded-lg border border-[#F5D0CB] bg-[#FFF1EE] hover:bg-[#FFFFFF] text-[#EA5551] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>Refresh</span>
           </button>
-          <span className="text-xs font-mono font-bold bg-[#FFE0DA] text-[#EA5551] px-3 py-1.5 rounded-lg border border-[#F5D0CB] tabular-nums">
+          <span className="text-xs font-mono font-bold bg-[#FFFFFF] text-[#EA5551] px-3 py-1.5 rounded-lg border border-[#F5D0CB] tabular-nums">
             {filtered.length} Events
           </span>
         </div>

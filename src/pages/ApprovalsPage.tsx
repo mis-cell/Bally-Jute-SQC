@@ -95,7 +95,7 @@ export const ApprovalsPage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {!canApprove && (
-            <div className="text-xs bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB] px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
+            <div className="text-xs bg-[#FFFFFF] text-[#EA5551] border border-[#F5D0CB] px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium">
               <AlertCircle size={14} />
               <span>Current role ({currentUser.role}) has Read-Only access to Approvals</span>
             </div>

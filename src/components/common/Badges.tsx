@@ -5,7 +5,7 @@ export const StatusBadge: React.FC<{ status: InspectionStatus; id?: string }> = 
   const styles: Record<InspectionStatus, string> = {
     Draft: 'bg-[#FFF1EE] text-[#EA5551] border-[#F5D0CB]',
     Submitted: 'bg-sky-50 text-sky-900 border-sky-300',
-    'Under Review': 'bg-[#FFE0DA] text-[#EA5551] border-[#F5B7AD]',
+    'Under Review': 'bg-[#FFFFFF] text-[#EA5551] border-[#F5B7AD]',
     Approved: 'bg-emerald-50 text-emerald-900 border-emerald-300',
     Rejected: 'bg-rose-50 text-rose-900 border-rose-300',
     Returned: 'bg-orange-50 text-orange-900 border-orange-300',
@@ -72,7 +72,7 @@ export const StatCard: React.FC<{
 
   const iconBg = {
     emerald: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    blue: 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB]',
+    blue: 'bg-[#FFFFFF] text-[#EA5551] border-[#F5D0CB]',
     amber: 'bg-[#FFF1EE] text-[#EA5551] border-[#F5D0CB]',
     rose: 'bg-rose-50 text-rose-800 border-rose-200',
     slate: 'bg-[#FFF1EE] text-[#EA5551] border-[#F5D0CB]',

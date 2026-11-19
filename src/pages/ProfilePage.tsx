@@ -126,7 +126,7 @@ export const ProfilePage: React.FC = () => {
           <div>
             <h2 className="text-base font-bold text-[#393334] flex items-center gap-2 flex-wrap">
               <span>My Profile &amp; Account Security</span>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB]">
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-[#FFFFFF] text-[#EA5551] border border-[#F5D0CB]">
                 {currentUser.role}
               </span>
             </h2>
@@ -375,7 +375,7 @@ export const ProfilePage: React.FC = () => {
             <ShieldCheck size={15} className="text-[#EA5551]" />
             <span>Assigned Access &amp; Data Scope (Admin Controlled)</span>
           </h3>
-          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB]">
+          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-[#FFFFFF] text-[#EA5551] border border-[#F5D0CB]">
             Data Scope: {scopeLabel}
           </span>
         </div>
@@ -398,7 +398,7 @@ export const ProfilePage: React.FC = () => {
                   return (
                     <span
                       key={modId}
-                      className="px-2.5 py-1 rounded-md bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB] font-bold text-[11px]"
+                      className="px-2.5 py-1 rounded-md bg-[#FFFFFF] text-[#EA5551] border border-[#F5D0CB] font-bold text-[11px]"
                     >
                       {def?.label || modId}
                     </span>

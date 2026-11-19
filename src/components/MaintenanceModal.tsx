@@ -46,12 +46,12 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({
         {/* Top Accent Banner */}
         <div className="bg-gradient-to-r from-[#EA5551] via-[#EA5551] to-[#D46764] px-6 py-5 text-[#FFFFFF] text-center border-b-2 border-[#FFE0DA]">
           <div className="w-14 h-14 rounded-2xl bg-[#EA5551]/70 border border-[#FFE0DA] flex items-center justify-center mx-auto mb-3 shadow-inner">
-            <Wrench size={26} className="text-[#FFE0DA]" />
+            <Wrench size={26} className="text-[#FFFFFF]" />
           </div>
           <h2 id="maintenance-modal-title" className="text-lg font-black tracking-tight">
             System Under Maintenance
           </h2>
-          <p className="text-[11px] text-[#FFE0DA] mt-1 font-semibold uppercase tracking-wider">
+          <p className="text-[11px] text-[#FFFFFF] mt-1 font-semibold uppercase tracking-wider">
             SQC Quality Control Portal
           </p>
         </div>
@@ -59,7 +59,7 @@ export const MaintenanceModal: React.FC<MaintenanceModalProps> = ({
         {/* Message Body */}
         <div className="p-6 space-y-4 text-center">
           {wasForcedLogout && (
-            <div className="p-2.5 rounded-xl bg-[#FFE0DA] border border-[#F5D0CB] text-[#EA5551] text-xs font-semibold flex items-center justify-center gap-2">
+            <div className="p-2.5 rounded-xl bg-[#FFFFFF] border border-[#F5D0CB] text-[#EA5551] text-xs font-semibold flex items-center justify-center gap-2">
               <ShieldAlert size={15} className="text-[#EA5551] shrink-0" />
               <span>Your active session was signed out because maintenance started.</span>
             </div>

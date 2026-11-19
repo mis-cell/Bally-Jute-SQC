@@ -489,7 +489,7 @@ export const UsersPage: React.FC = () => {
                     <tr key={user.id} className="hover:bg-[#FFEAE6]/60 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#EA5551] to-[#EA5551] text-[#FFE0DA] font-bold flex items-center justify-center text-xs shrink-0 border border-[#FFE0DA]/60 shadow-2xs">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#EA5551] to-[#EA5551] text-[#FFFFFF] font-bold flex items-center justify-center text-xs shrink-0 border border-[#FFE0DA]/60 shadow-2xs">
                             {user.displayName.charAt(0)}
                           </div>
                           <div>
@@ -515,7 +515,7 @@ export const UsersPage: React.FC = () => {
                               ? 'bg-[#EA5551] text-[#FFFFFF] border-[#FFE0DA]'
                               : user.role === 'HOD / Approver'
                               ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                              : 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB]'
+                              : 'bg-[#FFFFFF] text-[#EA5551] border-[#F5D0CB]'
                           }`}
                         >
                           {user.role}
@@ -546,7 +546,7 @@ export const UsersPage: React.FC = () => {
                             isUserAdmin
                               ? 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
                               : formCount > 0
-                              ? 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB] hover:bg-[#FFE0DA]'
+                              ? 'bg-[#FFFFFF] text-[#EA5551] border-[#F5D0CB] hover:bg-[#FFFFFF]'
                               : 'bg-slate-100 text-slate-600 border-slate-300'
                           }`}
                           title="Click to inspect modules & forms"
@@ -613,7 +613,7 @@ export const UsersPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(user)}
-                            className="p-1.5 text-[#806B68] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded-md transition-colors cursor-pointer"
+                            className="p-1.5 text-[#806B68] hover:text-[#EA5551] hover:bg-[#FFFFFF] rounded-md transition-colors cursor-pointer"
                             title="Edit User & Permissions"
                           >
                             <Edit2 size={14} />
@@ -627,7 +627,7 @@ export const UsersPage: React.FC = () => {
                               setResetPwShow(false);
                               setResetPwError('');
                             }}
-                            className="p-1.5 text-[#806B68] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded-md transition-colors cursor-pointer"
+                            className="p-1.5 text-[#806B68] hover:text-[#EA5551] hover:bg-[#FFFFFF] rounded-md transition-colors cursor-pointer"
                             title="Reset User Password"
                           >
                             <KeyRound size={14} />
@@ -844,7 +844,7 @@ export const UsersPage: React.FC = () => {
                         onClick={() =>
                           setFormData(prev => ({ ...prev, permittedModules: [...GRANTABLE_MODULES] }))
                         }
-                        className="px-2 py-1 bg-white hover:bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB] rounded text-[11px] font-bold cursor-pointer"
+                        className="px-2 py-1 bg-white hover:bg-[#FFFFFF] text-[#EA5551] border border-[#F5D0CB] rounded text-[11px] font-bold cursor-pointer"
                       >
                         Grant All
                       </button>
@@ -876,7 +876,7 @@ export const UsersPage: React.FC = () => {
                               ? 'bg-[#FFF1EE]/70 border-[#FDE8E4] opacity-70 cursor-not-allowed'
                               : 'bg-emerald-50/70 border-emerald-300 cursor-not-allowed'
                             : isChecked
-                            ? 'bg-[#FFE0DA] border-[#EA5551] cursor-pointer'
+                            ? 'bg-[#FFFFFF] border-[#EA5551] cursor-pointer'
                             : 'bg-white border-[#F5D0CB] hover:bg-[#FFF1EE] cursor-pointer'
                         }`}
                       >
@@ -1064,7 +1064,7 @@ export const UsersPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleSelectAllForms}
-                        className="px-2 py-1 bg-white hover:bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB] rounded text-[11px] font-bold cursor-pointer"
+                        className="px-2 py-1 bg-white hover:bg-[#FFFFFF] text-[#EA5551] border border-[#F5D0CB] rounded text-[11px] font-bold cursor-pointer"
                       >
                         Select All
                       </button>
@@ -1116,7 +1116,7 @@ export const UsersPage: React.FC = () => {
                                   modalIsAdmin
                                     ? 'bg-emerald-50/70 border-emerald-200 cursor-not-allowed'
                                     : isChecked
-                                    ? 'bg-[#FFE0DA] border-[#EA5551] text-[#393334] font-bold cursor-pointer'
+                                    ? 'bg-[#FFFFFF] border-[#EA5551] text-[#393334] font-bold cursor-pointer'
                                     : 'bg-white border-[#FDE8E4] text-[#806B68] hover:bg-[#FFF1EE] cursor-pointer'
                                 }`}
                               >
@@ -1218,7 +1218,7 @@ export const UsersPage: React.FC = () => {
                       (viewPermsCandidate.permittedModules || []).map(m => (
                         <span
                           key={m}
-                          className="px-2 py-0.5 rounded bg-[#FFE0DA] border border-[#F5D0CB] text-[#EA5551] font-bold text-[10px]"
+                          className="px-2 py-0.5 rounded bg-[#FFFFFF] border border-[#F5D0CB] text-[#EA5551] font-bold text-[10px]"
                         >
                           {MODULE_DEFINITIONS.find(d => d.id === m)?.label || m}
                         </span>

@@ -37,7 +37,7 @@ const AccessDeniedScreen: React.FC<{ title?: string; message?: string }> = ({
 
   return (
     <div className="bg-[#FFFFFF] rounded-2xl p-8 border border-[#F5D0CB] max-w-lg mx-auto my-12 text-center shadow-sm space-y-4">
-      <div className="w-14 h-14 mx-auto rounded-2xl bg-[#FFE0DA] border border-[#F5D0CB] text-[#EA5551] flex items-center justify-center">
+      <div className="w-14 h-14 mx-auto rounded-2xl bg-[#FFFFFF] border border-[#F5D0CB] text-[#EA5551] flex items-center justify-center">
         <ShieldAlert size={28} />
       </div>
       <div>
@@ -63,7 +63,7 @@ const AccessDeniedScreen: React.FC<{ title?: string; message?: string }> = ({
         <button
           type="button"
           onClick={() => navigate('/profile', { replace: true })}
-          className="px-4 py-2 rounded-lg border border-[#F5D0CB] bg-[#FFF1EE] hover:bg-[#FFE0DA] text-[#EA5551] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+          className="px-4 py-2 rounded-lg border border-[#F5D0CB] bg-[#FFF1EE] hover:bg-[#FFFFFF] text-[#EA5551] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
         >
           <User size={14} />
           <span>My Profile &amp; Password</span>

@@ -195,7 +195,7 @@ export const ReportsPage: React.FC = () => {
           </p>
           <span className="text-[10px] text-emerald-700 tabular-nums">{passed} Passed</span>
         </div>
-        <div className="bg-[#FFE0DA] p-4 rounded-xl border border-[#F5D0CB]">
+        <div className="bg-[#FFFFFF] p-4 rounded-xl border border-[#F5D0CB]">
           <span className="text-xs text-[#EA5551] font-semibold uppercase">Borderline Warnings</span>
           <p className="text-2xl font-bold text-[#EA5551] mt-1 font-mono tabular-nums">{warned}</p>
           <span className="text-[10px] text-[#EA5551]">Near Tolerance Limit</span>

@@ -179,7 +179,7 @@ export const InspectionFormPage: React.FC = () => {
         </div>
 
         {filteredFormLogs.length === 0 ? (
-          <div className="py-12 text-center bg-[#FFF8F6] rounded-xl border border-dashed border-[#F5D0CB]">
+          <div className="py-12 text-center bg-[#FFFFFF] rounded-xl border border-dashed border-[#F5D0CB]">
             <ClipboardList size={32} className="mx-auto text-[#EA5551] mb-2 opacity-60" />
             <h4 className="text-xs font-bold text-[#EA5551]">No Inspection Logs Found</h4>
             <p className="text-[11px] text-[#806B68] mt-1">
@@ -682,7 +682,7 @@ export const InspectionFormPage: React.FC = () => {
   if (!isPermitted) {
     return (
       <div className="bg-white rounded-2xl p-8 border border-[#F5D0CB] text-center max-w-lg mx-auto my-12 shadow-sm space-y-4">
-        <div className="w-14 h-14 bg-[#FFE0DA] text-[#EA5551] rounded-2xl flex items-center justify-center mx-auto border border-[#F5D0CB]">
+        <div className="w-14 h-14 bg-[#FFFFFF] text-[#EA5551] rounded-2xl flex items-center justify-center mx-auto border border-[#F5D0CB]">
           <Lock size={26} />
         </div>
         <div>
@@ -766,7 +766,7 @@ export const InspectionFormPage: React.FC = () => {
       )}
 
       {/* Header bar */}
-      <div className="bg-gradient-to-r from-[#FFF8F6] via-[#FFF1EE] to-[#FFF1EE] rounded-xl p-4 border border-[#F5D0CB] shadow-sm flex flex-col gap-4">
+      <div className="bg-white rounded-xl p-4 border border-[#F5D0CB] shadow-sm flex flex-col gap-4">
         {/* Header Section */}
         <div className="flex items-start gap-3">
           <button
@@ -956,7 +956,7 @@ export const InspectionFormPage: React.FC = () => {
         renderIndividualFormLog()
       ) : (
         <>
-          <div className="bg-[#FFF1EE] text-[#806B68] rounded-xl p-3.5 shadow-sm border border-[#F5D0CB] text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="bg-white text-[#806B68] rounded-xl p-3.5 shadow-sm border border-[#FDE8E4] text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-1.5 text-[#EA5551] font-bold uppercase tracking-wider text-[11px]">
                 <Info size={14} />
@@ -976,7 +976,7 @@ export const InspectionFormPage: React.FC = () => {
           </div>
 
           {/* General Inspection Context Fields */}
-          <div className="bg-gradient-to-br from-[#FFF8F6] via-[#FFF1EE] to-[#FFF1EE] rounded-xl p-4 border border-[#F5D0CB] shadow-sm">
+          <div className="bg-white rounded-xl p-4 border border-[#FDE8E4] shadow-sm">
             <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider mb-3 border-b border-[#FDE8E4] pb-2">
               1. Common Inspection Context
             </h3>
@@ -1079,7 +1079,7 @@ export const InspectionFormPage: React.FC = () => {
 
           {/* Form Specific Header Parameters */}
           {formMeta.fields.length > 0 && (
-            <div className="bg-gradient-to-br from-[#FFF8F6] via-[#FFF1EE] to-[#FFF1EE] rounded-xl p-4 border border-[#F5D0CB] shadow-sm">
+            <div className="bg-white rounded-xl p-4 border border-[#FDE8E4] shadow-sm">
               <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider mb-3 border-b border-[#FDE8E4] pb-2">
                 2. {formMeta.title} – Header Parameters
               </h3>
@@ -1150,10 +1150,10 @@ export const InspectionFormPage: React.FC = () => {
 
           {/* Repeatable Readings Table */}
           <div className="bg-white rounded-xl border border-[#FDE8E4] shadow-sm overflow-hidden">
-            <div className="p-3.5 bg-[#FFF1EE] border-b border-[#FDE8E4] flex items-center justify-between flex-wrap gap-2">
+            <div className="p-3.5 bg-[#FFFFFF] border-b border-[#FDE8E4] flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider">
-                  3. Sample Readings &amp; Measurements Grid ({computedRows.length} Samples)
+                  3. Sample Readings &amp; Measurements({computedRows.length} Samples)
                 </h3>
                 <p className="text-[11px] text-[#806B68]">
                   Unit: <strong className="text-[#EA5551]">{formMeta.sampleUnit}</strong>
@@ -1165,7 +1165,7 @@ export const InspectionFormPage: React.FC = () => {
                   id="add-reading-row-btn"
                   type="button"
                   onClick={handleAddRow}
-                  className="px-2.5 py-1 bg-white border border-[#F5D0CB] hover:border-[#EA5551] hover:bg-[#FFE0DA] hover:text-[#EA5551] text-[#806B68] rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-colors"
+                  className="px-2.5 py-1 bg-white border border-[#F5D0CB] hover:border-[#EA5551] hover:bg-[#FFFFFF] hover:text-[#EA5551] text-[#806B68] rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-colors"
                 >
                   <Plus size={13} />
                   <span>Add Sample Row</span>
@@ -1253,7 +1253,7 @@ export const InspectionFormPage: React.FC = () => {
                             type="button"
                             onClick={() => handleRemoveRow(idx)}
                             disabled={computedRows.length <= 1}
-                            className="text-[#806B68] hover:text-[#C43D50] hover:bg-[#FFE0DA] rounded p-1 disabled:opacity-30 transition-colors"
+                            className="text-[#806B68] hover:text-[#C43D50] hover:bg-[#FFFFFF] rounded p-1 disabled:opacity-30 transition-colors"
                             title="Remove row"
                           >
                             <Trash2 size={13} />
@@ -1268,7 +1268,7 @@ export const InspectionFormPage: React.FC = () => {
           </div>
 
           {/* Automatic System Calculations & Statistical Summary */}
-          <div className="bg-gradient-to-br from-[#FFF8F6] via-[#FFF1EE] to-[#FFF1EE] text-[#806B68] rounded-xl p-4 shadow-md border border-[#F5D0CB]">
+          <div className="bg-white text-[#806B68] rounded-xl p-4 shadow-sm border border-[#FDE8E4]">
             <div className="flex items-center justify-between mb-3 border-b border-[#F5D0CB] pb-2">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-[#EA5551]" />
@@ -1277,7 +1277,7 @@ export const InspectionFormPage: React.FC = () => {
                 </h3>
               </div>
 
-              <span className="text-[10px] bg-[#FFE0DA] text-[#EA5551] px-2 py-0.5 rounded font-mono border border-[#F5D0CB]">
+              <span className="text-[10px] bg-[#FFFFFF] text-[#EA5551] px-2 py-0.5 rounded font-mono border border-[#F5D0CB]">
                 Source Mathematical Standards Engine
               </span>
             </div>

@@ -10,7 +10,7 @@
   --primary: #EA5551;
   --primary-hover: #D46764;
   --secondary: #F5B7AD;
-  --accent: #FFE0DA;
+  --accent: #FFFFFF;
 
   --background: #FFF8F6;
   --surface: #FFFFFF;
@@ -201,7 +201,7 @@ table td {
    ===================================================================== */
 
 * {
-  scrollbar-color: #F5D0CB #FFF1EE;
+  scrollbar-color: #FFFFFF#FFF1EE;
   scrollbar-width: thin;
 }
 

@@ -164,7 +164,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
         <div className="px-6 py-4 bg-gradient-to-r from-[#EA5551] via-[#EA5551] to-[#D46764] text-[#FFFFFF] flex items-center justify-between border-b-2 border-[#FFE0DA]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-[#EA5551] flex items-center justify-center border border-[#FFE0DA]">
-              <Database size={22} className="text-[#FFE0DA]" />
+              <Database size={22} className="text-[#FFFFFF]" />
             </div>
             <div>
               <h2 className="text-base font-black tracking-tight text-[#FFFFFF] flex items-center gap-2 flex-wrap">
@@ -174,7 +174,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                     ONLINE: {status.database}
                   </span>
                 ) : (
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-[#EA5551] text-[#FFE0DA] border border-[#FFE0DA]/40 font-mono font-bold">
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-[#EA5551] text-[#FFFFFF] border border-[#FFE0DA]/40 font-mono font-bold">
                     DISCONNECTED
                   </span>
                 )}
@@ -255,7 +255,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                 className={`p-4 rounded-xl border flex items-start gap-3.5 ${
                   status?.isConnected
                     ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
-                    : 'bg-[#FFE0DA] border-[#F5D0CB] text-[#393334]'
+                    : 'bg-[#FFFFFF] border-[#F5D0CB] text-[#393334]'
                 }`}
               >
                 {status?.isConnected ? (
@@ -333,7 +333,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
               </div>
 
               {/* Real-time Auto Sync Status Card */}
-              <div className="p-4 bg-[#FFE0DA] border border-[#F5D0CB] rounded-xl space-y-2">
+              <div className="p-4 bg-[#FFFFFF] border border-[#F5D0CB] rounded-xl space-y-2">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-sm font-bold text-[#EA5551]">
                     Automatic Real-Time Synchronization Active
@@ -351,7 +351,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
               <div className="p-4 bg-[#EA5551] rounded-xl text-[#FFFFFF] space-y-3 border border-[#FFE0DA]/50">
                 <div>
                   <h3 className="text-sm font-bold text-[#FFFFFF] flex items-center gap-2">
-                    <UploadCloud size={18} className="text-[#FFE0DA]" />
+                    <UploadCloud size={18} className="text-[#FFFFFF]" />
                     Bi-Directional Database Sync Controls
                   </h3>
                   <p className="text-xs text-[#FFF8F6]/80">
@@ -366,7 +366,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                     disabled={pulling || !status?.isConnected}
                     className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
                       status?.isConnected
-                        ? 'bg-[#FFE0DA] hover:bg-[#F5D0CB] text-[#393334] shadow-md'
+                        ? 'bg-[#FFFFFF] hover:bg-[#F5D0CB] text-[#393334] shadow-md'
                         : 'bg-[#393334] text-[#806B68] cursor-not-allowed border border-[#D46764]'
                     }`}
                   >
@@ -470,7 +470,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
               </div>
 
               <div className="bg-[#393334] text-[#FFF8F6] p-3.5 rounded-xl font-mono text-[11px] space-y-2 border border-[#D46764]">
-                <div className="flex items-center justify-between text-[#FFE0DA] border-b border-[#D46764] pb-1.5">
+                <div className="flex items-center justify-between text-[#FFFFFF] border-b border-[#D46764] pb-1.5">
                   <span className="flex items-center gap-1.5">
                     <Terminal size={13} />
                     Local Config Template (.env)
@@ -482,7 +482,7 @@ export const PostgresSyncModal: React.FC<PostgresSyncModalProps> = ({ isOpen, on
                         'env-copy'
                       )
                     }
-                    className="text-[#FFE0DA] hover:text-white flex items-center gap-1 text-[11px] cursor-pointer"
+                    className="text-[#FFFFFF] hover:text-white flex items-center gap-1 text-[11px] cursor-pointer"
                   >
                     {copiedKey === 'env-copy' ? <Check size={12} /> : <Copy size={12} />}
                     {copiedKey === 'env-copy' ? 'Copied' : 'Copy Template'}
@@ -522,7 +522,7 @@ PORT=3000`}
                   </button>
                   <button
                     onClick={() => handleCopy(sqlPreview, 'sql-copy')}
-                    className="px-4 py-2 bg-[#FFFFFF] border border-[#F5D0CB] hover:bg-[#FFE0DA] text-[#EA5551] rounded-lg font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-[#FFFFFF] border border-[#F5D0CB] hover:bg-[#FFFFFF] text-[#EA5551] rounded-lg font-bold flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     {copiedKey === 'sql-copy' ? (
                       <Check size={15} className="text-emerald-700" />
@@ -535,7 +535,7 @@ PORT=3000`}
               </div>
 
               <div className="border border-[#F5D0CB] rounded-xl overflow-hidden">
-                <div className="bg-[#EA5551] text-[#FFE0DA] px-4 py-2 font-mono text-[11px] flex items-center justify-between border-b border-[#D46764]">
+                <div className="bg-[#EA5551] text-[#FFFFFF] px-4 py-2 font-mono text-[11px] flex items-center justify-between border-b border-[#D46764]">
                   <span>
                     SQL Preview ({fullData.users.length} users, {fullData.departments.length} depts,{' '}
                     {fullData.inspections.length} records)
@@ -569,7 +569,7 @@ PORT=3000`}
                   </button>
                   <button
                     onClick={() => handleCopy(LOCAL_SERVER_JS_CODE, 'srv-tab-copy')}
-                    className="px-4 py-2 bg-[#FFFFFF] border border-[#F5D0CB] hover:bg-[#FFE0DA] text-[#EA5551] rounded-lg font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-[#FFFFFF] border border-[#F5D0CB] hover:bg-[#FFFFFF] text-[#EA5551] rounded-lg font-bold flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     {copiedKey === 'srv-tab-copy' ? (
                       <Check size={15} className="text-emerald-700" />
@@ -582,7 +582,7 @@ PORT=3000`}
               </div>
 
               <div className="border border-[#F5D0CB] rounded-xl overflow-hidden">
-                <div className="bg-[#EA5551] text-[#FFE0DA] px-4 py-2 font-mono text-[11px] border-b border-[#D46764]">
+                <div className="bg-[#EA5551] text-[#FFFFFF] px-4 py-2 font-mono text-[11px] border-b border-[#D46764]">
                   <span>server.js Code Preview</span>
                 </div>
                 <pre className="p-4 bg-[#393334] text-[#FFF8F6] font-mono text-[11px] max-h-56 overflow-y-auto overflow-x-auto select-all leading-relaxed">
@@ -603,7 +603,7 @@ PORT=3000`}
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-[#FFFFFF] border border-[#F5D0CB] hover:bg-[#FFE0DA] text-[#EA5551] font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
+            className="px-4 py-1.5 bg-[#FFFFFF] border border-[#F5D0CB] hover:bg-[#FFFFFF] text-[#EA5551] font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
           >
             Close
           </button>

@@ -115,7 +115,7 @@ export const SettingsPage: React.FC = () => {
       <div
         className={`rounded-xl border shadow-xs p-5 space-y-4 ${
           maintenanceStatus.enabled
-            ? 'bg-[#FFE0DA] border-[#F5D0CB]'
+            ? 'bg-[#FFFFFF] border-[#F5D0CB]'
             : 'bg-[#FFFFFF] border-[#F5D0CB]'
         }`}
       >
@@ -290,7 +290,7 @@ export const SettingsPage: React.FC = () => {
             <p className="text-xs text-[#806B68] leading-relaxed">
               Activating Maintenance Mode will immediately log out all active non-admin users and display the blocking notice:
             </p>
-            <div className="p-2.5 rounded-lg bg-[#FFE0DA] border border-[#F5D0CB] text-xs font-semibold text-[#EA5551]">
+            <div className="p-2.5 rounded-lg bg-[#FFFFFF] border border-[#F5D0CB] text-xs font-semibold text-[#EA5551]">
               &quot;{maintenanceMessage.trim() || DEFAULT_MAINTENANCE_MESSAGE}&quot;
             </div>
             <p className="text-[11px] text-[#806B68]">

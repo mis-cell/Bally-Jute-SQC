@@ -104,7 +104,7 @@ export const InspectionsListPage: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-[#393334] flex items-center gap-2 flex-wrap">
             <span>SQC Inspection Registry (Forms 1–36)</span>
-            <span className="text-xs font-mono font-bold bg-[#FFE0DA] text-[#EA5551] px-2.5 py-0.5 rounded border border-[#F5D0CB] tabular-nums">
+            <span className="text-xs font-mono font-bold bg-[#FFFFFF] text-[#EA5551] px-2.5 py-0.5 rounded border border-[#F5D0CB] tabular-nums">
               {filtered.length} of {inspections.length} Records
             </span>
           </h2>
@@ -270,7 +270,7 @@ export const InspectionsListPage: React.FC = () => {
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="font-semibold text-[#393334] flex items-center gap-1.5">
-                          <span className="font-mono text-[10px] bg-[#FFE0DA] text-[#EA5551] px-1.5 py-0.5 rounded border border-[#F5D0CB] tabular-nums">
+                          <span className="font-mono text-[10px] bg-[#FFFFFF] text-[#EA5551] px-1.5 py-0.5 rounded border border-[#F5D0CB] tabular-nums">
                             {item.formCode}
                           </span>
                           <span>{item.formTitle.split('–')[1]?.trim() || item.formTitle}</span>
@@ -293,7 +293,7 @@ export const InspectionsListPage: React.FC = () => {
                             id={`view-rec-${item.id}`}
                             onClick={() => navigate(`/inspection/${item.id}`)}
                             title="Open Inspection Details"
-                            className="px-2 py-1 bg-[#FFE0DA] text-[#EA5551] hover:bg-[#FFE0DA] rounded text-xs font-bold inline-flex items-center gap-1 border border-[#F5D0CB] whitespace-nowrap shrink-0 cursor-pointer"
+                            className="px-2 py-1 bg-[#FFFFFF] text-[#EA5551] hover:bg-[#FFFFFF] rounded text-xs font-bold inline-flex items-center gap-1 border border-[#F5D0CB] whitespace-nowrap shrink-0 cursor-pointer"
                           >
                             <span>Open</span>
                             <ArrowUpRight size={13} />
