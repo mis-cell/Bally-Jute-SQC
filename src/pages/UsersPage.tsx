@@ -357,13 +357,13 @@ export const UsersPage: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Header Bar */}
-      <div className="bg-[#FBF6E8] rounded-xl p-4 border border-[#C6BA96] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-[#FFFFFF] rounded-xl p-4 border border-[#F5D0CB] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-[#3B2311] flex items-center gap-2">
-            <Users size={18} className="text-[#4B5420]" />
+          <h2 className="text-base font-bold text-[#393334] flex items-center gap-2">
+            <Users size={18} className="text-[#EA5551]" />
             <span>Users, Module Access, Data Scope &amp; Form Permissions</span>
           </h2>
-          <p className="text-xs text-[#5B4735] mt-0.5">
+          <p className="text-xs text-[#806B68] mt-0.5">
             Admin-only control: assign roles, grant/revoke per-module access, restrict record scope, and manage passwords
           </p>
         </div>
@@ -372,7 +372,7 @@ export const UsersPage: React.FC = () => {
           <button
             id="btn-add-new-user"
             onClick={handleOpenAdd}
-            className="px-3.5 py-2 bg-gradient-to-r from-[#4B5420] to-[#3F471A] hover:from-[#3F471A] hover:to-[#343B14] text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-sm border border-[#DFD2A6]/40 transition-all cursor-pointer"
+            className="px-3.5 py-2 bg-gradient-to-r from-[#EA5551] to-[#D46764] hover:from-[#D46764] hover:to-[#EA5551] text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-sm border border-[#FFE0DA]/40 transition-all cursor-pointer"
           >
             <Plus size={15} />
             <span>+ Add New User</span>
@@ -397,51 +397,51 @@ export const UsersPage: React.FC = () => {
 
       {/* Role explanation summary (4 standard roles — Admin is the sole privileged role) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-        <div className="bg-[#FBF6E8] p-3 rounded-lg border border-[#C6BA96]">
-          <span className="font-bold text-[#4B5420] block">Admin (Sole Privileged Role)</span>
-          <p className="text-[11px] text-[#5B4735] mt-1">
+        <div className="bg-[#FFFFFF] p-3 rounded-lg border border-[#F5D0CB]">
+          <span className="font-bold text-[#EA5551] block">Admin (Sole Privileged Role)</span>
+          <p className="text-[11px] text-[#806B68] mt-1">
             Full access to all modules, users, permissions, audit trail, settings, and mill records
           </p>
         </div>
-        <div className="bg-[#FBF6E8] p-3 rounded-lg border border-[#C6BA96]">
-          <span className="font-bold text-[#3B2311] block">HOD / Approver</span>
-          <p className="text-[11px] text-[#5B4735] mt-1">
+        <div className="bg-[#FFFFFF] p-3 rounded-lg border border-[#F5D0CB]">
+          <span className="font-bold text-[#393334] block">HOD / Approver</span>
+          <p className="text-[11px] text-[#806B68] mt-1">
             Standard account: only opens granted modules (e.g. Approvals) within assigned data scope
           </p>
         </div>
-        <div className="bg-[#FBF6E8] p-3 rounded-lg border border-[#C6BA96]">
-          <span className="font-bold text-[#3B2311] block">SQC Inspector / User</span>
-          <p className="text-[11px] text-[#5B4735] mt-1">
+        <div className="bg-[#FFFFFF] p-3 rounded-lg border border-[#F5D0CB]">
+          <span className="font-bold text-[#393334] block">SQC Inspector / User</span>
+          <p className="text-[11px] text-[#806B68] mt-1">
             Standard account: zero access until Admin grants specific modules, forms, and scope
           </p>
         </div>
-        <div className="bg-[#FBF6E8] p-3 rounded-lg border border-[#C6BA96]">
-          <span className="font-bold text-[#3B2311] block">Viewer / Auditor</span>
-          <p className="text-[11px] text-[#5B4735] mt-1">
+        <div className="bg-[#FFFFFF] p-3 rounded-lg border border-[#F5D0CB]">
+          <span className="font-bold text-[#393334] block">Viewer / Auditor</span>
+          <p className="text-[11px] text-[#806B68] mt-1">
             Read-only account restricted strictly to granted Dashboard/Reports modules and data scope
           </p>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-[#FBF6E8] rounded-xl p-3 border border-[#C6BA96] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+      <div className="bg-[#FFFFFF] rounded-xl p-3 border border-[#F5D0CB] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
         <div className="relative flex-1 max-w-sm">
           <input
             type="text"
             placeholder="Search by name, username, email, code..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-[#C6BA96] bg-[#F5EEDB] focus:bg-white focus:outline-none text-[#3B2311]"
+            className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-[#F5D0CB] bg-[#FFF8F6] focus:bg-white focus:outline-none text-[#393334]"
           />
-          <Search size={14} className="absolute left-2.5 top-2 text-[#5B4735]" />
+          <Search size={14} className="absolute left-2.5 top-2 text-[#806B68]" />
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[#5B4735] font-semibold">Filter Role:</span>
+          <span className="text-xs text-[#806B68] font-semibold">Filter Role:</span>
           <select
             value={roleFilter}
             onChange={e => setRoleFilter(e.target.value)}
-            className="text-xs bg-[#F5EEDB] border border-[#C6BA96] rounded-lg px-2.5 py-1.5 font-medium text-[#3B2311]"
+            className="text-xs bg-[#FFF8F6] border border-[#F5D0CB] rounded-lg px-2.5 py-1.5 font-medium text-[#393334]"
           >
             <option value="ALL">All Roles ({users.length})</option>
             {roles.map(r => (
@@ -454,11 +454,11 @@ export const UsersPage: React.FC = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] shadow-xs overflow-hidden">
+      <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-bold">
+              <tr className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-bold">
                 <th className="py-3 px-4">User &amp; Employee Code</th>
                 <th className="py-3 px-4">Username &amp; Email</th>
                 <th className="py-3 px-4">Role &amp; Dept</th>
@@ -469,10 +469,10 @@ export const UsersPage: React.FC = () => {
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-[#5B4735]">
+                  <td colSpan={8} className="py-8 text-center text-[#806B68]">
                     No users match the search criteria.
                   </td>
                 </tr>
@@ -486,15 +486,15 @@ export const UsersPage: React.FC = () => {
                   const canDeleteEntries = isUserAdmin || Boolean(user.canDeleteEntries);
 
                   return (
-                    <tr key={user.id} className="hover:bg-[#EFE6CE]/60 transition-colors">
+                    <tr key={user.id} className="hover:bg-[#FFEAE6]/60 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#4B5420] to-[#4C5324] text-[#E3DAB6] font-bold flex items-center justify-center text-xs shrink-0 border border-[#DFD2A6]/60 shadow-2xs">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#EA5551] to-[#EA5551] text-[#FFE0DA] font-bold flex items-center justify-center text-xs shrink-0 border border-[#FFE0DA]/60 shadow-2xs">
                             {user.displayName.charAt(0)}
                           </div>
                           <div>
-                            <div className="font-bold text-[#3B2311]">{user.displayName}</div>
-                            <div className="font-mono text-[10px] text-[#5B4735] font-semibold">
+                            <div className="font-bold text-[#393334]">{user.displayName}</div>
+                            <div className="font-mono text-[10px] text-[#806B68] font-semibold">
                               ID: {user.employeeCode || 'N/A'}
                             </div>
                           </div>
@@ -502,36 +502,36 @@ export const UsersPage: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-4">
-                        <div className="font-mono font-bold text-[#4B5420]">
+                        <div className="font-mono font-bold text-[#EA5551]">
                           {user.username || user.email.split('@')[0]}
                         </div>
-                        <div className="text-[11px] text-[#5B4735]">{user.email}</div>
+                        <div className="text-[11px] text-[#806B68]">{user.email}</div>
                       </td>
 
                       <td className="py-3 px-4">
                         <span
                           className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold border ${
                             isUserAdmin
-                              ? 'bg-[#4B5420] text-[#FBF6E8] border-[#DFD2A6]'
+                              ? 'bg-[#EA5551] text-[#FFFFFF] border-[#FFE0DA]'
                               : user.role === 'HOD / Approver'
                               ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                              : 'bg-[#E3DAB6] text-[#4C5324] border-[#C6BA96]'
+                              : 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB]'
                           }`}
                         >
                           {user.role}
                         </span>
-                        <div className="text-[11px] text-[#5B4735] mt-1">
+                        <div className="text-[11px] text-[#806B68] mt-1">
                           {user.departmentName || 'Unassigned Dept'}
                         </div>
                       </td>
 
                       <td className="py-3 px-4">
                         <div className="flex flex-col gap-1">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#3B2311]">
-                            <Layers size={12} className="text-[#4B5420]" />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#393334]">
+                            <Layers size={12} className="text-[#EA5551]" />
                             {isUserAdmin ? 'All 8 Modules (Admin)' : `${modCount} Module(s)`}
                           </span>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#4C5324]">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#EA5551]">
                             <Database size={11} />
                             Scope: {scope}
                           </span>
@@ -546,7 +546,7 @@ export const UsersPage: React.FC = () => {
                             isUserAdmin
                               ? 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
                               : formCount > 0
-                              ? 'bg-[#E3DAB6] text-[#4C5324] border-[#C6BA96] hover:bg-[#E3DAB6]'
+                              ? 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB] hover:bg-[#FFE0DA]'
                               : 'bg-slate-100 text-slate-600 border-slate-300'
                           }`}
                           title="Click to inspect modules & forms"
@@ -570,7 +570,7 @@ export const UsersPage: React.FC = () => {
                               className={`px-2 py-1 rounded text-[10px] font-bold inline-flex items-center gap-1 border transition-colors cursor-pointer ${
                                 canEditEntries
                                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                                  : 'bg-[#F5EEDB] text-[#5B4735] border-[#C6BA96] hover:bg-[#F4ECD2]'
+                                  : 'bg-[#FFF8F6] text-[#806B68] border-[#F5D0CB] hover:bg-[#FFF1EE]'
                               }`}
                               title="Activate or deactivate Edit Saved Entries permission"
                             >
@@ -585,7 +585,7 @@ export const UsersPage: React.FC = () => {
                               className={`px-2 py-1 rounded text-[10px] font-bold inline-flex items-center gap-1 border transition-colors cursor-pointer ${
                                 canDeleteEntries
                                   ? 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
-                                  : 'bg-[#F5EEDB] text-[#5B4735] border-[#C6BA96] hover:bg-[#F4ECD2]'
+                                  : 'bg-[#FFF8F6] text-[#806B68] border-[#F5D0CB] hover:bg-[#FFF1EE]'
                               }`}
                               title="Activate or deactivate Delete Saved Entries permission"
                             >
@@ -613,7 +613,7 @@ export const UsersPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(user)}
-                            className="p-1.5 text-[#5B4735] hover:text-[#4B5420] hover:bg-[#E3DAB6] rounded-md transition-colors cursor-pointer"
+                            className="p-1.5 text-[#806B68] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded-md transition-colors cursor-pointer"
                             title="Edit User & Permissions"
                           >
                             <Edit2 size={14} />
@@ -627,7 +627,7 @@ export const UsersPage: React.FC = () => {
                               setResetPwShow(false);
                               setResetPwError('');
                             }}
-                            className="p-1.5 text-[#5B4735] hover:text-[#4C5324] hover:bg-[#E3DAB6] rounded-md transition-colors cursor-pointer"
+                            className="p-1.5 text-[#806B68] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded-md transition-colors cursor-pointer"
                             title="Reset User Password"
                           >
                             <KeyRound size={14} />
@@ -637,7 +637,7 @@ export const UsersPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setDeleteCandidate(user)}
-                              className="p-1.5 text-[#5B4735] hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                              className="p-1.5 text-[#806B68] hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                               title="Delete User"
                             >
                               <Trash2 size={14} />
@@ -656,19 +656,19 @@ export const UsersPage: React.FC = () => {
 
       {/* Add / Edit User Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#FBF6E8] rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-[#C6BA96] my-8 space-y-4 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#C6BA96] pb-3">
+        <div className="fixed inset-0 z-50 bg-[#393334]/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#FFFFFF] rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-[#F5D0CB] my-8 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#F5D0CB] pb-3">
               <div className="flex items-center gap-2">
-                <Users size={18} className="text-[#4B5420]" />
-                <h3 className="font-bold text-sm text-[#3B2311]">
+                <Users size={18} className="text-[#EA5551]" />
+                <h3 className="font-bold text-sm text-[#393334]">
                   {isEditing ? `Edit User: ${formData.displayName}` : 'Create New SQC User'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-[#5B4735] hover:text-[#3B2311] font-bold cursor-pointer"
+                className="text-[#806B68] hover:text-[#393334] font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -684,7 +684,7 @@ export const UsersPage: React.FC = () => {
             <form onSubmit={handleSaveUser} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#4C5324] mb-1">
+                  <label className="block font-bold text-[#EA5551] mb-1">
                     Full Display Name <span className="text-rose-600">*</span>
                   </label>
                   <input
@@ -693,12 +693,12 @@ export const UsersPage: React.FC = () => {
                     value={formData.displayName}
                     onChange={e => setFormData({ ...formData, displayName: e.target.value })}
                     placeholder="e.g. Rajesh Ghosh"
-                    className="w-full p-2 rounded-lg border border-[#C6BA96] bg-[#F5EEDB] focus:bg-white text-[#3B2311]"
+                    className="w-full p-2 rounded-lg border border-[#F5D0CB] bg-[#FFF8F6] focus:bg-white text-[#393334]"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#4C5324] mb-1">
+                  <label className="block font-bold text-[#EA5551] mb-1">
                     Employee Code / ID <span className="text-rose-600">*</span>
                   </label>
                   <input
@@ -707,12 +707,12 @@ export const UsersPage: React.FC = () => {
                     value={formData.employeeCode || ''}
                     onChange={e => setFormData({ ...formData, employeeCode: e.target.value })}
                     placeholder="e.g. BJ-311"
-                    className="w-full p-2 rounded-lg border border-[#C6BA96] bg-[#F5EEDB] focus:bg-white text-[#3B2311]"
+                    className="w-full p-2 rounded-lg border border-[#F5D0CB] bg-[#FFF8F6] focus:bg-white text-[#393334]"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#4C5324] mb-1">
+                  <label className="block font-bold text-[#EA5551] mb-1">
                     Username / Login Handle
                   </label>
                   <input
@@ -720,12 +720,12 @@ export const UsersPage: React.FC = () => {
                     value={formData.username || ''}
                     onChange={e => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
                     placeholder="e.g. rajesh"
-                    className="w-full p-2 rounded-lg border border-[#C6BA96] bg-[#F5EEDB] focus:bg-white font-mono text-[#3B2311]"
+                    className="w-full p-2 rounded-lg border border-[#F5D0CB] bg-[#FFF8F6] focus:bg-white font-mono text-[#393334]"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#4C5324] mb-1">
+                  <label className="block font-bold text-[#EA5551] mb-1">
                     Email Address <span className="text-rose-600">*</span>
                   </label>
                   <input
@@ -734,18 +734,18 @@ export const UsersPage: React.FC = () => {
                     value={formData.email}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     placeholder="user@ballyjute.com"
-                    className="w-full p-2 rounded-lg border border-[#C6BA96] bg-[#F5EEDB] focus:bg-white text-[#3B2311]"
+                    className="w-full p-2 rounded-lg border border-[#F5D0CB] bg-[#FFF8F6] focus:bg-white text-[#393334]"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#4C5324] mb-1">
+                  <label className="block font-bold text-[#EA5551] mb-1">
                     System Role <span className="text-rose-600">*</span>
                   </label>
                   <select
                     value={formData.role}
                     onChange={e => setFormData({ ...formData, role: e.target.value as UserRole })}
-                    className="w-full p-2 rounded-lg border border-[#C6BA96] bg-[#F5EEDB] focus:bg-white font-semibold text-[#3B2311]"
+                    className="w-full p-2 rounded-lg border border-[#F5D0CB] bg-[#FFF8F6] focus:bg-white font-semibold text-[#393334]"
                   >
                     {roles.map(r => (
                       <option key={r} value={r}>
@@ -756,7 +756,7 @@ export const UsersPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#4C5324] mb-1">
+                  <label className="block font-bold text-[#EA5551] mb-1">
                     Assigned Department
                   </label>
                   <select
@@ -769,7 +769,7 @@ export const UsersPage: React.FC = () => {
                         departmentId: dept?.id || '',
                       });
                     }}
-                    className="w-full p-2 rounded-lg border border-[#C6BA96] bg-[#F5EEDB] focus:bg-white text-[#3B2311]"
+                    className="w-full p-2 rounded-lg border border-[#F5D0CB] bg-[#FFF8F6] focus:bg-white text-[#393334]"
                   >
                     <option value="">All Departments / General</option>
                     {departments.map(d => (
@@ -782,14 +782,14 @@ export const UsersPage: React.FC = () => {
               </div>
 
               {/* Password Management (New password entry only — never reads or displays existing password) */}
-              <div className="p-3 rounded-xl bg-[#F5EEDB] border border-[#C6BA96] space-y-2">
+              <div className="p-3 rounded-xl bg-[#FFF8F6] border border-[#F5D0CB] space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#4C5324]">
-                    <Lock size={14} className="text-[#4B5420]" />
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#EA5551]">
+                    <Lock size={14} className="text-[#EA5551]" />
                     <span>Account Password</span>
                   </div>
                   {isEditing && (
-                    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#5B4735] cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#806B68] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={changePasswordToggle}
@@ -807,16 +807,16 @@ export const UsersPage: React.FC = () => {
                       value={passwordInput}
                       onChange={e => setPasswordInput(e.target.value)}
                       placeholder="Enter password (min 6 characters)"
-                      className="w-full p-2 pr-9 text-xs rounded-lg border border-[#C6BA96] bg-white font-medium"
+                      className="w-full p-2 pr-9 text-xs rounded-lg border border-[#F5D0CB] bg-white font-medium"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2.5 top-2.5 text-[#5B4735] cursor-pointer"
+                      className="absolute right-2.5 top-2.5 text-[#806B68] cursor-pointer"
                     >
                       {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
-                    <p className="text-[10px] text-[#5B4735] mt-1">
+                    <p className="text-[10px] text-[#806B68] mt-1">
                       Passwords are hashed with random per-user cryptographic salts. Existing passwords are never visible.
                     </p>
                   </div>
@@ -824,14 +824,14 @@ export const UsersPage: React.FC = () => {
               </div>
 
               {/* Module Permissions Section */}
-              <div className="p-3.5 rounded-xl bg-[#F5EEDB] border border-[#C6BA96] space-y-2.5">
+              <div className="p-3.5 rounded-xl bg-[#FFF8F6] border border-[#F5D0CB] space-y-2.5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <h4 className="font-bold text-xs text-[#4C5324] flex items-center gap-1.5">
-                      <Layers size={14} className="text-[#4B5420]" />
+                    <h4 className="font-bold text-xs text-[#EA5551] flex items-center gap-1.5">
+                      <Layers size={14} className="text-[#EA5551]" />
                       <span>Module Access Permissions</span>
                     </h4>
-                    <p className="text-[11px] text-[#5B4735]">
+                    <p className="text-[11px] text-[#806B68]">
                       {modalIsAdmin
                         ? 'Admin role automatically includes all operational and administration modules.'
                         : 'Grant only the specific modules this user may access. Unassigned modules are hidden and blocked.'}
@@ -844,7 +844,7 @@ export const UsersPage: React.FC = () => {
                         onClick={() =>
                           setFormData(prev => ({ ...prev, permittedModules: [...GRANTABLE_MODULES] }))
                         }
-                        className="px-2 py-1 bg-white hover:bg-[#E3DAB6] text-[#4B5420] border border-[#C6BA96] rounded text-[11px] font-bold cursor-pointer"
+                        className="px-2 py-1 bg-white hover:bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB] rounded text-[11px] font-bold cursor-pointer"
                       >
                         Grant All
                       </button>
@@ -873,11 +873,11 @@ export const UsersPage: React.FC = () => {
                         className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors ${
                           disabled
                             ? isAdminModule && !modalIsAdmin
-                              ? 'bg-[#F4ECD2]/70 border-[#D7CBB0] opacity-70 cursor-not-allowed'
+                              ? 'bg-[#FFF1EE]/70 border-[#FDE8E4] opacity-70 cursor-not-allowed'
                               : 'bg-emerald-50/70 border-emerald-300 cursor-not-allowed'
                             : isChecked
-                            ? 'bg-[#E3DAB6] border-[#4B5420] cursor-pointer'
-                            : 'bg-white border-[#C6BA96] hover:bg-[#F4ECD2] cursor-pointer'
+                            ? 'bg-[#FFE0DA] border-[#EA5551] cursor-pointer'
+                            : 'bg-white border-[#F5D0CB] hover:bg-[#FFF1EE] cursor-pointer'
                         }`}
                       >
                         <input
@@ -885,18 +885,18 @@ export const UsersPage: React.FC = () => {
                           disabled={disabled}
                           checked={isChecked}
                           onChange={() => !disabled && toggleModulePermission(mod.id)}
-                          className="mt-0.5 rounded text-[#4B5420]"
+                          className="mt-0.5 rounded text-[#EA5551]"
                         />
                         <div className="min-w-0">
-                          <span className="font-bold text-[#3B2311] block">
+                          <span className="font-bold text-[#393334] block">
                             {mod.label}
                             {isAdminModule && (
-                              <span className="ml-1.5 text-[10px] font-mono text-[#4B5420]">
+                              <span className="ml-1.5 text-[10px] font-mono text-[#EA5551]">
                                 (Admin Only)
                               </span>
                             )}
                           </span>
-                          <span className="text-[10px] text-[#5B4735] leading-snug block">
+                          <span className="text-[10px] text-[#806B68] leading-snug block">
                             {mod.description}
                           </span>
                         </div>
@@ -907,10 +907,10 @@ export const UsersPage: React.FC = () => {
               </div>
 
               {/* Explicit Data Scope Selector */}
-              <div className="p-3.5 rounded-xl bg-[#F4ECD2] border border-[#C6BA96] space-y-2">
+              <div className="p-3.5 rounded-xl bg-[#FFF1EE] border border-[#F5D0CB] space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-xs text-[#4C5324] flex items-center gap-1.5">
-                    <Database size={14} className="text-[#6B5B2E]" />
+                  <h4 className="font-bold text-xs text-[#EA5551] flex items-center gap-1.5">
+                    <Database size={14} className="text-[#EA5551]" />
                     <span>Data Visibility Scope Within Assigned Modules</span>
                   </h4>
                   {modalIsAdmin && (
@@ -946,10 +946,10 @@ export const UsersPage: React.FC = () => {
                         key={opt.value}
                         className={`flex items-start gap-2 p-2.5 rounded-lg border transition-colors ${
                           modalIsAdmin
-                            ? 'opacity-75 cursor-not-allowed bg-[#FBF6E8] border-[#C6BA96]'
+                            ? 'opacity-75 cursor-not-allowed bg-[#FFFFFF] border-[#F5D0CB]'
                             : selected
-                            ? 'bg-white border-[#4B5420] shadow-2xs cursor-pointer'
-                            : 'bg-[#FBF6E8] border-[#C6BA96] hover:bg-[#F5EEDB] cursor-pointer'
+                            ? 'bg-white border-[#EA5551] shadow-2xs cursor-pointer'
+                            : 'bg-[#FFFFFF] border-[#F5D0CB] hover:bg-[#FFF8F6] cursor-pointer'
                         }`}
                       >
                         <input
@@ -958,13 +958,13 @@ export const UsersPage: React.FC = () => {
                           disabled={modalIsAdmin}
                           checked={selected}
                           onChange={() => setFormData({ ...formData, dataScope: opt.value })}
-                          className="mt-0.5 text-[#4B5420]"
+                          className="mt-0.5 text-[#EA5551]"
                         />
                         <div>
-                          <span className="font-bold text-[#3B2311] block text-[11px]">
+                          <span className="font-bold text-[#393334] block text-[11px]">
                             {opt.title}
                           </span>
-                          <span className="text-[10px] text-[#5B4735] leading-snug block">
+                          <span className="text-[10px] text-[#806B68] leading-snug block">
                             {opt.desc}
                           </span>
                         </div>
@@ -975,10 +975,10 @@ export const UsersPage: React.FC = () => {
               </div>
 
               {/* Individual Form Log Privileges */}
-              <div className="p-3.5 rounded-xl bg-[#F4ECD2] border border-[#C6BA96] space-y-2.5">
+              <div className="p-3.5 rounded-xl bg-[#FFF1EE] border border-[#F5D0CB] space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-xs text-[#4C5324] flex items-center gap-1.5">
-                    <Shield size={14} className="text-[#6B5B2E]" />
+                  <h4 className="font-bold text-xs text-[#EA5551] flex items-center gap-1.5">
+                    <Shield size={14} className="text-[#EA5551]" />
                     <span>Individual Form Log Privileges</span>
                   </h4>
                   {modalIsAdmin && (
@@ -994,8 +994,8 @@ export const UsersPage: React.FC = () => {
                       modalIsAdmin
                         ? 'bg-emerald-50/70 border-emerald-300 opacity-80 cursor-not-allowed'
                         : formData.canEditEntries
-                        ? 'bg-white border-[#4B5420] text-[#3B2311] cursor-pointer shadow-2xs'
-                        : 'bg-[#FBF6E8] border-[#C6BA96] text-[#5B4735] cursor-pointer'
+                        ? 'bg-white border-[#EA5551] text-[#393334] cursor-pointer shadow-2xs'
+                        : 'bg-[#FFFFFF] border-[#F5D0CB] text-[#806B68] cursor-pointer'
                     }`}
                   >
                     <input
@@ -1003,11 +1003,11 @@ export const UsersPage: React.FC = () => {
                       disabled={modalIsAdmin}
                       checked={modalIsAdmin ? true : Boolean(formData.canEditEntries)}
                       onChange={e => setFormData({ ...formData, canEditEntries: e.target.checked })}
-                      className="rounded text-[#4B5420] focus:ring-[#4B5420]"
+                      className="rounded text-[#EA5551] focus:ring-[#EA5551]"
                     />
                     <div>
                       <span className="font-bold block text-xs">Allow Edit Saved Form Entries</span>
-                      <span className="text-[10px] text-[#5B4735]">
+                      <span className="text-[10px] text-[#806B68]">
                         Permits updating non-approved records within scope
                       </span>
                     </div>
@@ -1018,8 +1018,8 @@ export const UsersPage: React.FC = () => {
                       modalIsAdmin
                         ? 'bg-emerald-50/70 border-emerald-300 opacity-80 cursor-not-allowed'
                         : formData.canDeleteEntries
-                        ? 'bg-white border-rose-600 text-[#3B2311] cursor-pointer shadow-2xs'
-                        : 'bg-[#FBF6E8] border-[#C6BA96] text-[#5B4735] cursor-pointer'
+                        ? 'bg-white border-rose-600 text-[#393334] cursor-pointer shadow-2xs'
+                        : 'bg-[#FFFFFF] border-[#F5D0CB] text-[#806B68] cursor-pointer'
                     }`}
                   >
                     <input
@@ -1031,7 +1031,7 @@ export const UsersPage: React.FC = () => {
                     />
                     <div>
                       <span className="font-bold block text-xs">Allow Delete Saved Form Entries</span>
-                      <span className="text-[10px] text-[#5B4735]">
+                      <span className="text-[10px] text-[#806B68]">
                         Permits deleting authorized records from form logs
                       </span>
                     </div>
@@ -1040,17 +1040,17 @@ export const UsersPage: React.FC = () => {
               </div>
 
               {/* Per-Form Permissions Configuration */}
-              <div className="space-y-2 pt-2 border-t border-[#C6BA96]">
+              <div className="space-y-2 pt-2 border-t border-[#F5D0CB]">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <h4 className="font-bold text-xs text-[#3B2311] flex items-center gap-1.5">
-                      <Shield size={14} className="text-[#4B5420]" />
+                    <h4 className="font-bold text-xs text-[#393334] flex items-center gap-1.5">
+                      <Shield size={14} className="text-[#EA5551]" />
                       <span>
                         Individual Form Permissions ({modalIsAdmin ? allFormCodes.length : formData.permittedForms?.length || 0} /{' '}
                         {allFormCodes.length} Selected)
                       </span>
                     </h4>
-                    <p className="text-[10px] text-[#5B4735]">
+                    <p className="text-[10px] text-[#806B68]">
                       {modalIsAdmin
                         ? 'Administrators have universal access to all forms by role.'
                         : !modalHasInspections
@@ -1064,7 +1064,7 @@ export const UsersPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleSelectAllForms}
-                        className="px-2 py-1 bg-white hover:bg-[#E3DAB6] text-[#4B5420] border border-[#C6BA96] rounded text-[11px] font-bold cursor-pointer"
+                        className="px-2 py-1 bg-white hover:bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB] rounded text-[11px] font-bold cursor-pointer"
                       >
                         Select All
                       </button>
@@ -1080,23 +1080,23 @@ export const UsersPage: React.FC = () => {
                 </div>
 
                 {/* Form Group Checklists */}
-                <div className="space-y-3 max-h-56 overflow-y-auto p-3 rounded-xl bg-[#F5EEDB] border border-[#C6BA96]">
+                <div className="space-y-3 max-h-56 overflow-y-auto p-3 rounded-xl bg-[#FFF8F6] border border-[#F5D0CB]">
                   {formGroups.map((group, idx) => {
                     const allInGroupSelected = group.forms.every(f =>
                       (formData.permittedForms || []).includes(f)
                     );
 
                     return (
-                      <div key={idx} className="space-y-1 pb-2 border-b border-[#C6BA96]/60 last:border-b-0">
+                      <div key={idx} className="space-y-1 pb-2 border-b border-[#F5D0CB]/60 last:border-b-0">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-[11px] text-[#4C5324] uppercase tracking-tight">
+                          <span className="font-bold text-[11px] text-[#EA5551] uppercase tracking-tight">
                             {group.title}
                           </span>
                           {!modalIsAdmin && (
                             <button
                               type="button"
                               onClick={() => handleSelectGroupForms(group.forms)}
-                              className="text-[10px] text-[#4B5420] hover:underline font-semibold cursor-pointer"
+                              className="text-[10px] text-[#EA5551] hover:underline font-semibold cursor-pointer"
                             >
                               {allInGroupSelected ? 'Deselect Group' : 'Select Group'}
                             </button>
@@ -1116,8 +1116,8 @@ export const UsersPage: React.FC = () => {
                                   modalIsAdmin
                                     ? 'bg-emerald-50/70 border-emerald-200 cursor-not-allowed'
                                     : isChecked
-                                    ? 'bg-[#E3DAB6] border-[#4B5420] text-[#3B2311] font-bold cursor-pointer'
-                                    : 'bg-white border-[#D7CBB0] text-[#5B4735] hover:bg-[#F4ECD2] cursor-pointer'
+                                    ? 'bg-[#FFE0DA] border-[#EA5551] text-[#393334] font-bold cursor-pointer'
+                                    : 'bg-white border-[#FDE8E4] text-[#806B68] hover:bg-[#FFF1EE] cursor-pointer'
                                 }`}
                               >
                                 <input
@@ -1125,9 +1125,9 @@ export const UsersPage: React.FC = () => {
                                   disabled={modalIsAdmin}
                                   checked={isChecked}
                                   onChange={() => !modalIsAdmin && toggleFormPermission(fCode)}
-                                  className="rounded text-[#4B5420] focus:ring-[#4B5420]"
+                                  className="rounded text-[#EA5551] focus:ring-[#EA5551]"
                                 />
-                                <span className="font-mono text-[10px] bg-[#4B5420] text-white px-1 py-0.5 rounded">
+                                <span className="font-mono text-[10px] bg-[#EA5551] text-white px-1 py-0.5 rounded">
                                   {meta.code.replace('FORM-', 'F')}
                                 </span>
                                 <span className="truncate">
@@ -1150,25 +1150,25 @@ export const UsersPage: React.FC = () => {
                   id="user-is-active"
                   checked={formData.isActive}
                   onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="rounded text-[#4B5420]"
+                  className="rounded text-[#EA5551]"
                 />
-                <label htmlFor="user-is-active" className="font-semibold text-xs text-[#3B2311] cursor-pointer">
+                <label htmlFor="user-is-active" className="font-semibold text-xs text-[#393334] cursor-pointer">
                   Account is Active (permitted to log into SQC portal)
                 </label>
               </div>
 
-              <div className="pt-3 border-t border-[#C6BA96] flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-[#F5D0CB] flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3.5 py-2 rounded-lg border border-[#C6BA96] text-xs font-semibold hover:bg-[#F4ECD2] text-[#5B4735] cursor-pointer"
+                  className="px-3.5 py-2 rounded-lg border border-[#F5D0CB] text-xs font-semibold hover:bg-[#FFF1EE] text-[#806B68] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingUser}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#4B5420] to-[#3F471A] hover:from-[#3F471A] hover:to-[#343B14] text-white text-xs font-bold shadow-xs disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#EA5551] to-[#D46764] hover:from-[#D46764] hover:to-[#EA5551] text-white text-xs font-bold shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {isSavingUser ? 'Saving...' : isEditing ? 'Save Changes' : 'Create User Account'}
                 </button>
@@ -1180,14 +1180,14 @@ export const UsersPage: React.FC = () => {
 
       {/* View Permitted Modules & Forms Popover Modal */}
       {viewPermsCandidate && (
-        <div className="fixed inset-0 z-50 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#FBF6E8] rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#C6BA96] space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#C6BA96] pb-3">
+        <div className="fixed inset-0 z-50 bg-[#393334]/65 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#F5D0CB] space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#F5D0CB] pb-3">
               <div>
-                <h3 className="font-bold text-sm text-[#3B2311]">
+                <h3 className="font-bold text-sm text-[#393334]">
                   Permissions Overview: {viewPermsCandidate.displayName}
                 </h3>
-                <span className="text-[11px] text-[#5B4735]">
+                <span className="text-[11px] text-[#806B68]">
                   Role: <strong>{viewPermsCandidate.role}</strong> · Data Scope:{' '}
                   <strong>{isAdminUser(viewPermsCandidate.role) ? 'ALL' : viewPermsCandidate.dataScope || 'OWN'}</strong>
                 </span>
@@ -1195,7 +1195,7 @@ export const UsersPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setViewPermsCandidate(null)}
-                className="text-[#5B4735] hover:text-[#3B2311] font-bold cursor-pointer"
+                className="text-[#806B68] hover:text-[#393334] font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -1208,17 +1208,17 @@ export const UsersPage: React.FC = () => {
             ) : (
               <div className="space-y-3 text-xs">
                 <div>
-                  <p className="font-bold text-[#4C5324] mb-1">
+                  <p className="font-bold text-[#EA5551] mb-1">
                     Permitted Modules ({viewPermsCandidate.permittedModules?.length || 0}):
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {(viewPermsCandidate.permittedModules || []).length === 0 ? (
-                      <span className="text-[#5B4735]">No modules assigned.</span>
+                      <span className="text-[#806B68]">No modules assigned.</span>
                     ) : (
                       (viewPermsCandidate.permittedModules || []).map(m => (
                         <span
                           key={m}
-                          className="px-2 py-0.5 rounded bg-[#E3DAB6] border border-[#C6BA96] text-[#4C5324] font-bold text-[10px]"
+                          className="px-2 py-0.5 rounded bg-[#FFE0DA] border border-[#F5D0CB] text-[#EA5551] font-bold text-[10px]"
                         >
                           {MODULE_DEFINITIONS.find(d => d.id === m)?.label || m}
                         </span>
@@ -1228,23 +1228,23 @@ export const UsersPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <p className="font-bold text-[#4C5324] mb-1">
+                  <p className="font-bold text-[#EA5551] mb-1">
                     Permitted Forms ({viewPermsCandidate.permittedForms?.length || 0}):
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto p-2 bg-[#F5EEDB] rounded-xl border border-[#C6BA96]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto p-2 bg-[#FFF8F6] rounded-xl border border-[#F5D0CB]">
                     {(viewPermsCandidate.permittedForms || []).length === 0 ? (
-                      <span className="text-[#5B4735] col-span-2 p-2 text-center">
+                      <span className="text-[#806B68] col-span-2 p-2 text-center">
                         No inspection forms granted.
                       </span>
                     ) : (
                       (viewPermsCandidate.permittedForms || []).map(fCode => {
                         const meta = FORM_REGISTRY[fCode];
                         return (
-                          <div key={fCode} className="p-1.5 rounded bg-white border border-[#C6BA96] flex items-center gap-1.5">
-                            <span className="font-mono text-[10px] bg-[#4B5420] text-white px-1.5 py-0.5 rounded font-bold">
+                          <div key={fCode} className="p-1.5 rounded bg-white border border-[#F5D0CB] flex items-center gap-1.5">
+                            <span className="font-mono text-[10px] bg-[#EA5551] text-white px-1.5 py-0.5 rounded font-bold">
                               {fCode}
                             </span>
-                            <span className="text-[11px] font-semibold text-[#3B2311] truncate">
+                            <span className="text-[11px] font-semibold text-[#393334] truncate">
                               {meta?.title.split('–')[1]?.trim() || meta?.title || fCode}
                             </span>
                           </div>
@@ -1260,7 +1260,7 @@ export const UsersPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setViewPermsCandidate(null)}
-                className="px-4 py-1.5 rounded-lg bg-[#4B5420] text-white text-xs font-bold cursor-pointer"
+                className="px-4 py-1.5 rounded-lg bg-[#EA5551] text-white text-xs font-bold cursor-pointer"
               >
                 Close
               </button>
@@ -1271,25 +1271,25 @@ export const UsersPage: React.FC = () => {
 
       {/* Dedicated Admin Password Reset Modal */}
       {resetPwCandidate && (
-        <div className="fixed inset-0 z-50 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#FBF6E8] rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-[#C6BA96] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#D7CBB0] pb-2">
-              <h3 className="font-bold text-sm text-[#3B2311] flex items-center gap-2">
-                <KeyRound size={16} className="text-[#4B5420]" />
+        <div className="fixed inset-0 z-50 bg-[#393334]/65 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-[#F5D0CB] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#FDE8E4] pb-2">
+              <h3 className="font-bold text-sm text-[#393334] flex items-center gap-2">
+                <KeyRound size={16} className="text-[#EA5551]" />
                 <span>Reset Password</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setResetPwCandidate(null)}
-                className="text-[#5B4735] hover:text-[#3B2311] font-bold cursor-pointer"
+                className="text-[#806B68] hover:text-[#393334] font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-[#5B4735] leading-relaxed">
+            <p className="text-xs text-[#806B68] leading-relaxed">
               Set a new temporary or permanent password for{' '}
-              <strong className="text-[#3B2311]">{resetPwCandidate.displayName}</strong> (
+              <strong className="text-[#393334]">{resetPwCandidate.displayName}</strong> (
               {resetPwCandidate.username || resetPwCandidate.email}). Previous sessions will be logged out immediately.
             </p>
 
@@ -1307,12 +1307,12 @@ export const UsersPage: React.FC = () => {
                   value={resetPwValue}
                   onChange={e => setResetPwValue(e.target.value)}
                   placeholder="New password (min 6 characters)"
-                  className="w-full p-2 pr-9 rounded-lg border border-[#C6BA96] bg-[#F5EEDB] focus:bg-white"
+                  className="w-full p-2 pr-9 rounded-lg border border-[#F5D0CB] bg-[#FFF8F6] focus:bg-white"
                 />
                 <button
                   type="button"
                   onClick={() => setResetPwShow(!resetPwShow)}
-                  className="absolute right-2.5 top-2.5 text-[#5B4735] cursor-pointer"
+                  className="absolute right-2.5 top-2.5 text-[#806B68] cursor-pointer"
                 >
                   {resetPwShow ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -1322,14 +1322,14 @@ export const UsersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setResetPwCandidate(null)}
-                  className="px-3 py-1.5 rounded-lg border border-[#C6BA96] text-xs font-semibold hover:bg-[#F4ECD2] cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-[#F5D0CB] text-xs font-semibold hover:bg-[#FFF1EE] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={resetPwBusy}
-                  className="px-3.5 py-1.5 rounded-lg bg-[#4B5420] hover:bg-[#3F471A] text-white text-xs font-bold disabled:opacity-50 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-[#EA5551] hover:bg-[#D46764] text-white text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
                   {resetPwBusy ? 'Resetting...' : 'Reset Password'}
                 </button>
@@ -1341,20 +1341,20 @@ export const UsersPage: React.FC = () => {
 
       {/* Delete User Confirmation Modal */}
       {deleteCandidate && (
-        <div className="fixed inset-0 z-50 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#FBF6E8] rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-rose-300 space-y-4">
+        <div className="fixed inset-0 z-50 bg-[#393334]/65 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-rose-300 space-y-4">
             <div className="flex items-center gap-3 text-rose-700">
               <AlertTriangle size={22} className="shrink-0" />
               <h3 className="font-bold text-sm">Delete User Account</h3>
             </div>
-            <p className="text-xs text-[#5B4735] leading-relaxed">
-              Are you sure you want to delete user <strong className="text-[#3B2311]">&quot;{deleteCandidate.displayName}&quot;</strong> ({deleteCandidate.email})? This action cannot be undone.
+            <p className="text-xs text-[#806B68] leading-relaxed">
+              Are you sure you want to delete user <strong className="text-[#393334]">&quot;{deleteCandidate.displayName}&quot;</strong> ({deleteCandidate.email})? This action cannot be undone.
             </p>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setDeleteCandidate(null)}
-                className="px-3 py-1.5 rounded-lg border border-[#C6BA96] text-xs font-semibold hover:bg-[#F4ECD2] cursor-pointer"
+                className="px-3 py-1.5 rounded-lg border border-[#F5D0CB] text-xs font-semibold hover:bg-[#FFF1EE] cursor-pointer"
               >
                 Cancel
               </button>

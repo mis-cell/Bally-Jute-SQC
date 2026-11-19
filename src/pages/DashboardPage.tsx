@@ -64,18 +64,18 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner / Welcome */}
-      <div className="bg-[#FBF6E8] rounded-xl p-5 border border-[#C6BA96] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#FFFFFF] rounded-xl p-5 border border-[#F5D0CB] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold text-[#6B5B2E] uppercase tracking-wider">
+          <p className="text-[11px] font-bold text-[#EA5551] uppercase tracking-wider">
             SQC Mill Floor System · Bally Jute Co. Ltd.
           </p>
-          <h2 className="text-xl font-bold text-[#3B2311] mt-1">SQC Dashboard</h2>
-          <p className="text-xs text-[#5B4735] mt-0.5 flex items-center gap-2 flex-wrap">
+          <h2 className="text-xl font-bold text-[#393334] mt-1">SQC Dashboard</h2>
+          <p className="text-xs text-[#806B68] mt-0.5 flex items-center gap-2 flex-wrap">
             <span>
-              Logged in as <strong className="text-[#4C5324]">{currentUser.displayName}</strong> (
+              Logged in as <strong className="text-[#EA5551]">{currentUser.displayName}</strong> (
               {currentUser.role})
             </span>
-            <span className="px-2 py-0.5 rounded bg-[#E3DAB6] text-[#4C5324] border border-[#C6BA96] text-[10px] font-bold font-mono">
+            <span className="px-2 py-0.5 rounded bg-[#FFE0DA] text-[#EA5551] border border-[#F5D0CB] text-[10px] font-bold font-mono">
               Scope: {scopeLabel}
             </span>
           </p>
@@ -86,7 +86,7 @@ export const DashboardPage: React.FC = () => {
             <button
               id="dash-new-inspection-btn"
               onClick={() => navigate(`/new-inspection?form=${encodeURIComponent(permittedForms[0])}`)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-[#4B5420] to-[#3F471A] text-[#FBF6E8] rounded-lg text-xs font-bold hover:from-[#3F471A] hover:to-[#343B14] border border-[#DFD2A6]/40 transition-colors shadow-xs whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-[#EA5551] to-[#D46764] text-[#FFFFFF] rounded-lg text-xs font-bold hover:from-[#D46764] hover:to-[#EA5551] border border-[#FFE0DA]/40 transition-colors shadow-xs whitespace-nowrap shrink-0 cursor-pointer"
             >
               <PlusCircle size={15} />
               <span>New Inspection Entry</span>
@@ -96,7 +96,7 @@ export const DashboardPage: React.FC = () => {
             <button
               id="dash-view-all-reports-btn"
               onClick={() => navigate('/reports')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#F4ECD2] border border-[#C6BA96] text-[#4C5324] rounded-lg text-xs font-semibold hover:bg-[#E3DAB6] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#FFF1EE] border border-[#F5D0CB] text-[#EA5551] rounded-lg text-xs font-semibold hover:bg-[#FFE0DA] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <FileSpreadsheet size={15} />
               <span>Generate Reports</span>
@@ -163,16 +163,16 @@ export const DashboardPage: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Pending Approval Table if any */}
           {submitted > 0 && (
-            <div className="bg-[#E3DAB6]/75 border border-[#C6BA96] rounded-xl p-4 shadow-xs">
+            <div className="bg-[#FFE0DA]/75 border border-[#F5D0CB] rounded-xl p-4 shadow-xs">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-[#4C5324] uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider">
                   Attention Required: Pending Inspection Approvals ({submitted})
                 </h3>
                 {canAccessModule('APPROVALS') && (
                   <button
                     id="dash-view-approvals-link"
                     onClick={() => navigate('/approvals')}
-                    className="text-xs text-[#4B5420] hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-[#EA5551] hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer"
                   >
                     <span>Review Workflow</span>
                     <ArrowUpRight size={13} />
@@ -183,7 +183,7 @@ export const DashboardPage: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-[#C6BA96] text-[#4C5324] font-semibold">
+                    <tr className="border-b border-[#F5D0CB] text-[#EA5551] font-semibold">
                       <th className="py-2 px-2">Inspection #</th>
                       <th className="py-2 px-2">Form</th>
                       <th className="py-2 px-2">Department</th>
@@ -192,18 +192,18 @@ export const DashboardPage: React.FC = () => {
                       <th className="py-2 px-2 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#D7CBB0]">
+                  <tbody className="divide-y divide-[#FDE8E4]">
                     {inspections
                       .filter(i => i.status === 'Submitted')
                       .slice(0, 4)
                       .map(item => (
-                        <tr key={item.id} className="hover:bg-[#F4ECD2]">
-                          <td className="py-2 px-2 font-mono font-bold text-[#4B5420] tabular-nums">
+                        <tr key={item.id} className="hover:bg-[#FFF1EE]">
+                          <td className="py-2 px-2 font-mono font-bold text-[#EA5551] tabular-nums">
                             {item.inspectionNo}
                           </td>
-                          <td className="py-2 px-2 text-[#3B2311] font-mono">{item.formCode}</td>
-                          <td className="py-2 px-2 text-[#3B2311]">{item.departmentName}</td>
-                          <td className="py-2 px-2 text-[#3B2311]">
+                          <td className="py-2 px-2 text-[#393334] font-mono">{item.formCode}</td>
+                          <td className="py-2 px-2 text-[#393334]">{item.departmentName}</td>
+                          <td className="py-2 px-2 text-[#393334]">
                             {item.submittedBy || item.inspectorName}
                           </td>
                           <td className="py-2 px-2">
@@ -213,7 +213,7 @@ export const DashboardPage: React.FC = () => {
                             <button
                               id={`dash-review-btn-${item.id}`}
                               onClick={() => navigate(`/inspection/${item.id}`)}
-                              className="px-2.5 py-1 bg-[#4B5420] text-[#FBF6E8] rounded text-[11px] font-semibold hover:bg-[#3F471A] cursor-pointer whitespace-nowrap"
+                              className="px-2.5 py-1 bg-[#EA5551] text-[#FFFFFF] rounded text-[11px] font-semibold hover:bg-[#D46764] cursor-pointer whitespace-nowrap"
                             >
                               Open &amp; Review
                             </button>
@@ -227,11 +227,11 @@ export const DashboardPage: React.FC = () => {
           )}
 
           {/* Recent Inspection Log */}
-          <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] p-4 shadow-xs">
+          <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] p-4 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-bold text-[#3B2311]">Recent Inspection Activities</h3>
-                <p className="text-xs text-[#5B4735]">
+                <h3 className="text-sm font-bold text-[#393334]">Recent Inspection Activities</h3>
+                <p className="text-xs text-[#806B68]">
                   Authorized records matching your assigned module &amp; data scope
                 </p>
               </div>
@@ -239,7 +239,7 @@ export const DashboardPage: React.FC = () => {
                 <button
                   id="dash-view-all-inspections"
                   onClick={() => navigate('/inspections')}
-                  className="text-xs text-[#4B5420] hover:underline font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                  className="text-xs text-[#EA5551] hover:underline font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 >
                   <span>View Full Registry</span>
                   <ArrowUpRight size={13} />
@@ -250,7 +250,7 @@ export const DashboardPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
-                  <tr className="border-b border-[#C6BA96] text-[#4C5324] font-semibold bg-[#F4ECD2]">
+                  <tr className="border-b border-[#F5D0CB] text-[#EA5551] font-semibold bg-[#FFF1EE]">
                     <th className="py-2.5 px-3">Inspection #</th>
                     <th className="py-2.5 px-3">Date / Time</th>
                     <th className="py-2.5 px-3">Form Description</th>
@@ -260,30 +260,30 @@ export const DashboardPage: React.FC = () => {
                     <th className="py-2.5 px-3 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#D7CBB0]">
+                <tbody className="divide-y divide-[#FDE8E4]">
                   {recentList.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-[#5B4735]">
+                      <td colSpan={7} className="py-8 text-center text-[#806B68]">
                         No inspection records found. Start live production entries using &quot;New Inspection Entry&quot;.
                       </td>
                     </tr>
                   ) : (
                     recentList.map(rec => (
-                      <tr key={rec.id} className="hover:bg-[#EFE6CE] transition-colors">
-                        <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420] tabular-nums">
+                      <tr key={rec.id} className="hover:bg-[#FFEAE6] transition-colors">
+                        <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551] tabular-nums">
                           {rec.inspectionNo}
                         </td>
-                        <td className="py-2.5 px-3 text-[#3B2311] tabular-nums whitespace-nowrap">
+                        <td className="py-2.5 px-3 text-[#393334] tabular-nums whitespace-nowrap">
                           {rec.inspectionDate}{' '}
-                          <span className="text-[10px] text-[#5B4735]">{rec.inspectionTime}</span>
+                          <span className="text-[10px] text-[#806B68]">{rec.inspectionTime}</span>
                         </td>
-                        <td className="py-2.5 px-3 font-medium text-[#3B2311]">
-                          <span className="font-mono text-[#4C5324] font-bold mr-1.5 tabular-nums">
+                        <td className="py-2.5 px-3 font-medium text-[#393334]">
+                          <span className="font-mono text-[#EA5551] font-bold mr-1.5 tabular-nums">
                             {rec.formCode}
                           </span>
                           {rec.formTitle.split('–')[1]?.trim() || rec.formTitle}
                         </td>
-                        <td className="py-2.5 px-3 text-[#3B2311]">{rec.departmentName}</td>
+                        <td className="py-2.5 px-3 text-[#393334]">{rec.departmentName}</td>
                         <td className="py-2.5 px-3">
                           <StatusBadge status={rec.status} />
                         </td>
@@ -294,7 +294,7 @@ export const DashboardPage: React.FC = () => {
                           <button
                             id={`dash-open-record-${rec.id}`}
                             onClick={() => navigate(`/inspection/${rec.id}`)}
-                            className="text-xs font-semibold text-[#4B5420] hover:bg-[#E3DAB6] px-2 py-1 rounded whitespace-nowrap cursor-pointer"
+                            className="text-xs font-semibold text-[#EA5551] hover:bg-[#FFE0DA] px-2 py-1 rounded whitespace-nowrap cursor-pointer"
                           >
                             View / Check
                           </button>
@@ -311,17 +311,17 @@ export const DashboardPage: React.FC = () => {
         {/* Right 1 Col: Quick Launch & Department Statistics */}
         <div className="space-y-6">
           {/* Quick Form Launchpad */}
-          <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] p-4 shadow-xs">
-            <h3 className="text-xs font-bold text-[#4C5324] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <Layers size={14} className="text-[#4B5420]" />
+          <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] p-4 shadow-xs">
+            <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+              <Layers size={14} className="text-[#EA5551]" />
               <span>Permitted Form Quick Launch</span>
             </h3>
-            <p className="text-[11px] text-[#5B4735] mb-3">
+            <p className="text-[11px] text-[#806B68] mb-3">
               Direct access to digital quality forms granted to your account
             </p>
 
             {fallbackForms.length === 0 ? (
-              <div className="p-3 rounded-lg bg-[#F5EEDB] border border-[#C6BA96] text-[11px] text-[#5B4735]">
+              <div className="p-3 rounded-lg bg-[#FFF8F6] border border-[#F5D0CB] text-[11px] text-[#806B68]">
                 No inspection forms are assigned to your account.
               </div>
             ) : (
@@ -334,20 +334,20 @@ export const DashboardPage: React.FC = () => {
                       key={fCode}
                       id={`quick-launch-${fCode.toLowerCase()}`}
                       onClick={() => navigate(`/new-inspection?form=${fCode}`)}
-                      className="w-full text-left p-2.5 rounded-lg border border-[#D7CBB0] hover:border-[#C6BA96] hover:bg-[#F4ECD2] transition-colors flex items-center justify-between group cursor-pointer"
+                      className="w-full text-left p-2.5 rounded-lg border border-[#FDE8E4] hover:border-[#F5D0CB] hover:bg-[#FFF1EE] transition-colors flex items-center justify-between group cursor-pointer"
                     >
                       <div className="min-w-0">
-                        <div className="text-xs font-bold text-[#3B2311] flex items-center gap-1.5">
-                          <span className="font-mono text-[#FBF6E8] bg-[#4B5420] px-1.5 py-0.5 rounded text-[10px] tabular-nums shrink-0">
+                        <div className="text-xs font-bold text-[#393334] flex items-center gap-1.5">
+                          <span className="font-mono text-[#FFFFFF] bg-[#EA5551] px-1.5 py-0.5 rounded text-[10px] tabular-nums shrink-0">
                             {meta.code}
                           </span>
-                          <span className="group-hover:text-[#4B5420] truncate">{meta.title}</span>
+                          <span className="group-hover:text-[#EA5551] truncate">{meta.title}</span>
                         </div>
-                        <p className="text-[10px] text-[#5B4735] mt-0.5 truncate">
+                        <p className="text-[10px] text-[#806B68] mt-0.5 truncate">
                           {meta.department} · {meta.sampleUnit}
                         </p>
                       </div>
-                      <ArrowUpRight size={14} className="text-[#6B5B2E] group-hover:text-[#4B5420] shrink-0" />
+                      <ArrowUpRight size={14} className="text-[#EA5551] group-hover:text-[#EA5551] shrink-0" />
                     </button>
                   );
                 })}
@@ -358,7 +358,7 @@ export const DashboardPage: React.FC = () => {
               <button
                 id="dash-browse-all-forms-btn"
                 onClick={() => navigate(`/new-inspection?form=${encodeURIComponent(permittedForms[0])}`)}
-                className="w-full mt-3 py-2 text-center text-xs font-bold text-[#4C5324] hover:text-[#4C5324] bg-[#E3DAB6] border border-[#C6BA96] rounded-lg hover:bg-[#DFD2A6] transition-colors cursor-pointer"
+                className="w-full mt-3 py-2 text-center text-xs font-bold text-[#EA5551] hover:text-[#EA5551] bg-[#FFE0DA] border border-[#F5D0CB] rounded-lg hover:bg-[#FFE0DA] transition-colors cursor-pointer"
               >
                 Open Permitted Forms ({permittedForms.length}) →
               </button>
@@ -366,29 +366,29 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* Department Breakdown */}
-          <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] p-4 shadow-xs">
-            <h3 className="text-xs font-bold text-[#4C5324] uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Building size={14} className="text-[#4B5420]" />
+          <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] p-4 shadow-xs">
+            <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Building size={14} className="text-[#EA5551]" />
               <span>Department Inspection Volume</span>
             </h3>
 
             <div className="space-y-2.5 text-xs">
               {Object.entries(deptMap).length === 0 ? (
-                <p className="text-[11px] text-[#5B4735]">No inspection data recorded yet.</p>
+                <p className="text-[11px] text-[#806B68]">No inspection data recorded yet.</p>
               ) : (
                 Object.entries(deptMap).map(([dept, count]) => {
                   const pct = total > 0 ? (count / total) * 100 : 0;
                   return (
                     <div key={dept} className="space-y-1">
-                      <div className="flex justify-between text-[#3B2311] font-medium">
+                      <div className="flex justify-between text-[#393334] font-medium">
                         <span>{dept}</span>
-                        <span className="font-mono font-bold text-[#4B5420] tabular-nums">
+                        <span className="font-mono font-bold text-[#EA5551] tabular-nums">
                           {count}
                         </span>
                       </div>
-                      <div className="w-full bg-[#F4ECD2] rounded-full h-1.5 overflow-hidden border border-[#D7CBB0]">
+                      <div className="w-full bg-[#FFF1EE] rounded-full h-1.5 overflow-hidden border border-[#FDE8E4]">
                         <div
-                          className="bg-gradient-to-r from-[#4B5420] to-[#555E27] h-full rounded-full transition-all duration-300"
+                          className="bg-gradient-to-r from-[#EA5551] to-[#D46764] h-full rounded-full transition-all duration-300"
                           style={{ width: `${Math.max(5, pct)}%` }}
                         ></div>
                       </div>

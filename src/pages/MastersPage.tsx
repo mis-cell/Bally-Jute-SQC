@@ -157,13 +157,13 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
   return (
     <div className="space-y-4">
       {/* Top Banner */}
-      <div className="bg-[#FBF6E8] rounded-xl p-4 border border-[#C6BA96] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-[#FFFFFF] rounded-xl p-4 border border-[#F5D0CB] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-[#3B2311] flex items-center gap-2">
-            <Database size={18} className="text-[#4B5420]" />
+          <h2 className="text-base font-bold text-[#393334] flex items-center gap-2">
+            <Database size={18} className="text-[#EA5551]" />
             <span>Master Data Management</span>
           </h2>
-          <p className="text-xs text-[#5B4735] mt-0.5">
+          <p className="text-xs text-[#806B68] mt-0.5">
             Full CRUD: Add, edit, update specifications, and configure mill departments, machine inventory, and factory standards
           </p>
         </div>
@@ -173,7 +173,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
             <button
               id="btn-add-master-entry"
               onClick={handleOpenAdd}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-[#4B5420] to-[#3F471A] hover:from-[#3F471A] hover:to-[#343B14] text-[#FBF6E8] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs border border-[#DFD2A6]/40 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              className="px-3.5 py-1.5 bg-gradient-to-r from-[#EA5551] to-[#D46764] hover:from-[#D46764] hover:to-[#EA5551] text-[#FFFFFF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs border border-[#FFE0DA]/40 transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               <Plus size={15} />
               <span>Add New Entry</span>
@@ -195,15 +195,15 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
       )}
 
       {/* Tabs navigation */}
-      <div className="flex border-b border-[#C6BA96] overflow-x-auto gap-2 text-xs">
+      <div className="flex border-b border-[#F5D0CB] overflow-x-auto gap-2 text-xs">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={`flex items-center gap-2 py-2.5 px-3.5 font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === t.id
-                ? 'border-[#4B5420] text-[#4B5420] font-bold bg-[#FBF6E8] rounded-t-lg'
-                : 'border-transparent text-[#5B4735] hover:text-[#3B2311]'
+                ? 'border-[#EA5551] text-[#EA5551] font-bold bg-[#FFFFFF] rounded-t-lg'
+                : 'border-transparent text-[#806B68] hover:text-[#393334]'
             }`}
           >
             {t.icon}
@@ -213,11 +213,11 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
       </div>
 
       {/* Content Container */}
-      <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] shadow-xs overflow-x-auto">
+      <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] shadow-xs overflow-x-auto">
         {/* DEPARTMENTS TAB */}
         {activeTab === 'departments' && (
           <table className="w-full text-xs text-left">
-            <thead className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-bold">
+            <thead className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-bold">
               <tr>
                 <th className="py-2.5 px-3">Code</th>
                 <th className="py-2.5 px-3">Department Name</th>
@@ -226,12 +226,12 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                 {canEdit && <th className="py-2.5 px-3 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {departments.map(d => (
-                <tr key={d.id} className="hover:bg-[#EFE6CE]">
-                  <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420]">{d.code}</td>
-                  <td className="py-2.5 px-3 font-semibold text-[#3B2311]">{d.name}</td>
-                  <td className="py-2.5 px-3 text-[#3B2311] font-medium">{d.hodName}</td>
+                <tr key={d.id} className="hover:bg-[#FFEAE6]">
+                  <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">{d.code}</td>
+                  <td className="py-2.5 px-3 font-semibold text-[#393334]">{d.name}</td>
+                  <td className="py-2.5 px-3 text-[#393334] font-medium">{d.hodName}</td>
                   <td className="py-2.5 px-3">
                     <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
                       Active
@@ -243,7 +243,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(d)}
                           title="Edit Department"
-                          className="p-1.5 text-[#4C5324] hover:bg-[#E3DAB6] border border-[#C6BA96] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -252,7 +252,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             setDeleteCandidate({ id: d.id, name: d.name, type: 'departments' })
                           }
                           title="Delete Department"
-                          className="p-1.5 text-[#4B5420] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -268,7 +268,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
         {/* SECTIONS TAB */}
         {activeTab === 'sections' && (
           <table className="w-full text-xs text-left">
-            <thead className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-bold">
+            <thead className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-bold">
               <tr>
                 <th className="py-2.5 px-3">Section Code</th>
                 <th className="py-2.5 px-3">Section Description</th>
@@ -276,19 +276,19 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                 {canEdit && <th className="py-2.5 px-3 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {sections.map(s => (
-                <tr key={s.id} className="hover:bg-[#EFE6CE]">
-                  <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420]">{s.code}</td>
-                  <td className="py-2.5 px-3 font-semibold text-[#3B2311]">{s.name}</td>
-                  <td className="py-2.5 px-3 text-[#3B2311] font-medium">{s.departmentCode}</td>
+                <tr key={s.id} className="hover:bg-[#FFEAE6]">
+                  <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">{s.code}</td>
+                  <td className="py-2.5 px-3 font-semibold text-[#393334]">{s.name}</td>
+                  <td className="py-2.5 px-3 text-[#393334] font-medium">{s.departmentCode}</td>
                   {canEdit && (
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleOpenEdit(s)}
                           title="Edit Section"
-                          className="p-1.5 text-[#4C5324] hover:bg-[#E3DAB6] border border-[#C6BA96] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -297,7 +297,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             setDeleteCandidate({ id: s.id, name: s.name, type: 'sections' })
                           }
                           title="Delete Section"
-                          className="p-1.5 text-[#4B5420] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -313,7 +313,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
         {/* MACHINES TAB */}
         {activeTab === 'machines' && (
           <table className="w-full text-xs text-left">
-            <thead className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-bold">
+            <thead className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-bold">
               <tr>
                 <th className="py-2.5 px-3">Machine Code</th>
                 <th className="py-2.5 px-3">Machine Name</th>
@@ -322,13 +322,13 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                 {canEdit && <th className="py-2.5 px-3 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {machines.map(m => (
-                <tr key={m.id} className="hover:bg-[#EFE6CE]">
-                  <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420]">{m.code}</td>
-                  <td className="py-2.5 px-3 font-semibold text-[#3B2311]">{m.name}</td>
-                  <td className="py-2.5 px-3 text-[#3B2311]">{m.machineType}</td>
-                  <td className="py-2.5 px-3 font-mono text-[#4C5324] font-bold tabular-nums">
+                <tr key={m.id} className="hover:bg-[#FFEAE6]">
+                  <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">{m.code}</td>
+                  <td className="py-2.5 px-3 font-semibold text-[#393334]">{m.name}</td>
+                  <td className="py-2.5 px-3 text-[#393334]">{m.machineType}</td>
+                  <td className="py-2.5 px-3 font-mono text-[#EA5551] font-bold tabular-nums">
                     {m.speedStandard} {m.speedUnit}
                   </td>
                   {canEdit && (
@@ -337,7 +337,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(m)}
                           title="Edit Machine"
-                          className="p-1.5 text-[#4C5324] hover:bg-[#E3DAB6] border border-[#C6BA96] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -346,7 +346,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             setDeleteCandidate({ id: m.id, name: m.name, type: 'machines' })
                           }
                           title="Delete Machine"
-                          className="p-1.5 text-[#4B5420] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -362,7 +362,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
         {/* LOOMS TAB */}
         {activeTab === 'looms' && (
           <table className="w-full text-xs text-left">
-            <thead className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-bold">
+            <thead className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-bold">
               <tr>
                 <th className="py-2.5 px-3">Loom Code</th>
                 <th className="py-2.5 px-3">Name / Description</th>
@@ -372,14 +372,14 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                 {canEdit && <th className="py-2.5 px-3 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {looms.map(l => (
-                <tr key={l.id} className="hover:bg-[#EFE6CE]">
-                  <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420]">{l.code}</td>
-                  <td className="py-2.5 px-3 font-semibold text-[#3B2311]">{l.name}</td>
-                  <td className="py-2.5 px-3 text-[#3B2311]">{l.loomType}</td>
-                  <td className="py-2.5 px-3 text-[#3B2311] font-medium">{l.shed}</td>
-                  <td className="py-2.5 px-3 font-mono text-[#4C5324] font-bold tabular-nums">
+                <tr key={l.id} className="hover:bg-[#FFEAE6]">
+                  <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">{l.code}</td>
+                  <td className="py-2.5 px-3 font-semibold text-[#393334]">{l.name}</td>
+                  <td className="py-2.5 px-3 text-[#393334]">{l.loomType}</td>
+                  <td className="py-2.5 px-3 text-[#393334] font-medium">{l.shed}</td>
+                  <td className="py-2.5 px-3 font-mono text-[#EA5551] font-bold tabular-nums">
                     {l.standardRpm} RPM
                   </td>
                   {canEdit && (
@@ -388,7 +388,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(l)}
                           title="Edit Loom"
-                          className="p-1.5 text-[#4C5324] hover:bg-[#E3DAB6] border border-[#C6BA96] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -397,7 +397,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             setDeleteCandidate({ id: l.id, name: l.name, type: 'looms' })
                           }
                           title="Delete Loom"
-                          className="p-1.5 text-[#4B5420] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -413,7 +413,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
         {/* QUALITIES TAB */}
         {activeTab === 'qualities' && (
           <table className="w-full text-xs text-left">
-            <thead className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-bold">
+            <thead className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-bold">
               <tr>
                 <th className="py-2.5 px-3">Quality Code</th>
                 <th className="py-2.5 px-3">Quality Description</th>
@@ -423,16 +423,16 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                 {canEdit && <th className="py-2.5 px-3 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {qualities.map(q => (
-                <tr key={q.id} className="hover:bg-[#EFE6CE]">
-                  <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420]">{q.code}</td>
-                  <td className="py-2.5 px-3 font-semibold text-[#3B2311]">{q.name}</td>
-                  <td className="py-2.5 px-3 text-[#3B2311]">{q.category}</td>
-                  <td className="py-2.5 px-3 font-mono text-[#4C5324] font-bold tabular-nums">
+                <tr key={q.id} className="hover:bg-[#FFEAE6]">
+                  <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">{q.code}</td>
+                  <td className="py-2.5 px-3 font-semibold text-[#393334]">{q.name}</td>
+                  <td className="py-2.5 px-3 text-[#393334]">{q.category}</td>
+                  <td className="py-2.5 px-3 font-mono text-[#EA5551] font-bold tabular-nums">
                     {q.nominalCount} lbs/spy
                   </td>
-                  <td className="py-2.5 px-3 font-mono text-[#4C5324] font-bold tabular-nums">
+                  <td className="py-2.5 px-3 font-mono text-[#EA5551] font-bold tabular-nums">
                     {q.standardMR}%
                   </td>
                   {canEdit && (
@@ -441,7 +441,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         <button
                           onClick={() => handleOpenEdit(q)}
                           title="Edit Quality"
-                          className="p-1.5 text-[#4C5324] hover:bg-[#E3DAB6] border border-[#C6BA96] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -450,7 +450,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             setDeleteCandidate({ id: q.id, name: q.name, type: 'qualities' })
                           }
                           title="Delete Quality"
-                          className="p-1.5 text-[#4B5420] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -466,7 +466,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
         {/* STANDARDS TAB */}
         {activeTab === 'standards' && (
           <table className="w-full text-xs text-left">
-            <thead className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-bold">
+            <thead className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-bold">
               <tr>
                 <th className="py-2.5 px-3">Standard Code</th>
                 <th className="py-2.5 px-3">Form Target</th>
@@ -477,33 +477,33 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                 {canEdit && <th className="py-2.5 px-3 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {standards.map(s => (
-                <tr key={s.id} className="hover:bg-[#EFE6CE]">
-                  <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420]">{s.code}</td>
-                  <td className="py-2.5 px-3 font-mono font-bold text-[#4C5324]">
-                    <span className="bg-[#E3DAB6] px-2 py-0.5 rounded border border-[#C6BA96]">
+                <tr key={s.id} className="hover:bg-[#FFEAE6]">
+                  <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">{s.code}</td>
+                  <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551]">
+                    <span className="bg-[#FFE0DA] px-2 py-0.5 rounded border border-[#F5D0CB]">
                       {s.formCode}
                     </span>
                   </td>
                   <td className="py-2.5 px-3">
-                    <div className="font-semibold text-[#3B2311]">{s.name}</div>
-                    <div className="text-[10px] text-[#5B4735]">Param: {s.parameter}</div>
+                    <div className="font-semibold text-[#393334]">{s.name}</div>
+                    <div className="text-[10px] text-[#806B68]">Param: {s.parameter}</div>
                   </td>
-                  <td className="py-2.5 px-3 font-mono font-bold text-[#3B2311] tabular-nums">
+                  <td className="py-2.5 px-3 font-mono font-bold text-[#393334] tabular-nums">
                     {s.nominalValue} {s.unit}
                   </td>
-                  <td className="py-2.5 px-3 font-mono text-[#5B4735] tabular-nums">
+                  <td className="py-2.5 px-3 font-mono text-[#806B68] tabular-nums">
                     {s.lowerLimit} – {s.upperLimit} {s.unit}
                   </td>
-                  <td className="py-2.5 px-3 text-[#3B2311] font-semibold">{s.tolerance}</td>
+                  <td className="py-2.5 px-3 text-[#393334] font-semibold">{s.tolerance}</td>
                   {canEdit && (
                     <td className="py-2.5 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleOpenEdit(s)}
                           title="Edit Standard"
-                          className="p-1.5 text-[#4C5324] hover:bg-[#E3DAB6] border border-[#C6BA96] rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-[#FFE0DA] border border-[#F5D0CB] rounded-md transition-colors cursor-pointer"
                         >
                           <Edit2 size={13} />
                         </button>
@@ -512,7 +512,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             setDeleteCandidate({ id: s.id, name: s.name, type: 'standards' })
                           }
                           title="Delete Standard"
-                          className="p-1.5 text-[#4B5420] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-[#EA5551] hover:bg-rose-50 border border-rose-200 rounded-md transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -528,15 +528,15 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
 
       {/* Dynamic Modal Dialog for Add / Edit */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-[#FBF6E8] rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#C6BA96] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#D7CBB0] pb-3">
-              <h4 className="text-sm font-bold text-[#3B2311]">
+        <div className="fixed inset-0 bg-[#393334]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-[#FFFFFF] rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#F5D0CB] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#FDE8E4] pb-3">
+              <h4 className="text-sm font-bold text-[#393334]">
                 {isEditing ? 'Edit' : 'Add New'} {tabs.find(t => t.id === activeTab)?.label}
               </h4>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-[#5B4735] hover:text-[#3B2311] p-1 rounded cursor-pointer"
+                className="text-[#806B68] hover:text-[#393334] p-1 rounded cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -544,7 +544,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
 
             <form onSubmit={handleSaveModal} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-[#4C5324] mb-1">
+                <label className="block font-semibold text-[#EA5551] mb-1">
                   Code / Identifier *
                 </label>
                 <input
@@ -553,26 +553,26 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                   value={activeFormData.code || ''}
                   onChange={e => setActiveFormData({ ...activeFormData, code: e.target.value })}
                   placeholder="Unique identification code"
-                  className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                  className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#4C5324] mb-1">Name / Title *</label>
+                <label className="block font-semibold text-[#EA5551] mb-1">Name / Title *</label>
                 <input
                   type="text"
                   required
                   value={activeFormData.name || ''}
                   onChange={e => setActiveFormData({ ...activeFormData, name: e.target.value })}
                   placeholder="Full descriptive title"
-                  className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-medium text-[#3B2311]"
+                  className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-medium text-[#393334]"
                 />
               </div>
 
               {/* Department specific fields */}
               {activeTab === 'departments' && (
                 <div>
-                  <label className="block font-semibold text-[#4C5324] mb-1">
+                  <label className="block font-semibold text-[#EA5551] mb-1">
                     HOD / Approver Name
                   </label>
                   <input
@@ -582,7 +582,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                       setActiveFormData({ ...activeFormData, hodName: e.target.value })
                     }
                     placeholder="e.g. S. Sen (HOD)"
-                    className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 text-[#3B2311]"
+                    className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 text-[#393334]"
                   />
                 </div>
               )}
@@ -590,13 +590,13 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
               {/* Section specific fields */}
               {activeTab === 'sections' && (
                 <div>
-                  <label className="block font-semibold text-[#4C5324] mb-1">Department</label>
+                  <label className="block font-semibold text-[#EA5551] mb-1">Department</label>
                   <select
                     value={activeFormData.departmentCode || ''}
                     onChange={e =>
                       setActiveFormData({ ...activeFormData, departmentCode: e.target.value })
                     }
-                    className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-medium text-[#3B2311]"
+                    className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-medium text-[#393334]"
                   >
                     {departments.map(d => (
                       <option key={d.code} value={d.code}>
@@ -611,7 +611,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
               {activeTab === 'machines' && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block font-semibold text-[#4C5324] mb-1">
+                    <label className="block font-semibold text-[#EA5551] mb-1">
                       Machine Type
                     </label>
                     <input
@@ -621,11 +621,11 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         setActiveFormData({ ...activeFormData, machineType: e.target.value })
                       }
                       placeholder="e.g. Drawing Frame"
-                      className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 text-[#3B2311]"
+                      className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 text-[#393334]"
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold text-[#4C5324] mb-1">
+                    <label className="block font-semibold text-[#EA5551] mb-1">
                       Standard Speed ({activeFormData.speedUnit || 'rpm'})
                     </label>
                     <input
@@ -638,7 +638,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                           speedStandard: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                      className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                     />
                   </div>
                 </div>
@@ -648,7 +648,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
               {activeTab === 'looms' && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block font-semibold text-[#4C5324] mb-1">Loom Type</label>
+                    <label className="block font-semibold text-[#EA5551] mb-1">Loom Type</label>
                     <input
                       type="text"
                       value={activeFormData.loomType || ''}
@@ -656,11 +656,11 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                         setActiveFormData({ ...activeFormData, loomType: e.target.value })
                       }
                       placeholder="e.g. Sacking Ordinary"
-                      className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 text-[#3B2311]"
+                      className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 text-[#393334]"
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold text-[#4C5324] mb-1">Standard RPM</label>
+                    <label className="block font-semibold text-[#EA5551] mb-1">Standard RPM</label>
                     <input
                       type="number"
                       value={activeFormData.standardRpm ?? ''}
@@ -670,7 +670,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                           standardRpm: parseInt(e.target.value, 10) || 0,
                         })
                       }
-                      className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                      className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                     />
                   </div>
                 </div>
@@ -680,7 +680,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
               {activeTab === 'qualities' && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block font-semibold text-[#4C5324] mb-1">
+                    <label className="block font-semibold text-[#EA5551] mb-1">
                       Nominal Count (lbs/spy)
                     </label>
                     <input
@@ -693,11 +693,11 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                           nominalCount: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                      className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold text-[#4C5324] mb-1">
+                    <label className="block font-semibold text-[#EA5551] mb-1">
                       Standard M.R. %
                     </label>
                     <input
@@ -710,7 +710,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                           standardMR: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                      className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                     />
                   </div>
                 </div>
@@ -721,7 +721,7 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block font-semibold text-[#4C5324] mb-1">
+                      <label className="block font-semibold text-[#EA5551] mb-1">
                         Target Form (Code)
                       </label>
                       <input
@@ -731,11 +731,11 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                           setActiveFormData({ ...activeFormData, formCode: e.target.value })
                         }
                         placeholder="e.g. FORM-01"
-                        className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                        className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-[#4C5324] mb-1">
+                      <label className="block font-semibold text-[#EA5551] mb-1">
                         Unit of Measure
                       </label>
                       <input
@@ -745,13 +745,13 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                           setActiveFormData({ ...activeFormData, unit: e.target.value })
                         }
                         placeholder="e.g. kg, %, lbs"
-                        className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                        className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="block font-semibold text-[#4C5324] mb-1">Target Value</label>
+                      <label className="block font-semibold text-[#EA5551] mb-1">Target Value</label>
                       <input
                         type="number"
                         step="any"
@@ -762,11 +762,11 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             nominalValue: parseFloat(e.target.value) || 0,
                           })
                         }
-                        className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                        className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-[#4C5324] mb-1">Lower Limit</label>
+                      <label className="block font-semibold text-[#EA5551] mb-1">Lower Limit</label>
                       <input
                         type="number"
                         step="any"
@@ -777,11 +777,11 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             lowerLimit: parseFloat(e.target.value) || 0,
                           })
                         }
-                        className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                        className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-[#4C5324] mb-1">Upper Limit</label>
+                      <label className="block font-semibold text-[#EA5551] mb-1">Upper Limit</label>
                       <input
                         type="number"
                         step="any"
@@ -792,24 +792,24 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
                             upperLimit: parseFloat(e.target.value) || 0,
                           })
                         }
-                        className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311]"
+                        className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334]"
                       />
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#D7CBB0]">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#FDE8E4]">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3.5 py-1.5 border border-[#C6BA96] text-[#4C5324] text-xs font-semibold rounded-lg hover:bg-[#F4ECD2] cursor-pointer"
+                  className="px-3.5 py-1.5 border border-[#F5D0CB] text-[#EA5551] text-xs font-semibold rounded-lg hover:bg-[#FFF1EE] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-[#4B5420] hover:bg-[#3F471A] text-[#FBF6E8] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
+                  className="px-4 py-1.5 bg-[#EA5551] hover:bg-[#D46764] text-[#FFFFFF] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
                 >
                   {isEditing ? 'Save Changes' : 'Create Record'}
                 </button>
@@ -821,29 +821,29 @@ export const MastersPage: React.FC<{ tab?: string }> = ({ tab = 'departments' })
 
       {/* Delete Confirmation Modal */}
       {deleteCandidate && (
-        <div className="fixed inset-0 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-[#FBF6E8] rounded-xl max-w-sm w-full p-5 shadow-2xl border border-[#C6BA96] space-y-3">
-            <div className="flex items-center gap-2 text-[#4B5420] font-bold text-sm">
+        <div className="fixed inset-0 bg-[#393334]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-[#FFFFFF] rounded-xl max-w-sm w-full p-5 shadow-2xl border border-[#F5D0CB] space-y-3">
+            <div className="flex items-center gap-2 text-[#EA5551] font-bold text-sm">
               <AlertTriangle size={18} />
               <span>Confirm Master Record Deletion</span>
             </div>
-            <p className="text-xs text-[#5B4735]">
+            <p className="text-xs text-[#806B68]">
               Are you sure you want to permanently delete record{' '}
-              <strong className="text-[#3B2311]">{deleteCandidate.name}</strong>? This will update
+              <strong className="text-[#393334]">{deleteCandidate.name}</strong>? This will update
               the master catalog and log into the audit trail.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setDeleteCandidate(null)}
-                className="px-3 py-1.5 border border-[#C6BA96] text-[#4C5324] text-xs font-semibold rounded-lg hover:bg-[#F4ECD2] cursor-pointer"
+                className="px-3 py-1.5 border border-[#F5D0CB] text-[#EA5551] text-xs font-semibold rounded-lg hover:bg-[#FFF1EE] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="px-3.5 py-1.5 bg-[#4B5420] hover:bg-[#3F471A] text-[#FBF6E8] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
+                className="px-3.5 py-1.5 bg-[#EA5551] hover:bg-[#D46764] text-[#FFFFFF] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
               >
                 Delete Record
               </button>

@@ -100,15 +100,15 @@ export const InspectionsListPage: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Top Header */}
-      <div className="bg-[#FBF6E8] rounded-xl p-4 border border-[#C6BA96] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-[#FFFFFF] rounded-xl p-4 border border-[#F5D0CB] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-[#3B2311] flex items-center gap-2 flex-wrap">
+          <h2 className="text-lg font-bold text-[#393334] flex items-center gap-2 flex-wrap">
             <span>SQC Inspection Registry (Forms 1–36)</span>
-            <span className="text-xs font-mono font-bold bg-[#E3DAB6] text-[#4C5324] px-2.5 py-0.5 rounded border border-[#C6BA96] tabular-nums">
+            <span className="text-xs font-mono font-bold bg-[#FFE0DA] text-[#EA5551] px-2.5 py-0.5 rounded border border-[#F5D0CB] tabular-nums">
               {filtered.length} of {inspections.length} Records
             </span>
           </h2>
-          <p className="text-xs text-[#5B4735] mt-0.5">
+          <p className="text-xs text-[#806B68] mt-0.5">
             Digital audit trail and testing records for all mill production stages
           </p>
         </div>
@@ -117,7 +117,7 @@ export const InspectionsListPage: React.FC = () => {
           <button
             id="export-csv-btn"
             onClick={handleExportCSV}
-            className="px-3 py-1.5 border border-[#C6BA96] bg-[#FBF6E8] hover:bg-[#F4ECD2] text-[#4C5324] text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3 py-1.5 border border-[#F5D0CB] bg-[#FFFFFF] hover:bg-[#FFF1EE] text-[#EA5551] text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Download size={14} />
             <span>Export CSV</span>
@@ -126,7 +126,7 @@ export const InspectionsListPage: React.FC = () => {
             <button
               id="create-new-inspection-btn"
               onClick={() => navigate(`/new-inspection?form=${encodeURIComponent(permittedForms[0])}`)}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-[#4B5420] to-[#3F471A] hover:from-[#3F471A] hover:to-[#343B14] text-[#FBF6E8] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs border border-[#DFD2A6]/40 whitespace-nowrap shrink-0 cursor-pointer"
+              className="px-3.5 py-1.5 bg-gradient-to-r from-[#EA5551] to-[#D46764] hover:from-[#D46764] hover:to-[#EA5551] text-[#FFFFFF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs border border-[#FFE0DA]/40 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <PlusCircle size={14} />
               <span>New Inspection</span>
@@ -151,7 +151,7 @@ export const InspectionsListPage: React.FC = () => {
       )}
 
       {/* Filter Bar */}
-      <div className="bg-[#FBF6E8] rounded-xl p-3 border border-[#C6BA96] shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs">
+      <div className="bg-[#FFFFFF] rounded-xl p-3 border border-[#F5D0CB] shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs">
         {/* Search */}
         <div className="relative">
           <input
@@ -160,9 +160,9 @@ export const InspectionsListPage: React.FC = () => {
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search inspection #, inspector..."
-            className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#3B2311] placeholder:text-[#5B4735]"
+            className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#393334] placeholder:text-[#806B68]"
           />
-          <Search size={14} className="absolute left-2.5 top-2 text-[#5B4735]" />
+          <Search size={14} className="absolute left-2.5 top-2 text-[#806B68]" />
         </div>
 
         {/* Department Filter */}
@@ -171,7 +171,7 @@ export const InspectionsListPage: React.FC = () => {
           value={deptFilter}
           onChange={e => setDeptFilter(e.target.value)}
           aria-label="Filter by Department"
-          className="bg-[#FBF6E8] border border-[#C6BA96] rounded-lg px-2.5 py-1.5 text-xs text-[#3B2311] font-medium"
+          className="bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg px-2.5 py-1.5 text-xs text-[#393334] font-medium"
         >
           <option value="ALL">All Departments</option>
           {departments.map(d => (
@@ -187,7 +187,7 @@ export const InspectionsListPage: React.FC = () => {
           value={formFilter}
           onChange={e => setFormFilter(e.target.value)}
           aria-label="Filter by Form Format"
-          className="bg-[#FBF6E8] border border-[#C6BA96] rounded-lg px-2.5 py-1.5 text-xs text-[#3B2311] font-medium"
+          className="bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg px-2.5 py-1.5 text-xs text-[#393334] font-medium"
         >
           <option value="ALL">All Permitted Form Formats</option>
           {Object.values(FORM_REGISTRY)
@@ -205,7 +205,7 @@ export const InspectionsListPage: React.FC = () => {
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
           aria-label="Filter by Workflow Status"
-          className="bg-[#FBF6E8] border border-[#C6BA96] rounded-lg px-2.5 py-1.5 text-xs text-[#3B2311] font-medium"
+          className="bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg px-2.5 py-1.5 text-xs text-[#393334] font-medium"
         >
           <option value="ALL">All Workflow Statuses</option>
           <option value="Draft">Draft</option>
@@ -221,7 +221,7 @@ export const InspectionsListPage: React.FC = () => {
           value={resultFilter}
           onChange={e => setResultFilter(e.target.value)}
           aria-label="Filter by Quality Result"
-          className="bg-[#FBF6E8] border border-[#C6BA96] rounded-lg px-2.5 py-1.5 text-xs text-[#3B2311] font-medium"
+          className="bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg px-2.5 py-1.5 text-xs text-[#393334] font-medium"
         >
           <option value="ALL">All Results (Pass/Warn/Fail)</option>
           <option value="PASS">PASS Only</option>
@@ -231,11 +231,11 @@ export const InspectionsListPage: React.FC = () => {
       </div>
 
       {/* Table Data */}
-      <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] shadow-xs overflow-hidden">
+      <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-semibold">
+              <tr className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-semibold">
                 <th className="py-2.5 px-3">Inspection No.</th>
                 <th className="py-2.5 px-3">Date &amp; Shift</th>
                 <th className="py-2.5 px-3">Form Description</th>
@@ -246,10 +246,10 @@ export const InspectionsListPage: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-[#5B4735]">
+                  <td colSpan={8} className="py-8 text-center text-[#806B68]">
                     No inspection records found matching the active filter criteria.
                   </td>
                 </tr>
@@ -260,27 +260,27 @@ export const InspectionsListPage: React.FC = () => {
                   const rowCanDelete = canDeleteSaved;
 
                   return (
-                    <tr key={item.id} className="hover:bg-[#EFE6CE] transition-colors">
-                      <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420] tabular-nums whitespace-nowrap">
+                    <tr key={item.id} className="hover:bg-[#FFEAE6] transition-colors">
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551] tabular-nums whitespace-nowrap">
                         {item.inspectionNo}
                       </td>
-                      <td className="py-2.5 px-3 text-[#3B2311] tabular-nums whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-[#393334] tabular-nums whitespace-nowrap">
                         <div>{item.inspectionDate}</div>
-                        <div className="text-[10px] text-[#5B4735]">{item.shiftName.split(' ')[0]}</div>
+                        <div className="text-[10px] text-[#806B68]">{item.shiftName.split(' ')[0]}</div>
                       </td>
                       <td className="py-2.5 px-3">
-                        <div className="font-semibold text-[#3B2311] flex items-center gap-1.5">
-                          <span className="font-mono text-[10px] bg-[#E3DAB6] text-[#4C5324] px-1.5 py-0.5 rounded border border-[#C6BA96] tabular-nums">
+                        <div className="font-semibold text-[#393334] flex items-center gap-1.5">
+                          <span className="font-mono text-[10px] bg-[#FFE0DA] text-[#EA5551] px-1.5 py-0.5 rounded border border-[#F5D0CB] tabular-nums">
                             {item.formCode}
                           </span>
                           <span>{item.formTitle.split('–')[1]?.trim() || item.formTitle}</span>
                         </div>
-                        <div className="text-[10px] text-[#5B4735] mt-0.5">
+                        <div className="text-[10px] text-[#806B68] mt-0.5">
                           Quality: {item.qualityName}
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-[#3B2311]">{item.departmentName}</td>
-                      <td className="py-2.5 px-3 text-[#3B2311]">{item.inspectorName}</td>
+                      <td className="py-2.5 px-3 text-[#393334]">{item.departmentName}</td>
+                      <td className="py-2.5 px-3 text-[#393334]">{item.inspectorName}</td>
                       <td className="py-2.5 px-3">
                         <StatusBadge status={item.status} />
                       </td>
@@ -293,7 +293,7 @@ export const InspectionsListPage: React.FC = () => {
                             id={`view-rec-${item.id}`}
                             onClick={() => navigate(`/inspection/${item.id}`)}
                             title="Open Inspection Details"
-                            className="px-2 py-1 bg-[#E3DAB6] text-[#4C5324] hover:bg-[#DFD2A6] rounded text-xs font-bold inline-flex items-center gap-1 border border-[#C6BA96] whitespace-nowrap shrink-0 cursor-pointer"
+                            className="px-2 py-1 bg-[#FFE0DA] text-[#EA5551] hover:bg-[#FFE0DA] rounded text-xs font-bold inline-flex items-center gap-1 border border-[#F5D0CB] whitespace-nowrap shrink-0 cursor-pointer"
                           >
                             <span>Open</span>
                             <ArrowUpRight size={13} />
@@ -315,8 +315,8 @@ export const InspectionsListPage: React.FC = () => {
                             }
                             className={`p-1.5 rounded border transition-colors shrink-0 ${
                               rowCanEdit
-                                ? 'text-[#4B5420] bg-[#FBF6E8] border-[#C6BA96] hover:bg-[#4B5420] hover:text-[#FBF6E8] cursor-pointer'
-                                : 'text-[#7B705D] bg-[#F4ECD2]/60 border-[#D7CBB0] cursor-not-allowed opacity-70'
+                                ? 'text-[#EA5551] bg-[#FFFFFF] border-[#F5D0CB] hover:bg-[#EA5551] hover:text-[#FFFFFF] cursor-pointer'
+                                : 'text-[#806B68] bg-[#FFF1EE]/60 border-[#FDE8E4] cursor-not-allowed opacity-70'
                             }`}
                           >
                             {rowCanEdit ? <Edit2 size={13} /> : <Lock size={12} />}
@@ -336,8 +336,8 @@ export const InspectionsListPage: React.FC = () => {
                             }
                             className={`p-1.5 rounded border transition-colors shrink-0 ${
                               rowCanDelete
-                                ? 'text-[#4B5420] bg-[#FBF6E8] border-rose-200 hover:bg-rose-50 cursor-pointer'
-                                : 'text-[#7B705D] bg-[#F4ECD2]/60 border-[#D7CBB0] cursor-not-allowed opacity-70'
+                                ? 'text-[#EA5551] bg-[#FFFFFF] border-rose-200 hover:bg-rose-50 cursor-pointer'
+                                : 'text-[#806B68] bg-[#FFF1EE]/60 border-[#FDE8E4] cursor-not-allowed opacity-70'
                             }`}
                           >
                             <Trash2 size={13} />
@@ -355,22 +355,22 @@ export const InspectionsListPage: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-[#FBF6E8] rounded-xl max-w-sm w-full p-5 shadow-2xl border border-[#C6BA96] space-y-3">
-            <div className="flex items-center gap-2 text-[#4B5420] font-bold text-sm">
+        <div className="fixed inset-0 bg-[#393334]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-[#FFFFFF] rounded-xl max-w-sm w-full p-5 shadow-2xl border border-[#F5D0CB] space-y-3">
+            <div className="flex items-center gap-2 text-[#EA5551] font-bold text-sm">
               <AlertTriangle size={18} />
               <span>Confirm Inspection Deletion</span>
             </div>
-            <p className="text-xs text-[#5B4735]">
+            <p className="text-xs text-[#806B68]">
               Are you sure you want to permanently delete inspection{' '}
-              <strong className="text-[#3B2311] font-mono">{deleteTarget.inspectionNo}</strong>?
+              <strong className="text-[#393334] font-mono">{deleteTarget.inspectionNo}</strong>?
               This will remove the entry from browser storage, PostgreSQL database, and record an audit log.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="px-3 py-1.5 border border-[#C6BA96] text-[#4C5324] text-xs font-semibold rounded-lg hover:bg-[#F4ECD2] cursor-pointer"
+                className="px-3 py-1.5 border border-[#F5D0CB] text-[#EA5551] text-xs font-semibold rounded-lg hover:bg-[#FFF1EE] cursor-pointer"
               >
                 Cancel
               </button>
@@ -404,7 +404,7 @@ export const InspectionsListPage: React.FC = () => {
                     setDeleteBusy(false);
                   }
                 }}
-                className="px-3.5 py-1.5 bg-[#4B5420] hover:bg-[#3F471A] text-[#FBF6E8] text-xs font-bold rounded-lg shadow-xs disabled:opacity-50 cursor-pointer"
+                className="px-3.5 py-1.5 bg-[#EA5551] hover:bg-[#D46764] text-[#FFFFFF] text-xs font-bold rounded-lg shadow-xs disabled:opacity-50 cursor-pointer"
               >
                 {deleteBusy ? 'Deleting...' : 'Delete Record'}
               </button>

@@ -75,13 +75,13 @@ export const ReportsPage: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* Top Banner */}
-      <div className="bg-[#FBF6E8] rounded-xl p-4 border border-[#C6BA96] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-[#FFFFFF] rounded-xl p-4 border border-[#F5D0CB] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-[#3B2311] flex items-center gap-2">
-            <FileSpreadsheet size={18} className="text-[#4B5420]" />
+          <h2 className="text-base font-bold text-[#393334] flex items-center gap-2">
+            <FileSpreadsheet size={18} className="text-[#EA5551]" />
             <span>SQC Department Quality &amp; Statistical Reports</span>
           </h2>
-          <p className="text-xs text-[#5B4735] mt-0.5">
+          <p className="text-xs text-[#806B68] mt-0.5">
             Statistical aggregation of floor inspections, count variations, moisture, and bag specs
           </p>
         </div>
@@ -89,14 +89,14 @@ export const ReportsPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrint}
-            className="px-3 py-1.5 border border-[#C6BA96] bg-[#FBF6E8] hover:bg-[#F4ECD2] text-[#4C5324] text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3 py-1.5 border border-[#F5D0CB] bg-[#FFFFFF] hover:bg-[#FFF1EE] text-[#EA5551] text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Printer size={14} />
             <span>Print Report</span>
           </button>
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-1.5 bg-gradient-to-r from-[#4B5420] to-[#3F471A] hover:from-[#3F471A] hover:to-[#343B14] text-[#FBF6E8] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs border border-[#DFD2A6]/40 whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3.5 py-1.5 bg-gradient-to-r from-[#EA5551] to-[#D46764] hover:from-[#D46764] hover:to-[#EA5551] text-[#FFFFFF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs border border-[#FFE0DA]/40 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Download size={14} />
             <span>Export CSV</span>
@@ -105,34 +105,34 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Filter Parameters */}
-      <div className="bg-[#FBF6E8] rounded-xl p-3.5 border border-[#C6BA96] shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+      <div className="bg-[#FFFFFF] rounded-xl p-3.5 border border-[#F5D0CB] shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
         <div>
-          <label className="block text-[11px] font-semibold text-[#4C5324] mb-1">From Date</label>
+          <label className="block text-[11px] font-semibold text-[#EA5551] mb-1">From Date</label>
           <input
             type="date"
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
-            className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded px-2 py-1.5 text-xs text-[#3B2311] tabular-nums"
+            className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded px-2 py-1.5 text-xs text-[#393334] tabular-nums"
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-semibold text-[#4C5324] mb-1">To Date</label>
+          <label className="block text-[11px] font-semibold text-[#EA5551] mb-1">To Date</label>
           <input
             type="date"
             value={endDate}
             onChange={e => setEndDate(e.target.value)}
-            className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded px-2 py-1.5 text-xs text-[#3B2311] tabular-nums"
+            className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded px-2 py-1.5 text-xs text-[#393334] tabular-nums"
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-semibold text-[#4C5324] mb-1">Department</label>
+          <label className="block text-[11px] font-semibold text-[#EA5551] mb-1">Department</label>
           <select
             value={selectedDept}
             onChange={e => setSelectedDept(e.target.value)}
             aria-label="Filter by Department"
-            className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded px-2 py-1.5 text-xs text-[#3B2311]"
+            className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded px-2 py-1.5 text-xs text-[#393334]"
           >
             <option value="ALL">All Departments</option>
             {departments.map(d => (
@@ -144,12 +144,12 @@ export const ReportsPage: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-[11px] font-semibold text-[#4C5324] mb-1">Quality</label>
+          <label className="block text-[11px] font-semibold text-[#EA5551] mb-1">Quality</label>
           <select
             value={selectedQuality}
             onChange={e => setSelectedQuality(e.target.value)}
             aria-label="Filter by Quality"
-            className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded px-2 py-1.5 text-xs text-[#3B2311]"
+            className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded px-2 py-1.5 text-xs text-[#393334]"
           >
             <option value="ALL">All Qualities</option>
             {qualities.map(q => (
@@ -161,12 +161,12 @@ export const ReportsPage: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-[11px] font-semibold text-[#4C5324] mb-1">Form Format</label>
+          <label className="block text-[11px] font-semibold text-[#EA5551] mb-1">Form Format</label>
           <select
             value={selectedForm}
             onChange={e => setSelectedForm(e.target.value)}
             aria-label="Filter by Form Format"
-            className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded px-2 py-1.5 text-xs text-[#3B2311]"
+            className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded px-2 py-1.5 text-xs text-[#393334]"
           >
             <option value="ALL">All Authorized Forms</option>
             {Object.values(FORM_REGISTRY)
@@ -182,9 +182,9 @@ export const ReportsPage: React.FC = () => {
 
       {/* Aggregate KPI Summary for Report */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-[#FBF6E8] p-4 rounded-xl border border-[#C6BA96]">
-          <span className="text-xs text-[#5B4735] font-semibold uppercase">Total Inspections</span>
-          <p className="text-2xl font-bold text-[#3B2311] mt-1 font-mono tabular-nums">{total}</p>
+        <div className="bg-[#FFFFFF] p-4 rounded-xl border border-[#F5D0CB]">
+          <span className="text-xs text-[#806B68] font-semibold uppercase">Total Inspections</span>
+          <p className="text-2xl font-bold text-[#393334] mt-1 font-mono tabular-nums">{total}</p>
         </div>
         <div className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200">
           <span className="text-xs text-emerald-800 font-semibold uppercase">
@@ -195,27 +195,27 @@ export const ReportsPage: React.FC = () => {
           </p>
           <span className="text-[10px] text-emerald-700 tabular-nums">{passed} Passed</span>
         </div>
-        <div className="bg-[#E3DAB6] p-4 rounded-xl border border-[#C6BA96]">
-          <span className="text-xs text-[#4C5324] font-semibold uppercase">Borderline Warnings</span>
-          <p className="text-2xl font-bold text-[#4C5324] mt-1 font-mono tabular-nums">{warned}</p>
-          <span className="text-[10px] text-[#6B5B2E]">Near Tolerance Limit</span>
+        <div className="bg-[#FFE0DA] p-4 rounded-xl border border-[#F5D0CB]">
+          <span className="text-xs text-[#EA5551] font-semibold uppercase">Borderline Warnings</span>
+          <p className="text-2xl font-bold text-[#EA5551] mt-1 font-mono tabular-nums">{warned}</p>
+          <span className="text-[10px] text-[#EA5551]">Near Tolerance Limit</span>
         </div>
         <div className="bg-rose-50/80 p-4 rounded-xl border border-rose-200">
-          <span className="text-xs text-[#4B5420] font-semibold uppercase">
+          <span className="text-xs text-[#EA5551] font-semibold uppercase">
             Out of Standard Fails
           </span>
-          <p className="text-2xl font-bold text-[#4B5420] mt-1 font-mono tabular-nums">{failed}</p>
-          <span className="text-[10px] text-[#4B5420]">Defect Occurrences</span>
+          <p className="text-2xl font-bold text-[#EA5551] mt-1 font-mono tabular-nums">{failed}</p>
+          <span className="text-[10px] text-[#EA5551]">Defect Occurrences</span>
         </div>
       </div>
 
       {/* Report Data Table */}
-      <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] shadow-xs overflow-hidden">
-        <div className="p-3.5 bg-[#F4ECD2] border-b border-[#C6BA96] flex items-center justify-between flex-wrap gap-2">
-          <h3 className="text-xs font-bold text-[#4C5324] uppercase tracking-wider">
+      <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] shadow-xs overflow-hidden">
+        <div className="p-3.5 bg-[#FFF1EE] border-b border-[#F5D0CB] flex items-center justify-between flex-wrap gap-2">
+          <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider">
             Report Data Rows ({filtered.length})
           </h3>
-          <span className="text-[11px] text-[#5B4735] font-mono">
+          <span className="text-[11px] text-[#806B68] font-mono">
             Bally Jute S.Q.C. Internal Audit Copy
           </span>
         </div>
@@ -223,7 +223,7 @@ export const ReportsPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-semibold">
+              <tr className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-semibold">
                 <th className="py-2.5 px-3">Inspection #</th>
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3">Form Description</th>
@@ -235,34 +235,34 @@ export const ReportsPage: React.FC = () => {
                 <th className="py-2.5 px-3">Result</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D7CBB0]">
+            <tbody className="divide-y divide-[#FDE8E4]">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-[#5B4735]">
+                  <td colSpan={9} className="py-8 text-center text-[#806B68]">
                     No inspection records found for the selected filter criteria.
                   </td>
                 </tr>
               ) : (
                 filtered.map(item => (
-                  <tr key={item.id} className="hover:bg-[#EFE6CE] transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-[#4B5420] tabular-nums">
+                  <tr key={item.id} className="hover:bg-[#FFEAE6] transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-[#EA5551] tabular-nums">
                       {item.inspectionNo}
                     </td>
-                    <td className="py-2.5 px-3 text-[#3B2311] tabular-nums">
+                    <td className="py-2.5 px-3 text-[#393334] tabular-nums">
                       {item.inspectionDate}
                     </td>
                     <td className="py-2.5 px-3">
-                      <span className="font-mono text-[#4C5324] font-bold mr-1 tabular-nums">
+                      <span className="font-mono text-[#EA5551] font-bold mr-1 tabular-nums">
                         {item.formCode}
                       </span>
-                      <span className="text-[#3B2311] font-medium">
+                      <span className="text-[#393334] font-medium">
                         {item.formTitle.split('–')[1]?.trim() || item.formTitle}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-[#3B2311]">{item.departmentName}</td>
-                    <td className="py-2.5 px-3 text-[#3B2311]">{item.qualityName}</td>
-                    <td className="py-2.5 px-3 text-[#3B2311]">{item.shiftName.split(' ')[0]}</td>
-                    <td className="py-2.5 px-3 text-[#3B2311]">{item.inspectorName}</td>
+                    <td className="py-2.5 px-3 text-[#393334]">{item.departmentName}</td>
+                    <td className="py-2.5 px-3 text-[#393334]">{item.qualityName}</td>
+                    <td className="py-2.5 px-3 text-[#393334]">{item.shiftName.split(' ')[0]}</td>
+                    <td className="py-2.5 px-3 text-[#393334]">{item.inspectorName}</td>
                     <td className="py-2.5 px-3">
                       <StatusBadge status={item.status} />
                     </td>

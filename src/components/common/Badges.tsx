@@ -3,9 +3,9 @@ import { InspectionStatus, InspectionResult } from '../../types';
 
 export const StatusBadge: React.FC<{ status: InspectionStatus; id?: string }> = ({ status, id }) => {
   const styles: Record<InspectionStatus, string> = {
-    Draft: 'bg-[#F4ECD2] text-[#6B5B2E] border-[#C6BA96]',
+    Draft: 'bg-[#FFF1EE] text-[#EA5551] border-[#F5D0CB]',
     Submitted: 'bg-sky-50 text-sky-900 border-sky-300',
-    'Under Review': 'bg-[#E3DAB6] text-[#4C5324] border-[#8E7F54]',
+    'Under Review': 'bg-[#FFE0DA] text-[#EA5551] border-[#F5B7AD]',
     Approved: 'bg-emerald-50 text-emerald-900 border-emerald-300',
     Rejected: 'bg-rose-50 text-rose-900 border-rose-300',
     Returned: 'bg-orange-50 text-orange-900 border-orange-300',
@@ -15,7 +15,7 @@ export const StatusBadge: React.FC<{ status: InspectionStatus; id?: string }> = 
     <span
       id={id || `status-${status.toLowerCase().replace(/\s+/g, '-')}`}
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${
-        styles[status] || 'bg-[#F4ECD2] text-[#4C5324] border-[#C6BA96]'
+        styles[status] || 'bg-[#FFF1EE] text-[#EA5551] border-[#F5D0CB]'
       }`}
     >
       <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-current opacity-75"></span>
@@ -63,19 +63,19 @@ export const StatCard: React.FC<{
   id?: string;
 }> = ({ title, value, subtitle, icon, color = 'emerald', id }) => {
   const colorSchemes = {
-    emerald: 'border-[#C6BA96] bg-[#FBF6E8] text-[#3B2311]',
-    blue: 'border-[#C6BA96] bg-[#FBF6E8] text-[#3B2311]',
-    amber: 'border-[#C6BA96] bg-[#FBF6E8] text-[#3B2311]',
-    rose: 'border-[#C6BA96] bg-[#FBF6E8] text-[#3B2311]',
-    slate: 'border-[#C6BA96] bg-[#FBF6E8] text-[#3B2311]',
+    emerald: 'border-[#F5D0CB] bg-[#FFFFFF] text-[#393334]',
+    blue: 'border-[#F5D0CB] bg-[#FFFFFF] text-[#393334]',
+    amber: 'border-[#F5D0CB] bg-[#FFFFFF] text-[#393334]',
+    rose: 'border-[#F5D0CB] bg-[#FFFFFF] text-[#393334]',
+    slate: 'border-[#F5D0CB] bg-[#FFFFFF] text-[#393334]',
   };
 
   const iconBg = {
     emerald: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    blue: 'bg-[#E3DAB6] text-[#4B5420] border-[#C6BA96]',
-    amber: 'bg-[#F4ECD2] text-[#6B5B2E] border-[#C6BA96]',
+    blue: 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB]',
+    amber: 'bg-[#FFF1EE] text-[#EA5551] border-[#F5D0CB]',
     rose: 'bg-rose-50 text-rose-800 border-rose-200',
-    slate: 'bg-[#F4ECD2] text-[#4C5324] border-[#C6BA96]',
+    slate: 'bg-[#FFF1EE] text-[#EA5551] border-[#F5D0CB]',
   };
 
   return (
@@ -84,17 +84,17 @@ export const StatCard: React.FC<{
       className={`p-4 rounded-xl border shadow-2xs transition-all hover:shadow-sm ${colorSchemes[color]}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold text-[#5B4735] uppercase tracking-wider">
+        <span className="text-[11px] font-semibold text-[#806B68] uppercase tracking-wider">
           {title}
         </span>
         <div className={`p-2 rounded-lg border shrink-0 ${iconBg[color]}`}>{icon}</div>
       </div>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-2xl font-bold tracking-tight text-[#3B2311] tabular-nums">
+        <span className="text-2xl font-bold tracking-tight text-[#393334] tabular-nums">
           {value}
         </span>
       </div>
-      {subtitle && <p className="mt-1 text-xs text-[#5B4735]">{subtitle}</p>}
+      {subtitle && <p className="mt-1 text-xs text-[#806B68]">{subtitle}</p>}
     </div>
   );
 };

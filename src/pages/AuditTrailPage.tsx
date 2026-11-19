@@ -54,26 +54,26 @@ export const AuditTrailPage: React.FC = () => {
         return 'bg-emerald-700 text-white border-emerald-700';
       case 'REJECT':
       case 'DELETE':
-        return 'bg-[#4B5420] text-[#FBF6E8] border-[#3F471A]';
+        return 'bg-[#EA5551] text-[#FFFFFF] border-[#D46764]';
       case 'RETURN':
-        return 'bg-[#E3DAB6] text-[#4C5324] border-[#C6BA96]';
+        return 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB]';
       case 'SETTINGS':
-        return 'bg-[#F4ECD2] text-[#4C5324] border-[#555E27]';
+        return 'bg-[#FFF1EE] text-[#EA5551] border-[#D46764]';
       default:
-        return 'bg-[#F4ECD2] text-[#4C5324] border-[#C6BA96]';
+        return 'bg-[#FFF1EE] text-[#EA5551] border-[#F5D0CB]';
     }
   };
 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-[#FBF6E8] rounded-xl p-4 border border-[#C6BA96] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-[#FFFFFF] rounded-xl p-4 border border-[#F5D0CB] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-[#3B2311] flex items-center gap-2">
-            <History size={18} className="text-[#4B5420]" />
+          <h2 className="text-base font-bold text-[#393334] flex items-center gap-2">
+            <History size={18} className="text-[#EA5551]" />
             <span>SQC Digital Compliance Audit Trail</span>
           </h2>
-          <p className="text-xs text-[#5B4735] mt-0.5">
+          <p className="text-xs text-[#806B68] mt-0.5">
             Immutable server &amp; local log of logins, role/permission updates, password resets, and inspection lifecycle events
           </p>
         </div>
@@ -83,35 +83,35 @@ export const AuditTrailPage: React.FC = () => {
             type="button"
             disabled={loading}
             onClick={() => void loadLogs()}
-            className="px-3 py-1.5 rounded-lg border border-[#C6BA96] bg-[#F4ECD2] hover:bg-[#E3DAB6] text-[#4C5324] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+            className="px-3 py-1.5 rounded-lg border border-[#F5D0CB] bg-[#FFF1EE] hover:bg-[#FFE0DA] text-[#EA5551] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>Refresh</span>
           </button>
-          <span className="text-xs font-mono font-bold bg-[#E3DAB6] text-[#4C5324] px-3 py-1.5 rounded-lg border border-[#C6BA96] tabular-nums">
+          <span className="text-xs font-mono font-bold bg-[#FFE0DA] text-[#EA5551] px-3 py-1.5 rounded-lg border border-[#F5D0CB] tabular-nums">
             {filtered.length} Events
           </span>
         </div>
       </div>
 
       {/* Filter */}
-      <div className="bg-[#FBF6E8] rounded-xl p-3 border border-[#C6BA96] shadow-xs flex flex-col sm:flex-row gap-3 text-xs">
+      <div className="bg-[#FFFFFF] rounded-xl p-3 border border-[#F5D0CB] shadow-xs flex flex-col sm:flex-row gap-3 text-xs">
         <div className="flex-1 relative">
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search audit details, user email, module..."
-            className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#3B2311] placeholder:text-[#5B4735]"
+            className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#393334] placeholder:text-[#806B68]"
           />
-          <Search size={14} className="absolute left-2.5 top-2 text-[#5B4735]" />
+          <Search size={14} className="absolute left-2.5 top-2 text-[#806B68]" />
         </div>
 
         <select
           value={actionFilter}
           onChange={e => setActionFilter(e.target.value)}
           aria-label="Filter by Audit Action"
-          className="bg-[#FBF6E8] border border-[#C6BA96] rounded-lg px-3 py-1.5 text-xs text-[#3B2311] font-medium"
+          className="bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg px-3 py-1.5 text-xs text-[#393334] font-medium"
         >
           <option value="ALL">All Actions</option>
           <option value="CREATE">CREATE</option>
@@ -127,9 +127,9 @@ export const AuditTrailPage: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] shadow-xs overflow-x-auto">
+      <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] shadow-xs overflow-x-auto">
         <table className="w-full text-xs text-left">
-          <thead className="bg-[#F4ECD2] border-b border-[#C6BA96] text-[#4C5324] font-semibold">
+          <thead className="bg-[#FFF1EE] border-b border-[#F5D0CB] text-[#EA5551] font-semibold">
             <tr>
               <th className="py-2.5 px-3 w-44">Timestamp</th>
               <th className="py-2.5 px-3 w-28">Action</th>
@@ -138,17 +138,17 @@ export const AuditTrailPage: React.FC = () => {
               <th className="py-2.5 px-3">Audit Details</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#D7CBB0]">
+          <tbody className="divide-y divide-[#FDE8E4]">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-[#5B4735]">
+                <td colSpan={5} className="py-8 text-center text-[#806B68]">
                   No audit events recorded matching current filters.
                 </td>
               </tr>
             ) : (
               filtered.map(l => (
-                <tr key={l.id} className="hover:bg-[#EFE6CE]">
-                  <td className="py-2.5 px-3 font-mono text-[#5B4735] tabular-nums">
+                <tr key={l.id} className="hover:bg-[#FFEAE6]">
+                  <td className="py-2.5 px-3 font-mono text-[#806B68] tabular-nums">
                     {new Date(l.timestamp).toLocaleString()}
                   </td>
                   <td className="py-2.5 px-3">
@@ -156,12 +156,12 @@ export const AuditTrailPage: React.FC = () => {
                       {l.action}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3 font-semibold text-[#3B2311]">{l.module}</td>
+                  <td className="py-2.5 px-3 font-semibold text-[#393334]">{l.module}</td>
                   <td className="py-2.5 px-3">
-                    <div className="font-semibold text-[#3B2311]">{l.userEmail}</div>
-                    <div className="text-[10px] text-[#5B4735]">{l.userRole}</div>
+                    <div className="font-semibold text-[#393334]">{l.userEmail}</div>
+                    <div className="text-[10px] text-[#806B68]">{l.userRole}</div>
                   </td>
-                  <td className="py-2.5 px-3 text-[#3B2311] font-medium">{l.details}</td>
+                  <td className="py-2.5 px-3 text-[#393334] font-medium">{l.details}</td>
                 </tr>
               ))
             )}

@@ -115,16 +115,16 @@ export const SettingsPage: React.FC = () => {
       <div
         className={`rounded-xl border shadow-xs p-5 space-y-4 ${
           maintenanceStatus.enabled
-            ? 'bg-[#E3DAB6] border-[#C6BA96]'
-            : 'bg-[#FBF6E8] border-[#C6BA96]'
+            ? 'bg-[#FFE0DA] border-[#F5D0CB]'
+            : 'bg-[#FFFFFF] border-[#F5D0CB]'
         }`}
       >
-        <div className="border-b border-[#D7CBB0] pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="border-b border-[#FDE8E4] pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-[#3B2311] flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-bold text-[#393334] flex items-center gap-2 flex-wrap">
               <Wrench
                 size={16}
-                className={maintenanceStatus.enabled ? 'text-[#6B5B2E]' : 'text-[#4B5420]'}
+                className={maintenanceStatus.enabled ? 'text-[#EA5551]' : 'text-[#EA5551]'}
               />
               <span>System Maintenance Mode Control</span>
               <span
@@ -137,7 +137,7 @@ export const SettingsPage: React.FC = () => {
                 {maintenanceStatus.enabled ? 'Maintenance Active' : 'System Online'}
               </span>
             </h3>
-            <p className="text-xs text-[#5B4735] mt-0.5">
+            <p className="text-xs text-[#806B68] mt-0.5">
               When activated, all active non-admin sessions are immediately logged out and blocked with the maintenance notice popup until restored.
             </p>
           </div>
@@ -161,7 +161,7 @@ export const SettingsPage: React.FC = () => {
                   type="button"
                   disabled={maintenanceBusy}
                   onClick={() => setShowMaintenanceConfirm(true)}
-                  className="px-3.5 py-2 bg-[#555E27] hover:bg-[#6B5B2E] text-[#FBF6E8] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-60 cursor-pointer whitespace-nowrap shrink-0"
+                  className="px-3.5 py-2 bg-[#D46764] hover:bg-[#EA5551] text-[#FFFFFF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-60 cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <Wrench size={14} />
                   <span>{maintenanceBusy ? 'Updating...' : 'Activate Maintenance Mode'}</span>
@@ -173,7 +173,7 @@ export const SettingsPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end text-xs">
           <div className="md:col-span-2">
-            <label className="block font-semibold text-[#4C5324] mb-1">
+            <label className="block font-semibold text-[#EA5551] mb-1">
               Maintenance Popup Message Shown to Users
             </label>
             <input
@@ -183,7 +183,7 @@ export const SettingsPage: React.FC = () => {
               value={maintenanceMessage}
               onChange={e => setMaintenanceMessage(e.target.value)}
               placeholder={DEFAULT_MAINTENANCE_MESSAGE}
-              className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 text-xs text-[#3B2311] disabled:bg-[#F4ECD2]"
+              className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 text-xs text-[#393334] disabled:bg-[#FFF1EE]"
             />
           </div>
 
@@ -193,7 +193,7 @@ export const SettingsPage: React.FC = () => {
                 type="button"
                 disabled={maintenanceBusy}
                 onClick={() => handleApplyMaintenanceToggle(true)}
-                className="w-full px-3 py-2 bg-[#4B5420] hover:bg-[#3F471A] text-[#FBF6E8] text-xs font-semibold rounded-lg transition-colors disabled:opacity-60 cursor-pointer"
+                className="w-full px-3 py-2 bg-[#EA5551] hover:bg-[#D46764] text-[#FFFFFF] text-xs font-semibold rounded-lg transition-colors disabled:opacity-60 cursor-pointer"
               >
                 Update Active Message
               </button>
@@ -203,65 +203,65 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* ENTERPRISE SETTINGS & NUMBERING */}
-      <form onSubmit={handleSave} className="bg-[#FBF6E8] rounded-xl border border-[#C6BA96] shadow-xs p-5 space-y-4">
-        <h3 className="text-xs font-bold text-[#4C5324] uppercase tracking-wider border-b border-[#D7CBB0] pb-2 flex items-center gap-2">
-          <Building2 size={15} className="text-[#4B5420]" />
+      <form onSubmit={handleSave} className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] shadow-xs p-5 space-y-4">
+        <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider border-b border-[#FDE8E4] pb-2 flex items-center gap-2">
+          <Building2 size={15} className="text-[#EA5551]" />
           <span>Company &amp; SQC Inspection Format Identity</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div>
-            <label className="block font-semibold text-[#4C5324] mb-1">Company Name</label>
+            <label className="block font-semibold text-[#EA5551] mb-1">Company Name</label>
             <input
               type="text"
               disabled={!canEdit}
               value={settings.companyName}
               onChange={e => setSettings({ ...settings, companyName: e.target.value })}
-              className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-semibold text-[#3B2311] disabled:bg-[#F4ECD2]"
+              className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-semibold text-[#393334] disabled:bg-[#FFF1EE]"
             />
           </div>
 
           <div>
-            <label className="block font-semibold text-[#4C5324] mb-1">Department Subtitle</label>
+            <label className="block font-semibold text-[#EA5551] mb-1">Department Subtitle</label>
             <input
               type="text"
               disabled={!canEdit}
               value={settings.companySubtitle}
               onChange={e => setSettings({ ...settings, companySubtitle: e.target.value })}
-              className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 text-[#3B2311] disabled:bg-[#F4ECD2]"
+              className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 text-[#393334] disabled:bg-[#FFF1EE]"
             />
           </div>
 
           <div>
-            <label className="block font-semibold text-[#4C5324] mb-1">Inspection Number Prefix</label>
+            <label className="block font-semibold text-[#EA5551] mb-1">Inspection Number Prefix</label>
             <input
               type="text"
               disabled={!canEdit}
               value={settings.inspectionPrefix}
               onChange={e => setSettings({ ...settings, inspectionPrefix: e.target.value })}
-              className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 font-mono text-[#3B2311] disabled:bg-[#F4ECD2]"
+              className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 font-mono text-[#393334] disabled:bg-[#FFF1EE]"
             />
-            <p className="text-[10px] text-[#5B4735] mt-1">Example: SQC/2026-27/FORM-01/000001</p>
+            <p className="text-[10px] text-[#806B68] mt-1">Example: SQC/2026-27/FORM-01/000001</p>
           </div>
 
           <div>
-            <label className="block font-semibold text-[#4C5324] mb-1">Active Financial Year</label>
+            <label className="block font-semibold text-[#EA5551] mb-1">Active Financial Year</label>
             <input
               type="text"
               disabled={!canEdit}
               value={settings.financialYear}
               onChange={e => setSettings({ ...settings, financialYear: e.target.value })}
-              className="w-full bg-[#FBF6E8] border border-[#C6BA96] rounded-lg p-2 text-[#3B2311] disabled:bg-[#F4ECD2]"
+              className="w-full bg-[#FFFFFF] border border-[#F5D0CB] rounded-lg p-2 text-[#393334] disabled:bg-[#FFF1EE]"
             />
           </div>
         </div>
 
         {canEdit && (
-          <div className="flex items-center justify-end pt-3 border-t border-[#D7CBB0]">
+          <div className="flex items-center justify-end pt-3 border-t border-[#FDE8E4]">
             <button
               type="submit"
               disabled={savingSettings}
-              className="px-4 py-2 bg-gradient-to-r from-[#4B5420] to-[#3F471A] hover:from-[#3F471A] hover:to-[#343B14] text-[#FBF6E8] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs border border-[#DFD2A6]/40 disabled:opacity-60 cursor-pointer"
+              className="px-4 py-2 bg-gradient-to-r from-[#EA5551] to-[#D46764] hover:from-[#D46764] hover:to-[#EA5551] text-[#FFFFFF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-xs border border-[#FFE0DA]/40 disabled:opacity-60 cursor-pointer"
             >
               <Save size={14} />
               <span>{savingSettings ? 'Saving...' : 'Save System Settings'}</span>
@@ -272,35 +272,35 @@ export const SettingsPage: React.FC = () => {
 
       {/* Inline Confirmation Modal for Activating Maintenance Mode */}
       {showMaintenanceConfirm && (
-        <div className="fixed inset-0 bg-[#3B2311]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-[#FBF6E8] rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#C6BA96] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#D7CBB0] pb-2">
-              <h4 className="text-sm font-bold text-[#4C5324] flex items-center gap-2">
-                <Wrench size={16} className="text-[#6B5B2E]" />
+        <div className="fixed inset-0 bg-[#393334]/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-[#FFFFFF] rounded-xl max-w-md w-full p-5 shadow-2xl border border-[#F5D0CB] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#FDE8E4] pb-2">
+              <h4 className="text-sm font-bold text-[#EA5551] flex items-center gap-2">
+                <Wrench size={16} className="text-[#EA5551]" />
                 <span>Activate Maintenance Mode?</span>
               </h4>
               <button
                 type="button"
                 onClick={() => setShowMaintenanceConfirm(false)}
-                className="text-[#5B4735] hover:text-[#3B2311] font-bold cursor-pointer"
+                className="text-[#806B68] hover:text-[#393334] font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
-            <p className="text-xs text-[#5B4735] leading-relaxed">
+            <p className="text-xs text-[#806B68] leading-relaxed">
               Activating Maintenance Mode will immediately log out all active non-admin users and display the blocking notice:
             </p>
-            <div className="p-2.5 rounded-lg bg-[#E3DAB6] border border-[#C6BA96] text-xs font-semibold text-[#4C5324]">
+            <div className="p-2.5 rounded-lg bg-[#FFE0DA] border border-[#F5D0CB] text-xs font-semibold text-[#EA5551]">
               &quot;{maintenanceMessage.trim() || DEFAULT_MAINTENANCE_MESSAGE}&quot;
             </div>
-            <p className="text-[11px] text-[#5B4735]">
+            <p className="text-[11px] text-[#806B68]">
               Your Administrator session will stay active so you can turn Maintenance Mode off when ready.
             </p>
             <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setShowMaintenanceConfirm(false)}
-                className="px-3 py-1.5 border border-[#C6BA96] text-[#4C5324] text-xs rounded-lg hover:bg-[#F4ECD2] cursor-pointer"
+                className="px-3 py-1.5 border border-[#F5D0CB] text-[#EA5551] text-xs rounded-lg hover:bg-[#FFF1EE] cursor-pointer"
               >
                 Cancel
               </button>
@@ -308,7 +308,7 @@ export const SettingsPage: React.FC = () => {
                 id="confirm-activate-maintenance-btn"
                 type="button"
                 onClick={() => handleApplyMaintenanceToggle(true)}
-                className="px-4 py-1.5 bg-[#4B5420] hover:bg-[#3F471A] text-[#FBF6E8] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
+                className="px-4 py-1.5 bg-[#EA5551] hover:bg-[#D46764] text-[#FFFFFF] text-xs font-bold rounded-lg shadow-xs cursor-pointer"
               >
                 Confirm &amp; Activate
               </button>
