@@ -1,7 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppModule, InspectionRecord, UserProfile, UserRole } from '../types';
 import { dataService } from '../services/dataService';
-import { authService, isAdminRole } from '../services/authService';
+import {
+  authService,
+  isAdminRole,
+  LockedSessionInfo,
+  SESSION_LOCKED_USER_KEY,
+} from '../services/authService';
 import { postgresService } from '../services/postgresService';
 import {
   maintenanceService,
@@ -9,6 +14,7 @@ import {
   DEFAULT_MAINTENANCE_MESSAGE,
 } from '../services/maintenanceService';
 import { MaintenanceModal } from '../components/MaintenanceModal';
+import { SessionLockModal } from '../components/SessionLockModal';
 
 const GUEST_USER: UserProfile = {
   id: 'guest',
@@ -28,11 +34,18 @@ const GUEST_USER: UserProfile = {
 interface AuthContextType {
   currentUser: UserProfile;
   isAuthenticated: boolean;
+  isRestoringSession: boolean;
+  isSessionLocked: boolean;
+  lockedUser: LockedSessionInfo | null;
+  sessionExpiredNotice: boolean;
+  clearSessionExpiredNotice: () => void;
   isAdmin: boolean;
   login: (
     identifier: string,
     password: string
   ) => Promise<{ success: boolean; message?: string; maintenanceMode?: boolean }>;
+  unlockSession: (password: string) => Promise<{ success: boolean; message?: string; maintenanceMode?: boolean }>;
+  signOutFromLock: () => void;
   logout: () => void;
   allUsers: UserProfile[];
   refreshUsers: () => Promise<void>;
@@ -87,6 +100,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return Boolean(authService.getCurrentUser());
   });
 
+  const [lockedUser, setLockedUser] = useState<LockedSessionInfo | null>(() => {
+    return authService.getLockedUser();
+  });
+
+  const [isSessionLocked, setIsSessionLocked] = useState<boolean>(() => {
+    return Boolean(authService.getLockedUser());
+  });
+
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(() => {
+    const locked = authService.getLockedUser();
+    if (locked) return false;
+    return authService.hasToken() && !authService.isSessionExpired();
+  });
+
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState<boolean>(false);
+
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => {
     const u = authService.getCurrentUser();
     return u && isAdminRole(u.role) ? dataService.getUsers() : [];
@@ -98,12 +127,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [adminBypassedOverlay, setAdminBypassedOverlay] = useState<boolean>(false);
   const [wasForcedLogout, setWasForcedLogout] = useState<boolean>(false);
 
+  const lastActivityTouchRef = useRef<number>(0);
+  const lastTokenRefreshRef = useRef<number>(Date.now());
+
   const performForcedSignOut = useCallback(() => {
     authService.logout();
+    dataService.clearAllCaches();
+    setCurrentUser(GUEST_USER);
+    setIsAuthenticated(false);
+    setIsSessionLocked(false);
+    setLockedUser(null);
+    setAllUsers([]);
+  }, []);
+
+  const autoLockSession = useCallback(() => {
+    const activeUser =
+      currentUser && currentUser.id !== 'guest'
+        ? currentUser
+        : authService.getCurrentUser();
+    const lockInfo = authService.lockSession(activeUser);
+    dataService.clearAllCaches();
     setCurrentUser(GUEST_USER);
     setIsAuthenticated(false);
     setAllUsers([]);
-  }, []);
+    if (lockInfo) {
+      setLockedUser(lockInfo);
+      setIsSessionLocked(true);
+    } else {
+      setLockedUser(null);
+      setIsSessionLocked(false);
+      setSessionExpiredNotice(true);
+    }
+  }, [currentUser]);
 
   const applyMaintenanceStatus = useCallback(
     (next: MaintenanceStatus, isAuthNow: boolean, activeUser: UserProfile) => {
@@ -144,7 +199,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (postgresService.isSyncEnabled()) {
       const remoteUsers = await postgresService.loadUsers();
       if (remoteUsers.length > 0) {
-        localStorage.setItem('bj_sqc_users_prod_v1', JSON.stringify(remoteUsers));
         setAllUsers(remoteUsers);
         return;
       }
@@ -154,24 +208,180 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshSession = useCallback(async () => {
     if (!isAuthenticated) return;
+    if (authService.isSessionExpired()) {
+      autoLockSession();
+      return;
+    }
     const res = await postgresService.fetchCurrentSessionUser();
     if (res.ok && res.user) {
-      const { passwordHash: _ph, ...safeUser } = res.user;
-      setCurrentUser(safeUser as UserProfile);
-      localStorage.setItem('sqc_auth_current_user', JSON.stringify(safeUser));
+      const safeUser = authService.setAuthenticatedUser(res.user);
+      if (safeUser) {
+        setCurrentUser(safeUser);
+      } else {
+        performForcedSignOut();
+      }
       if (res.maintenanceMode) {
-        applyMaintenanceStatus(res.maintenanceMode, true, safeUser as UserProfile);
+        applyMaintenanceStatus(res.maintenanceMode, true, (safeUser || res.user) as UserProfile);
       }
     }
-  }, [isAuthenticated, applyMaintenanceStatus]);
+  }, [isAuthenticated, applyMaintenanceStatus, autoLockSession, performForcedSignOut]);
 
-  // Poll Maintenance Mode + listen for auth invalidation (401/revoked tokens)
+  // Restore session on browser reload/refresh if token exists & 15-min session has not timed out
+  useEffect(() => {
+    let cancelled = false;
+
+    const restoreSessionOnBoot = async () => {
+      const existingLock = authService.getLockedUser();
+      if (existingLock) {
+        authService.clearToken();
+        if (!cancelled) {
+          setLockedUser(existingLock);
+          setIsSessionLocked(true);
+          setIsAuthenticated(false);
+          setIsRestoringSession(false);
+        }
+        return;
+      }
+
+      if (!authService.hasToken()) {
+        if (!cancelled) {
+          setIsRestoringSession(false);
+        }
+        return;
+      }
+
+      if (authService.isSessionExpired()) {
+        authService.logout();
+        if (!cancelled) {
+          setCurrentUser(GUEST_USER);
+          setIsAuthenticated(false);
+          setSessionExpiredNotice(true);
+          setIsRestoringSession(false);
+        }
+        return;
+      }
+
+      let res = await postgresService.fetchCurrentSessionUser();
+      // Brief retry if Express API is still warming up right after a restart
+      if (!res.ok && res.dbUnavailable && !res.maintenanceMode && !cancelled) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!cancelled) {
+          res = await postgresService.fetchCurrentSessionUser();
+        }
+      }
+
+      if (cancelled) return;
+
+      if (res.ok && res.user) {
+        const safeUser = authService.setAuthenticatedUser(res.user);
+        if (safeUser) {
+          // Keep remaining 15-minute session deadline across browser refreshes (initialize only if absent)
+          authService.ensureSessionDeadline();
+          lastTokenRefreshRef.current = Date.now();
+          setCurrentUser(safeUser);
+          setIsAuthenticated(true);
+          setIsSessionLocked(false);
+          setLockedUser(null);
+          setSessionExpiredNotice(false);
+
+          if (res.maintenanceMode) {
+            applyMaintenanceStatus(res.maintenanceMode, true, safeUser);
+          }
+
+          if (isAdminRole(safeUser.role)) {
+            void postgresService.loadUsers().then(remoteUsers => {
+              if (!cancelled && remoteUsers.length > 0) {
+                setAllUsers(remoteUsers);
+              }
+            });
+          }
+
+          void postgresService.pullAndSyncAllData(true);
+        } else {
+          performForcedSignOut();
+        }
+      } else if (res.status === 401 || res.status === 403) {
+        performForcedSignOut();
+        setSessionExpiredNotice(true);
+      } else if (res.maintenanceMode) {
+        applyMaintenanceStatus(res.maintenanceMode, false, GUEST_USER);
+        performForcedSignOut();
+      } else {
+        performForcedSignOut();
+      }
+
+      if (!cancelled) {
+        setIsRestoringSession(false);
+      }
+    };
+
+    void restoreSessionOnBoot();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyMaintenanceStatus, performForcedSignOut]);
+
+  // 15-Minute Session Activity Tracker & Auto-Lock Watcher
+  useEffect(() => {
+    if (!isAuthenticated || isSessionLocked) return;
+
+    authService.ensureSessionDeadline();
+
+    const handleUserActivity = () => {
+      const now = Date.now();
+      if (authService.isSessionExpired(now)) {
+        autoLockSession();
+        return;
+      }
+      if (now - lastActivityTouchRef.current >= 5000) {
+        lastActivityTouchRef.current = now;
+        authService.touchSessionDeadline(now);
+      }
+      if (now - lastTokenRefreshRef.current >= 90 * 1000) {
+        lastTokenRefreshRef.current = now;
+        void postgresService.refreshAuthToken();
+      }
+    };
+
+    const activityEvents: Array<keyof WindowEventMap> = [
+      'mousedown',
+      'keydown',
+      'touchstart',
+      'scroll',
+      'pointerdown',
+    ];
+    activityEvents.forEach(evt => window.addEventListener(evt, handleUserActivity, { passive: true }));
+
+    const expiryCheckTimer = setInterval(() => {
+      if (authService.isSessionExpired()) {
+        autoLockSession();
+      }
+    }, 1000);
+
+    const checkExpiryOnWake = () => {
+      if (document.visibilityState === 'visible' && authService.isSessionExpired()) {
+        autoLockSession();
+      }
+    };
+    window.addEventListener('focus', checkExpiryOnWake);
+    document.addEventListener('visibilitychange', checkExpiryOnWake);
+
+    return () => {
+      activityEvents.forEach(evt => window.removeEventListener(evt, handleUserActivity));
+      clearInterval(expiryCheckTimer);
+      window.removeEventListener('focus', checkExpiryOnWake);
+      document.removeEventListener('visibilitychange', checkExpiryOnWake);
+    };
+  }, [isAuthenticated, isSessionLocked, autoLockSession]);
+
+  // Poll Maintenance Mode + listen for auth invalidation (401/revoked tokens) & multi-tab sync
   useEffect(() => {
     refreshMaintenanceStatus();
 
     const timer = setInterval(() => {
       refreshMaintenanceStatus();
-      if (isAuthenticated) {
+      if (isAuthenticated && !isSessionLocked) {
         void refreshSession();
       }
     }, 6000);
@@ -192,6 +402,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const onAuthInvalidated = () => {
+      if (isSessionLocked) return;
       performForcedSignOut();
     };
 
@@ -205,15 +416,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (e.key === 'bj_sqc_maintenance_mode') {
         applyMaintenanceStatus(maintenanceService.getCached(), isAuthenticated, currentUser);
       }
-      if (e.key === 'sqc_auth_token' && !e.newValue && isAuthenticated) {
-        performForcedSignOut();
+      if (e.key === SESSION_LOCKED_USER_KEY) {
+        const nextLocked = authService.getLockedUser();
+        if (nextLocked) {
+          setLockedUser(nextLocked);
+          setIsSessionLocked(true);
+          setIsAuthenticated(false);
+          setCurrentUser(GUEST_USER);
+          setAllUsers([]);
+        } else {
+          setLockedUser(null);
+          setIsSessionLocked(false);
+        }
+      }
+      if (e.key === 'sqc_auth_token') {
+        if (!e.newValue && isAuthenticated && !authService.getLockedUser()) {
+          performForcedSignOut();
+        } else if (e.newValue && (!isAuthenticated || isSessionLocked) && !authService.getLockedUser()) {
+          void postgresService.fetchCurrentSessionUser().then(res => {
+            if (res.ok && res.user) {
+              const safeUser = authService.setAuthenticatedUser(res.user);
+              if (safeUser) {
+                setCurrentUser(safeUser);
+                setIsAuthenticated(true);
+                setIsSessionLocked(false);
+                setLockedUser(null);
+                setSessionExpiredNotice(false);
+                void postgresService.pullAndSyncAllData(true);
+              }
+            }
+          });
+        }
       }
     };
 
     const onFocusOrVisible = () => {
       if (document.visibilityState === 'visible') {
         void refreshMaintenanceStatus();
-        if (isAuthenticated) {
+        if (isAuthenticated && !isSessionLocked) {
           void refreshSession();
         }
       }
@@ -241,6 +481,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     applyMaintenanceStatus,
     performForcedSignOut,
     isAuthenticated,
+    isSessionLocked,
     currentUser,
   ]);
 
@@ -264,8 +505,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<{ success: boolean; message?: string; maintenanceMode?: boolean }> => {
     const res = await authService.login(identifier, password);
     if (res.success && res.user) {
+      lastActivityTouchRef.current = Date.now();
+      lastTokenRefreshRef.current = Date.now();
       setCurrentUser(res.user);
       setIsAuthenticated(true);
+      setIsSessionLocked(false);
+      setLockedUser(null);
+      setSessionExpiredNotice(false);
       setWasForcedLogout(false);
       setAdminBypassedOverlay(false);
 
@@ -286,6 +532,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         enabled: true,
         message: res.message || DEFAULT_MAINTENANCE_MESSAGE,
       });
+      setIsSessionLocked(false);
+      setLockedUser(null);
+      authService.setLockedUser(null);
       setAdminBypassedOverlay(false);
     }
     return {
@@ -295,7 +544,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
+  const unlockSession = async (
+    password: string
+  ): Promise<{ success: boolean; message?: string; maintenanceMode?: boolean }> => {
+    const targetUsername = lockedUser?.username;
+    if (!targetUsername) {
+      performForcedSignOut();
+      return { success: false, message: 'Session lock details missing. Please sign in again.' };
+    }
+    return login(targetUsername, password);
+  };
+
+  const signOutFromLock = () => {
+    setSessionExpiredNotice(false);
+    performForcedSignOut();
+  };
+
+  const clearSessionExpiredNotice = useCallback(() => {
+    setSessionExpiredNotice(false);
+  }, []);
+
   const logout = () => {
+    setSessionExpiredNotice(false);
     performForcedSignOut();
   };
 
@@ -438,9 +708,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: res.message || 'Failed to update profile.' };
     }
     if (res.user) {
-      const { passwordHash: _ph, ...safeUser } = res.user;
-      setCurrentUser(safeUser as UserProfile);
-      localStorage.setItem('sqc_auth_current_user', JSON.stringify(safeUser));
+      const safeUser = authService.setAuthenticatedUser(res.user);
+      if (safeUser) {
+        setCurrentUser(safeUser);
+      }
     }
     return { success: true };
   };
@@ -513,8 +784,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         currentUser,
         isAuthenticated,
+        isRestoringSession,
+        isSessionLocked,
+        lockedUser,
+        sessionExpiredNotice,
+        clearSessionExpiredNotice,
         isAdmin,
         login,
+        unlockSession,
+        signOutFromLock,
         logout,
         allUsers,
         refreshUsers,
@@ -540,6 +818,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }}
     >
       {children}
+      <SessionLockModal
+        isOpen={isSessionLocked && Boolean(lockedUser) && !maintenancePopupVisible}
+        lockedUser={lockedUser}
+        onUnlock={unlockSession}
+        onSignOut={signOutFromLock}
+      />
       <MaintenanceModal
         isOpen={maintenancePopupVisible}
         message={maintenanceStatus.message}

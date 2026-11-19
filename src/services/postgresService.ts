@@ -743,6 +743,31 @@ class PostgresService {
     }
   }
 
+  public async refreshAuthToken(): Promise<boolean> {
+    if (!this.apiUrl || isPlaceholderOrDeadUrl(this.apiUrl) || !hasStoredAuthToken()) {
+      return false;
+    }
+    try {
+      const res = await fetch(`${this.apiUrl}/api/auth/refresh`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        cache: 'no-store',
+      });
+      await this.handleMaintenanceResponse(res);
+      if (!res.ok || !this.isJsonResponse(res)) {
+        return false;
+      }
+      const json = await res.json().catch(() => ({}));
+      if (json?.success && typeof json.token === 'string' && json.token) {
+        localStorage.setItem('sqc_auth_token', json.token);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   public async updateOwnProfile(
     displayName: string,
     phone: string

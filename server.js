@@ -144,7 +144,7 @@ const GRANTABLE_MODULES = ['DASHBOARD', 'INSPECTIONS', 'APPROVALS', 'REPORTS', '
 const ADMIN_ONLY_MODULES = ['USERS', 'AUDIT_LOGS', 'SETTINGS'];
 const ALL_MODULES = [...GRANTABLE_MODULES, ...ADMIN_ONLY_MODULES];
 const ALLOWED_DATA_SCOPES = ['OWN', 'DEPARTMENT', 'ALL'];
-const TOKEN_TTL_SECONDS = 12 * 60 * 60;
+const TOKEN_TTL_SECONDS = 15 * 60;
 
 function isAdminRole(role) {
   return role === 'Admin';
@@ -1793,6 +1793,7 @@ app.post('/api/auth/login', ensureDatabaseMiddleware, async (req, res) => {
     res.json({
       success: true,
       token,
+      expiresInSeconds: TOKEN_TTL_SECONDS,
       maintenanceMode: maintenanceState,
       user: mapUserRow(user, permittedForms),
     });
@@ -1813,6 +1814,23 @@ app.get('/api/auth/me', ensureDatabaseMiddleware, authenticateToken, async (req,
       success: true,
       maintenanceMode: maintenanceState,
       user: mapUserRow(user, user.permittedForms || []),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Sliding 15-minute session refresh endpoint (called on active user interaction)
+app.post('/api/auth/refresh', ensureDatabaseMiddleware, authenticateToken, async (req, res) => {
+  try {
+    const token = signAuthToken({
+      userId: req.user.id,
+      tokenVersion: req.user.token_version || 1,
+    });
+    res.json({
+      success: true,
+      token,
+      expiresInSeconds: TOKEN_TTL_SECONDS,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

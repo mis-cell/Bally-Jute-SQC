@@ -73,14 +73,30 @@ const AccessDeniedScreen: React.FC<{ title?: string; message?: string }> = ({
   );
 };
 
+const SessionRestoringScreen: React.FC = () => (
+  <div className="min-h-screen bg-[#F5EEDB] flex flex-col items-center justify-center p-6 text-center">
+    <div className="w-10 h-10 border-4 border-[#4B5420] border-t-transparent rounded-full animate-spin mb-3" />
+    <p className="text-sm font-bold text-[#3B2311]">Restoring SQC Session...</p>
+    <p className="text-xs text-[#5B4735] mt-1">Verifying your active portal credentials</p>
+  </div>
+);
+
 const ProtectedLayout: React.FC<{
   children: React.ReactNode;
   requiredModule?: AppModule;
   requiredAnyModules?: AppModule[];
   adminOnly?: boolean;
 }> = ({ children, requiredModule, requiredAnyModules, adminOnly = false }) => {
-  const { isAuthenticated, isAdmin, canAccessModule } = useAuth();
+  const { isAuthenticated, isRestoringSession, isSessionLocked, isAdmin, canAccessModule } = useAuth();
   const location = useLocation();
+
+  if (isRestoringSession) {
+    return <SessionRestoringScreen />;
+  }
+
+  if (isSessionLocked) {
+    return <div className="min-h-screen bg-[#F5EEDB]" aria-hidden="true" />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -120,7 +136,13 @@ const ProtectedLayout: React.FC<{
 };
 
 const LandingRoute: React.FC = () => {
-  const { isAuthenticated, canAccessModule } = useAuth();
+  const { isAuthenticated, isRestoringSession, isSessionLocked, canAccessModule } = useAuth();
+  if (isRestoringSession) {
+    return <SessionRestoringScreen />;
+  }
+  if (isSessionLocked) {
+    return <div className="min-h-screen bg-[#F5EEDB]" aria-hidden="true" />;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }

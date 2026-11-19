@@ -19,7 +19,19 @@ import {
   setCachedMaintenanceStatus,
 } from './maintenanceService';
 
+export const SESSION_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
 const AUTH_TOKEN_KEY = 'sqc_auth_token';
+export const SESSION_EXPIRES_AT_KEY = 'sqc_session_expires_at';
+export const SESSION_LOCKED_USER_KEY = 'sqc_session_locked_user';
+
+export interface LockedSessionInfo {
+  username: string;
+  displayName: string;
+  employeeCode?: string;
+  role?: string;
+  lockedAt?: string;
+}
 
 // Remove any legacy localStorage cached user profile on module load
 try {
@@ -97,6 +109,122 @@ class AuthService {
     } catch {
       // ignore
     }
+  }
+
+  public getSessionExpiresAt(): number | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(SESSION_EXPIRES_AT_KEY);
+      if (!raw) return null;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public touchSessionDeadline(now: number = Date.now()): number {
+    const expiresAt = now + SESSION_TIMEOUT_MS;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(SESSION_EXPIRES_AT_KEY, String(expiresAt));
+      } catch {
+        // ignore
+      }
+    }
+    return expiresAt;
+  }
+
+  public ensureSessionDeadline(now: number = Date.now()): number {
+    const existing = this.getSessionExpiresAt();
+    if (existing && existing > now) {
+      return existing;
+    }
+    return this.touchSessionDeadline(now);
+  }
+
+  public getRemainingSessionMs(now: number = Date.now()): number {
+    const expiresAt = this.getSessionExpiresAt();
+    if (!expiresAt) return SESSION_TIMEOUT_MS;
+    return Math.max(0, expiresAt - now);
+  }
+
+  public isSessionExpired(now: number = Date.now()): boolean {
+    const expiresAt = this.getSessionExpiresAt();
+    if (!expiresAt) return false;
+    return now >= expiresAt;
+  }
+
+  public getLockedUser(): LockedSessionInfo | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(SESSION_LOCKED_USER_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.username === 'string' && parsed.username.trim()) {
+        return {
+          username: parsed.username,
+          displayName: parsed.displayName || parsed.username,
+          employeeCode: parsed.employeeCode || undefined,
+          role: parsed.role || undefined,
+          lockedAt: parsed.lockedAt || undefined,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  public setLockedUser(info: LockedSessionInfo | null): void {
+    if (typeof window === 'undefined') return;
+    try {
+      if (info && info.username) {
+        localStorage.setItem(SESSION_LOCKED_USER_KEY, JSON.stringify(info));
+      } else {
+        localStorage.removeItem(SESSION_LOCKED_USER_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  public clearSessionMeta(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(SESSION_EXPIRES_AT_KEY);
+      localStorage.removeItem(SESSION_LOCKED_USER_KEY);
+    } catch {
+      // ignore
+    }
+  }
+
+  public lockSession(user?: Partial<UserProfile> | null): LockedSessionInfo | null {
+    const existingLocked = this.getLockedUser();
+    const username = (user?.username || user?.email || existingLocked?.username || '').trim();
+    const lockInfo: LockedSessionInfo | null = username
+      ? {
+          username,
+          displayName: user?.displayName || existingLocked?.displayName || username,
+          employeeCode: user?.employeeCode || existingLocked?.employeeCode,
+          role: user?.role || existingLocked?.role,
+          lockedAt: existingLocked?.lockedAt || new Date().toISOString(),
+        }
+      : null;
+
+    this.activeUser = null;
+    this.clearToken();
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(SESSION_EXPIRES_AT_KEY);
+      } catch {
+        // ignore
+      }
+    }
+    this.setLockedUser(lockInfo);
+    postgresService.setSessionUserContext(null);
+    postgresService.clearSyncData();
+    return lockInfo;
   }
 
   public setAuthenticatedUser(user: UserProfile | null): UserProfile | null {
@@ -201,7 +329,9 @@ class AuthService {
           };
         }
 
+        this.setLockedUser(null);
         this.setToken(json.token);
+        this.touchSessionDeadline();
         const loggedInUser = this.setAuthenticatedUser(rawUser)!;
         return { success: true, user: loggedInUser };
       }
@@ -220,11 +350,12 @@ class AuthService {
   }
 
   /**
-   * Log out currently authenticated user and clear all in-memory & token state
+   * Log out currently authenticated user and clear all in-memory, token, and lock state
    */
   public logout(): void {
     this.activeUser = null;
     this.clearToken();
+    this.clearSessionMeta();
     postgresService.setSessionUserContext(null);
     postgresService.clearSyncData();
   }

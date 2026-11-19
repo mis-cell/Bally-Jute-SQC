@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   ShieldCheck,
@@ -16,7 +16,16 @@ import juteMillBackdrop from '../assets/images/jute_mill_backdrop_1795004931867.
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, maintenanceStatus, showMaintenanceModal } = useAuth();
+  const {
+    login,
+    isAuthenticated,
+    isRestoringSession,
+    isSessionLocked,
+    sessionExpiredNotice,
+    clearSessionExpiredNotice,
+    maintenanceStatus,
+    showMaintenanceModal,
+  } = useAuth();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -25,11 +34,28 @@ export const LoginPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [backdropLoaded, setBackdropLoaded] = useState(true);
 
-  const from = (location.state as any)?.from?.pathname || '/';
+  const fromLocation = (location.state as any)?.from;
+  const from = fromLocation?.pathname
+    ? `${fromLocation.pathname}${fromLocation.search || ''}`
+    : '/';
+
+  if (isRestoringSession) {
+    return (
+      <div className="min-h-screen bg-[#EFE6D2] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-10 h-10 border-4 border-[#4B5420] border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-sm font-bold text-[#3B2311]">Restoring SQC Session...</p>
+      </div>
+    );
+  }
+
+  if (isAuthenticated && !isSessionLocked) {
+    return <Navigate to={from} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    clearSessionExpiredNotice();
     setIsLoading(true);
 
     try {
@@ -139,6 +165,15 @@ export const LoginPage: React.FC = () => {
               >
                 View Notice
               </button>
+            </div>
+          )}
+
+          {sessionExpiredNotice && !errorMessage && (
+            <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-2.5">
+              <Lock size={16} className="text-amber-700 shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed">
+                Your 15-minute session timed out due to inactivity and was automatically locked. Please sign in again.
+              </div>
             </div>
           )}
 
