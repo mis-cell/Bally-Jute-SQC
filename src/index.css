@@ -157,12 +157,20 @@ pre,
    INPUTS, SELECTS & FOCUS STATES
    ===================================================================== */
 
-input:focus,
-select:focus,
-textarea:focus {
+/* Scoped to main app content only — login page uses wrapper focus-within instead */
+#app-main-content input:focus,
+#app-main-content select:focus,
+#app-main-content textarea:focus {
   border-color: var(--sqc-primary) !important;
   outline: none;
   box-shadow: 0 0 0 3px rgba(234, 84, 80, 0.18);
+}
+
+/* Login page inputs: suppress the global ring so wrapper div focus-within handles it */
+.login-input-field:focus {
+  outline: none;
+  box-shadow: none !important;
+  border-color: transparent !important;
 }
 
 select option:checked {

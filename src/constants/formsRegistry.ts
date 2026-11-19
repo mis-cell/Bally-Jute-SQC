@@ -240,17 +240,18 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
       { key: 'bundleWeightMg', label: 'Bundle Wt ', type: 'number', unit: 'gm' },
       { key: 'breakingLoadKg', label: 'Breaking Load', type: 'number', unit: 'gm' },
-      { key: 'tenacityGtex', label: 'Tenacity', type: 'readonly', unit: 'g/tex', precision: 2 },
+      { key: 'tenacityGtex', label: 'Tenacity', type: 'number', unit: 'g/tex', precision: 2 },
     ],
     calculate: (formData, rows) => {
       const tenacities: number[] = rows.map(r => {
         const w = Number(r.bundleWeightMg);
         const l = Number(r.breakingLoadKg);
         if (w > 0 && l > 0) {
-          const val = Number(((l / w) * 0.125).toFixed(3));
+          const val = Number(((l / w) * 0.125).toFixed(2));
           r.tenacityGtex = val;
           return val;
         }
+        
         r.tenacityGtex = '';
         return 0;
       }).filter(v => v > 0);

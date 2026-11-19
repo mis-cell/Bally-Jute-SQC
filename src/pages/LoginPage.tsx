@@ -47,8 +47,8 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#FFF8F6] flex flex-col items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
-      {/* Background with soft modern luminous veil */}
+    <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+      {/* Natural Photo Backdrop - Pure & Untinted */}
       <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
         {backdropLoaded ? (
           <img
@@ -56,17 +56,18 @@ export const LoginPage: React.FC = () => {
             alt=""
             referrerPolicy="no-referrer"
             onError={() => setBackdropLoaded(false)}
-            className="h-full w-full object-cover object-center select-none opacity-40 mix-blend-multiply"
+            className="h-full w-full object-cover object-center select-none"
           />
         ) : (
-          <div className="h-full w-full bg-[radial-gradient(circle_at_50%_35%,#FFFFFF_0%,#FFE0DA_55%,#F5D0CB_100%)]" />
+          <div className="h-full w-full bg-slate-900" />
         )}
-        {/* Subtle warm center luminance veil so header & card stay crisp on every screen ratio */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,rgba(255,255,255,0.92)_0%,rgba(255,248,246,0.85)_50%,rgba(255,248,246,0.72)_100%)]" />
+        {/* Subtle neutral luminance veil - zero color tint */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,rgba(255,255,255,0.42)_0%,rgba(255,255,255,0.12)_50%,rgba(0,0,0,0.18)_100%)]" />
       </div>
 
       {/* Centered Brand Header + Login Card */}
       <div className="relative z-10 w-full max-w-[465px] flex flex-col items-center">
+
         {/* Brand Wordmark & Subtitle */}
         <h1 className="mt-1 text-[34px] leading-none font-black tracking-tight text-[#393334]">
           SQC Portal
@@ -155,7 +156,7 @@ export const LoginPage: React.FC = () => {
                 htmlFor="login-identifier-input"
                 className="block text-[13px] font-bold text-[#393334] mb-1.5"
               >
-                Username / Email / Employee Code
+                Username / Email
               </label>
               <div className="flex items-center rounded-[10px] border border-[#F5D0CB] bg-[#FFFFFF] focus-within:bg-[#FFFFFF] focus-within:border-[#EA5551] focus-within:ring-2 focus-within:ring-[#EA5551]/15 transition-colors">
                 <div className="pl-3.5 pr-2.5 py-2.5 flex items-center gap-2.5 pointer-events-none text-[#806B68]">
@@ -170,7 +171,7 @@ export const LoginPage: React.FC = () => {
                   value={identifier}
                   onChange={e => setIdentifier(e.target.value)}
                   placeholder="Enter username or email"
-                  className="block w-full pr-3 py-2.5 text-[13.5px] text-[#393334] placeholder:text-[#806B68] bg-transparent focus:outline-none font-medium"
+                  className="login-input-field block w-full pr-3 py-2.5 text-[13.5px] text-[#393334] placeholder:text-[#806B68] bg-transparent focus:outline-none font-medium"
                 />
               </div>
             </div>
@@ -196,7 +197,7 @@ export const LoginPage: React.FC = () => {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="block w-full py-2.5 text-[13.5px] text-[#393334] placeholder:text-[#806B68] bg-transparent focus:outline-none font-medium"
+                  className="login-input-field block w-full py-2.5 text-[13.5px] text-[#393334] placeholder:text-[#806B68] bg-transparent focus:outline-none font-medium"
                 />
                 <button
                   type="button"

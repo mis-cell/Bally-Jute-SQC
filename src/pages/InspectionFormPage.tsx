@@ -404,14 +404,18 @@ export const InspectionFormPage: React.FC = () => {
     }));
   }, [selectedFormCode, id]);
 
-  // Recalculate metrics on each change
-  const calculationResult = useMemo(() => {
+  // Recalculate metrics and computed rows on each change
+  const { calculationResult, computedRows } = useMemo(() => {
     try {
       const clonedRows = readingRows.map(r => ({ ...r }));
-      return formMeta.calculate(formData, clonedRows);
+      const result = formMeta.calculate(formData, clonedRows);
+      return { calculationResult: result, computedRows: clonedRows };
     } catch (e) {
       console.warn('Calculation error:', e);
-      return { metrics: {}, result: 'WARNING' as InspectionResult };
+      return {
+        calculationResult: { metrics: {}, result: 'WARNING' as InspectionResult },
+        computedRows: readingRows,
+      };
     }
   }, [formMeta, formData, readingRows]);
 
@@ -429,13 +433,10 @@ export const InspectionFormPage: React.FC = () => {
 
   // Row operations
   const handleAddRow = () => {
-    const newIdx = readingRows.length + 1;
+    const baseRows = computedRows.length > 0 ? computedRows : readingRows;
+    const newIdx = baseRows.length + 1;
     const row: Record<string, any> = {
-      sampleNo: newIdx/* ,
-      rollNo: newIdx,
-      pieceNo: newIdx,
-      bagNo: newIdx,
-      bagSampleNo: newIdx, */
+      sampleNo: newIdx,
     };
     formMeta.columns.forEach(c => {
       if (c.type === 'select' && c.options && c.options.length > 0) {
@@ -448,19 +449,22 @@ export const InspectionFormPage: React.FC = () => {
         row[c.key] = '';
       }
     });
-    setReadingRows([...readingRows, row]);
+    setReadingRows([...baseRows, row]);
   };
 
   const handleRemoveRow = (idx: number) => {
-    if (readingRows.length <= 1) return;
-    const next = [...readingRows];
+    const baseRows = computedRows.length > 0 ? computedRows : readingRows;
+    if (baseRows.length <= 1) return;
+    const next = [...baseRows];
     next.splice(idx, 1);
     setReadingRows(next);
   };
 
   const handleRowChange = (idx: number, key: string, val: any) => {
-    const next = [...readingRows];
-    next[idx] = { ...next[idx], [key]: val };
+    const baseRows = computedRows.length > 0 ? computedRows : readingRows;
+    const next = baseRows.map(r => ({ ...r }));
+    if (!next[idx]) return;
+    next[idx][key] = val;
     setReadingRows(next);
   };
 
@@ -508,9 +512,10 @@ export const InspectionFormPage: React.FC = () => {
     setSaveFeedback(null);
 
     try {
-      const computedRows = readingRows.map(r => ({ ...r }));
-      const finalCalc = formMeta.calculate(formData, computedRows);
-      setReadingRows(computedRows);
+      const baseRows = computedRows.length > 0 ? computedRows : readingRows;
+      const computedRowsToSave = baseRows.map(r => ({ ...r }));
+      const finalCalc = formMeta.calculate(formData, computedRowsToSave);
+      setReadingRows(computedRowsToSave);
 
       const nowIso = new Date().toISOString();
       const baseRecord: InspectionRecord = {
@@ -536,7 +541,7 @@ export const InspectionFormPage: React.FC = () => {
         result: finalCalc.result,
         summaryMetrics: finalCalc.metrics,
         formData,
-        readingRows: computedRows,
+        readingRows: computedRowsToSave,
         remarks,
         version: existingRecord ? existingRecord.version + 1 : 1,
         createdBy: existingRecord?.createdBy || currentUser.displayName,
@@ -823,7 +828,7 @@ export const InspectionFormPage: React.FC = () => {
               </button>
             </div>
 
-            {!id && Object.keys(FORM_REGISTRY).length > 1 && (
+            {/* {!id && Object.keys(FORM_REGISTRY).length > 1 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#EA5551] font-semibold whitespace-nowrap">
                   Form:
@@ -846,7 +851,7 @@ export const InspectionFormPage: React.FC = () => {
                     ))}
                 </select>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Right: Action Buttons */}
@@ -1148,7 +1153,7 @@ export const InspectionFormPage: React.FC = () => {
             <div className="p-3.5 bg-[#FFF1EE] border-b border-[#FDE8E4] flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider">
-                  3. Sample Readings &amp; Measurements Grid ({readingRows.length} Samples)
+                  3. Sample Readings &amp; Measurements Grid ({computedRows.length} Samples)
                 </h3>
                 <p className="text-[11px] text-[#806B68]">
                   Unit: <strong className="text-[#EA5551]">{formMeta.sampleUnit}</strong>
@@ -1188,7 +1193,7 @@ export const InspectionFormPage: React.FC = () => {
                 </thead>
 
                 <tbody className="divide-y divide-[#FDE8E4]">
-                  {readingRows.map((row, idx) => (
+                  {computedRows.map((row, idx) => (
                     <tr key={idx} className="hover:bg-[#FFF1EE] transition-colors">
                       <td className="py-2 px-3 text-center text-[#806B68] font-mono">{idx + 1}</td>
 
@@ -1198,7 +1203,9 @@ export const InspectionFormPage: React.FC = () => {
                             <span className="font-mono text-[#EA5551] font-semibold px-2 py-1 block">
                               {row[col.key] !== undefined && row[col.key] !== ''
                                 ? row[col.key]
-                                : idx + 1}
+                                : col.key === 'sampleNo' || col.key === 'rollNo' || col.key === 'bagNo' || col.key === 'pieceNo' || col.key === 'bagSampleNo'
+                                ? idx + 1
+                                : '-'}
                             </span>
                           ) : col.type === 'select' ? (
                             <select
@@ -1245,7 +1252,7 @@ export const InspectionFormPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleRemoveRow(idx)}
-                            disabled={readingRows.length <= 1}
+                            disabled={computedRows.length <= 1}
                             className="text-[#806B68] hover:text-[#C43D50] hover:bg-[#FFE0DA] rounded p-1 disabled:opacity-30 transition-colors"
                             title="Remove row"
                           >
