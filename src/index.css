@@ -19,6 +19,10 @@
   --text-primary: #393334;
   --text-secondary: #806B68;
 
+  /* Sidebar Active Selection */
+  --sidebar-active: #B93E3A;
+  --sidebar-active-border: #A0322E;
+
   /* SQC Semantic Tokens */
   --sqc-primary: var(--primary);
   --sqc-primary-deep: var(--primary-hover);
@@ -122,9 +126,10 @@ pre,
 
 #main-sidebar a.active,
 #main-sidebar a[aria-current="page"] {
-  background: linear-gradient(95deg, #EA5551 0%, #D46764 100%) !important;
+  background: var(--sidebar-active, #B93E3A) !important;
   color: #FFFFFF !important;
-  border-color: var(--sqc-border) !important;
+  border-color: var(--sidebar-active-border, #A0322E) !important;
+  box-shadow: 0 2px 6px rgba(185, 62, 58, 0.25) !important;
 }
 
 #main-sidebar a.active svg,

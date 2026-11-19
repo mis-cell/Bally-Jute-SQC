@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -264,12 +264,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             {/* Dashboard */}
             <NavLink
               to="/"
+              end
               id="nav-link-dashboard"
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
-                    ? 'bg-[#EA5551] text-[#FFFFFF] shadow-sm'
+                    ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
                     : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
                 }`
               }
@@ -299,12 +300,14 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     id="nav-link-all-inspections"
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-2 px-2.5 py-1.5 rounded-md font-bold transition-colors ${
-                        isActive ? 'text-[#FFFFFF] bg-[#EA5551] border border-[#D46764]' : 'text-[#393334] hover:bg-[#FFE0DA]'
+                      `flex items-center gap-2 px-2.5 py-1.5 rounded-md font-bold transition-all border shadow-2xs ${
+                        isActive
+                          ? 'text-[#FFFFFF] bg-[#B93E3A] border-[#A0322E] shadow-sm'
+                          : 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB] hover:bg-[#EA5551] hover:text-[#FFFFFF] hover:border-[#EA5551]'
                       }`
                     }
                   >
-                    <Layers size={14} />
+                    <Layers size={14} className="shrink-0" />
                     <span>All Inspection Records</span>
                   </NavLink>
 
@@ -330,23 +333,23 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                           const isMatch = new URLSearchParams(location.search).get('form') === fCode;
 
                           return (
-                            <NavLink
+                            <Link
                               key={fCode}
                               to={`/new-inspection?form=${fCode}`}
                               id={`nav-form-${fCode.toLowerCase()}`}
                               onClick={() => setSidebarOpen(false)}
                               className={`flex items-center px-2 py-1.5 rounded-md text-xs font-semibold truncate transition-all duration-200 border ${
                                 isMatch
-                                  ? 'bg-gradient-to-r from-[#EA5551] to-[#D46764] text-[#FFFFFF] font-bold border-[#D46764] shadow-md'
-                                  : 'bg-transparent text-[#393334] border-transparent hover:bg-[#FFE0DA] hover:text-[#EA5551] hover:border-[#F5D0CB]'
+                                  ? 'bg-[#B93E3A] text-[#FFFFFF] font-bold border-[#A0322E] shadow-sm'
+                                  : 'bg-[#FFE0DA] text-[#EA5551] border-[#F5D0CB] hover:bg-[#EA5551] hover:text-[#FFFFFF] hover:border-[#EA5551]'
                               }`}
                               title={`${meta.code}: ${meta.title}`}
                             >
                               <span
                                 className={`inline-flex items-center justify-center font-mono font-black min-w-[42px] h-[22px] mr-2 px-1.5 rounded text-[10px] leading-none shrink-0 border ${
                                   isMatch
-                                    ? 'bg-[#EA5551] text-[#FFE0DA] border-[#EA5551]'
-                                    : 'bg-[#EA5551] text-[#FFFFFF] border-[#EA5551]'
+                                    ? 'bg-[#EA5551] text-[#FFFFFF] border-[#EA5551]'
+                                    : 'bg-[#FFFFFF] text-[#EA5551] border-[#F5D0CB]'
                                 }`}
                               >
                                 {meta.code.replace('FORM-', 'F')}
@@ -354,7 +357,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                               <span className="truncate">
                                 {meta.title.split('–')[1]?.trim() || meta.title}
                               </span>
-                            </NavLink>
+                            </Link>
                           );
                         })}
                       </div>
@@ -372,7 +375,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
-                    ? 'bg-[#EA5551] text-[#FFFFFF] shadow-sm'
+                    ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
                     : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
                 }`
               }
@@ -389,7 +392,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold text-[13px] transition-colors ${
                   isActive
-                    ? 'bg-[#EA5551] text-[#FFFFFF] shadow-sm'
+                    ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
                     : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
                 }`
               }
@@ -415,13 +418,13 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
                 {mastersSubmenuOpen && (
                   <div className="mt-1 pl-2 pr-1 space-y-1 bg-[#FFFFFF] rounded-lg p-2.5 border border-[#F5D0CB] text-xs font-bold">
-                    <NavLink to="/masters/departments" id="nav-master-dept" className="block px-2.5 py-1.5 text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded">Departments & HODs</NavLink>
-                    <NavLink to="/masters/sections" id="nav-master-sec" className="block px-2.5 py-1.5 text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded">Sections & Stages</NavLink>
-                    <NavLink to="/masters/machines" id="nav-master-mach" className="block px-2.5 py-1.5 text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded">Machines & Speeds</NavLink>
-                    <NavLink to="/masters/looms" id="nav-master-loom" className="block px-2.5 py-1.5 text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded">Looms Master</NavLink>
-                    <NavLink to="/masters/qualities" id="nav-master-qual" className="block px-2.5 py-1.5 text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded">Qualities & Counts</NavLink>
-                    <NavLink to="/masters/specs" id="nav-master-spec" className="block px-2.5 py-1.5 text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded">Product & Bag Specs</NavLink>
-                    <NavLink to="/masters/standards" id="nav-master-std" className="block px-2.5 py-1.5 text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA] rounded">Standards & Tolerances</NavLink>
+                    <NavLink to="/masters/departments" id="nav-master-dept" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Departments & HODs</NavLink>
+                    <NavLink to="/masters/sections" id="nav-master-sec" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Sections & Stages</NavLink>
+                    <NavLink to="/masters/machines" id="nav-master-mach" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Machines & Speeds</NavLink>
+                    <NavLink to="/masters/looms" id="nav-master-loom" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Looms Master</NavLink>
+                    <NavLink to="/masters/qualities" id="nav-master-qual" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Qualities & Counts</NavLink>
+                    <NavLink to="/masters/specs" id="nav-master-spec" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Product & Bag Specs</NavLink>
+                    <NavLink to="/masters/standards" id="nav-master-std" className={({ isActive }) => `block px-2.5 py-1.5 rounded transition-colors ${isActive ? 'bg-[#B93E3A] text-white' : 'text-[#393334] hover:text-[#EA5551] hover:bg-[#FFE0DA]'}`}>Standards & Tolerances</NavLink>
                   </div>
                 )}
               </div>
@@ -440,7 +443,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
-                        ? 'bg-[#EA5551] text-[#FFFFFF] shadow-sm'
+                        ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
                         : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
                     }`
                   }
@@ -455,7 +458,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
-                        ? 'bg-[#EA5551] text-[#FFFFFF] shadow-sm'
+                        ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
                         : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
                     }`
                   }
@@ -470,7 +473,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-[13px] transition-colors ${
                       isActive
-                        ? 'bg-[#EA5551] text-[#FFFFFF] shadow-sm'
+                        ? 'bg-[#B93E3A] text-[#FFFFFF] shadow-sm'
                         : 'text-[#393334] hover:bg-[#FFE0DA] hover:text-[#EA5551]'
                     }`
                   }
