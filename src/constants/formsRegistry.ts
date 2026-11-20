@@ -1,5 +1,7 @@
 // Bally Jute Company Limited - Forms 1 to 36 Definitions
 
+import { number } from "motion";
+
 export interface FormFieldDef {
   key: string;
   label: string;
@@ -184,12 +186,12 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'batchNo', label: 'Batch No.', type: 'text', required: true },
       { key: 'selectorName', label: 'Selector Name', type: 'text', required: true },
       { key: 'lotNo', label: 'Lot / Mark No.', type: 'text' },
-      { key: 'nominalWeightKg', label: 'Target Morrah Weight (kg)', type: 'number', defaultValue: 1.80, unit: 'kg' },
-      { key: 'maxCvPct', label: 'Max Permissible C.V.%', type: 'number', defaultValue: 8.0, unit: '%' },
+      { key: 'nominalWeightKg', label: 'Target Morrah Weight', type: 'number', defaultValue: 1.80, unit: 'gm' },
+      { key: 'maxCvPct', label: 'Max Permissible C.V', type: 'number', defaultValue: 8.0, unit: '%' },
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
-      { key: 'morrahWeight', label: 'Morrah Weight (kg)', type: 'number', unit: 'kg', precision: 3, required: true },
+      { key: 'morrahWeight', label: 'Morrah Weight ', type: 'number', unit: 'gm', precision: 3, required: true },
     ],
     calculate: (formData, rows) => {
       const vals = rows.map(r => Number(r.morrahWeight) || 0).filter(v => v > 0);
@@ -329,6 +331,21 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
       else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING'; */
 
+      //cv percent
+      const convertedWeights = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgConvertedWeightYds = convertedWeights.length > 0 ? convertedWeights.reduce((sum, v) => sum + v, 0) / convertedWeights.length : 0;
+      // Calculate squared deviations
+      const squaredDeviations = convertedWeights.map( v => Math.pow(avgConvertedWeightYds - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviation = squaredDeviations.length > 0 ? squaredDeviations.reduce((sum, v) => sum + v, 0) / squaredDeviations.length : 0;
+      // Standard Deviation
+      const sd = Math.sqrt(avgSquaredDeviation);
+      // CV Percentage
+      const cvPercent = avgConvertedWeightYds > 0 ? (sd / avgConvertedWeightYds) * 100 : 0;
+      //cv percent
+
+
       return {
         metrics: {
           sampleCount: obsWeights.length,
@@ -336,6 +353,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           avgConvertedLbs: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
+          cvPercent:cvPercent.toFixed(2)
         },
         result,
       };
@@ -544,6 +562,20 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
       else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING'; */
 
+      //cv percent
+      const convertedWeights = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgConvertedWeightYds = convertedWeights.length > 0 ? convertedWeights.reduce((sum, v) => sum + v, 0) / convertedWeights.length : 0;
+      // Calculate squared deviations
+      const squaredDeviations = convertedWeights.map( v => Math.pow(avgConvertedWeightYds - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviation = squaredDeviations.length > 0 ? squaredDeviations.reduce((sum, v) => sum + v, 0) / squaredDeviations.length : 0;
+      // Standard Deviation
+      const sd = Math.sqrt(avgSquaredDeviation);
+      // CV Percentage
+      const cvPercent = avgConvertedWeightYds > 0 ? (sd / avgConvertedWeightYds) * 100 : 0;
+      //cv percent
+
       return {
         metrics: {
           sampleCount: obsWeights.length,
@@ -551,6 +583,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           avgConvertedLbs: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
+          cvPercent:cvPercent.toFixed(2)
         },
         result,
       };
@@ -608,6 +641,20 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
       else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING'; */
 
+      //cv percent
+      const convertedWeights = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgConvertedWeightYds = convertedWeights.length > 0 ? convertedWeights.reduce((sum, v) => sum + v, 0) / convertedWeights.length : 0;
+      // Calculate squared deviations
+      const squaredDeviations = convertedWeights.map( v => Math.pow(avgConvertedWeightYds - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviation = squaredDeviations.length > 0 ? squaredDeviations.reduce((sum, v) => sum + v, 0) / squaredDeviations.length : 0;
+      // Standard Deviation
+      const sd = Math.sqrt(avgSquaredDeviation);
+      // CV Percentage
+      const cvPercent = avgConvertedWeightYds > 0 ? (sd / avgConvertedWeightYds) * 100 : 0;
+      //cv percent
+
       return {
         metrics: {
           sampleCount: obsWeights.length,
@@ -615,6 +662,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           avgConvertedLbs: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
+          cvPercent:cvPercent.toFixed(2)
         },
         result,
       };
@@ -671,6 +719,19 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       /* f (obsWeights.length === 0) result = 'WARNING';
       else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
       else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING'; */
+      //cv percent
+      const convertedWeights = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgConvertedWeightYds = convertedWeights.length > 0 ? convertedWeights.reduce((sum, v) => sum + v, 0) / convertedWeights.length : 0;
+      // Calculate squared deviations
+      const squaredDeviations = convertedWeights.map( v => Math.pow(avgConvertedWeightYds - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviation = squaredDeviations.length > 0 ? squaredDeviations.reduce((sum, v) => sum + v, 0) / squaredDeviations.length : 0;
+      // Standard Deviation
+      const sd = Math.sqrt(avgSquaredDeviation);
+      // CV Percentage
+      const cvPercent = avgConvertedWeightYds > 0 ? (sd / avgConvertedWeightYds) * 100 : 0;
+      //cv percent
 
       return {
         metrics: {
@@ -679,6 +740,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           avgConvertedLbs: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
+          cvPercent:cvPercent.toFixed(2)
         },
         result,
       };
@@ -785,6 +847,19 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       /* f (obsWeights.length === 0) result = 'WARNING';
       else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
       else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING'; */
+      //cv percent
+      const convertedWeights = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgConvertedWeightYds = convertedWeights.length > 0 ? convertedWeights.reduce((sum, v) => sum + v, 0) / convertedWeights.length : 0;
+      // Calculate squared deviations
+      const squaredDeviations = convertedWeights.map( v => Math.pow(avgConvertedWeightYds - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviation = squaredDeviations.length > 0 ? squaredDeviations.reduce((sum, v) => sum + v, 0) / squaredDeviations.length : 0;
+      // Standard Deviation
+      const sd = Math.sqrt(avgSquaredDeviation);
+      // CV Percentage
+      const cvPercent = avgConvertedWeightYds > 0 ? (sd / avgConvertedWeightYds) * 100 : 0;
+      //cv percent
 
       return {
         metrics: {
@@ -793,6 +868,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           avgConvertedLbs: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
+          cvPercent: cvPercent.toFixed(2)
         },
         result,
       };
@@ -834,7 +910,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       rows.forEach(r => {
         const obsW = Number(r.observedWeightLbs) || 0;
         if (stdMR > 0 && obsMR > 0 && obsW > 0) {
-          r.convertedWeightYds = Number(((((0.22 * obsW) / stdtestlth) * (100 + stdMR)) / (100 + obsMR)).toFixed(3));
+          r.convertedWeightYds = Number(((((31.75 * obsW) / stdtestlth) * (100 + stdMR)) / (100 + obsMR)).toFixed(2));
         }
       });
 
@@ -852,6 +928,19 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       /* f (obsWeights.length === 0) result = 'WARNING';
       else if (Math.abs(pctDev) > 5 || cv > 6.0) result = 'FAIL';
       else if (Math.abs(pctDev) > 3 || cv > 4.5) result = 'WARNING'; */
+      //cv percent
+      const convertedWeights = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgConvertedWeightYds = convertedWeights.length > 0 ? convertedWeights.reduce((sum, v) => sum + v, 0) / convertedWeights.length : 0;
+      // Calculate squared deviations
+      const squaredDeviations = convertedWeights.map( v => Math.pow(avgConvertedWeightYds - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviation = squaredDeviations.length > 0 ? squaredDeviations.reduce((sum, v) => sum + v, 0) / squaredDeviations.length : 0;
+      // Standard Deviation
+      const sd = Math.sqrt(avgSquaredDeviation);
+      // CV Percentage
+      const cvPercent = avgConvertedWeightYds > 0 ? (sd / avgConvertedWeightYds) * 100 : 0;
+      //cv percent
 
       return {
         metrics: {
@@ -860,6 +949,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           avgConvertedLbs: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
+          cvPercent: cvPercent.toFixed(2)
         },
         result,
       };
@@ -1079,8 +1169,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'beamNo', label: 'Beam No.', type: 'text', required: true },
       { key: 'fabricWidthInch', label: 'Fabric Width (inch)', type: 'number', defaultValue: 40.0, unit: 'in', required: true },
       { key: 'beamVolume', label: 'BEAM Volume', type: 'select', options: ['1/4', '1/2', '3/4', 'FULL'] },
-      { key: 'totalNoEnds', label: 'Total no of ENDS', type: 'number', defaultValue: '' },
-      { key: 'actualObservedEnds', label: 'Actual Counted Ends', type: 'number', required: true },
+      { key: 'totalNoStandardEnds', label: 'Total no of Standard ENDS', type: 'number', defaultValue: '' },
       { key: 'standardCount', label: 'Standard Count Used', type: 'number', defaultValue: '' },
       { key: 'spoolMark', label: 'Spool Mark', type: 'text', defaultValue: '' },
     ],
@@ -1095,14 +1184,14 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const width = Number(formData.fabricWidthInch) || 40;
       const epi = Number(formData.endsPerInch) || 11;
       const selvedge = Number(formData.selvedgeEnds) || 24;
-      const stdEnds = Number(formData.totalNoEnds) || Math.round(width * epi + selvedge);
+      const stdEnds = Number(formData.totalNoStandardEnds) || Math.round(width * epi + selvedge);
       const actualEnds = Number(formData.actualObservedEnds) || stdEnds;
 
       rows.forEach(r => {
-        const rowStd = Number(formData.totalNoEnds) || Number(r.standard) || stdEnds;
+        const rowStd = Number(formData.totalNoStandardEnds) || Number(r.standard) || stdEnds;
         r.standard = rowStd;
         const obs = Number(r.observed) || 0;
-        r.diffends = obs > 0 ? rowStd - obs : 0;
+        r.diffends = obs > 0 ? obs - rowStd : 0;
       });
 
       const diff = actualEnds - stdEnds;
@@ -1113,9 +1202,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          standardEnds: stdEnds,
+          /* standardEnds: stdEnds,
           actualCountedEnds: actualEnds,
-          differenceEnds: diff,
+          differenceEnds: diff, */
         },
         result,
       };
@@ -1197,15 +1286,38 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'On-loom checking of reed space, fabric on-loom width, and picks per decimetre.',
     sourceStandardText: 'Width standard: Nominal +0.5" / -0.0". Picks standard: Nominal ± 1 pick/dm.',
     fields: [
-      { key: 'shedNo', label: 'Shed No.', type: 'text', defaultValue: 'Shed-1' },
-      { key: 'standardWidthInch', label: 'Nominal Width (inch)', type: 'number', defaultValue: 40.0, unit: 'in' },
-      { key: 'standardPicksPerDm', label: 'Nominal Picks (per dm)', type: 'number', defaultValue: 47.0 },
+      { key: 'zone', label: 'Zone', type: 'select', options: ['S4', 'Victor', 'Conventional Hessian', 'Conventional Sacking'] },
+      { key: 'noofLoomRun', label: 'No of Loom Run', type: 'number', defaultValue: '' },
+      { key: 'noofLoomChecked', label: 'No of Loom Checked', type: 'number', defaultValue: '' },
+      { key: 'stnadardMaxWidth', label: 'Standard MAX Width', type: 'number', defaultValue: '', unit:'CM'},
+      { key: 'stnadardMinWidth', label: 'Standard Min Width', type: 'number', defaultValue: '', unit:'CM' },
+      { key: 'stnadardMaxRange', label: 'Standard Max Range', type: 'number', defaultValue: '', unit:'Picks/ DM' },
+      { key: 'stnadardMinRange', label: 'Standard Min Range', type: 'number', defaultValue: '', unit:'Picks/ DM' },
+      { key: 'stnadardMax', label: 'Standard Max ', type: 'number', defaultValue: '', unit:'Ends/ DM' },
+      { key: 'stnadardMin', label: 'Standard Min ', type: 'number', defaultValue: '', unit:'Ends/ DM' },
     ],
     columns: [
-      { key: 'loomNo', label: 'Loom No.', type: 'text', width: '90px', required: true },
-      { key: 'observedWidthInch', label: 'Observed Width (in)', type: 'number', precision: 2, required: true },
-      { key: 'observedPicksDm', label: 'Observed Picks/dm', type: 'number', precision: 1, required: true },
-      { key: 'weaverName', label: 'Weaver Name', type: 'text' },
+      { key: 'loomNo', label: 'Loom No.', type: 'text', width: '100px' },
+      { key: 'shiftTime', label: 'ShiftTime', type: 'select', options: ['A','B','C'] },
+      { key: 'majorGaw', label: 'Major Gaw ', type: 'number' },
+      { key: 'multipilewpBkg', label: 'Multiple WP BKG', type: 'text' },
+      { key: 'majorFloat', label: 'Float', type: 'text' },
+      { key: 'snarl', label: 'Snarl', type: 'text' },
+      { key: 'majorWftBkg', label: 'Weft BKG', type: 'text' },
+      { key: 'defecteiveSelves', label: 'Defective Selves', type: 'text' },
+      { key: 'majorBlack', label: 'Black/OIL Spot', type: 'text' },
+      { key: 'majorOther', label: 'Other', type: 'text' },
+      { key: 'minorGaw', label: 'Minor Gaw ', type: 'number' },
+      { key: 'pickGap', label: 'Pick Gap', type: 'text' },
+      { key: 'slackBeat', label: 'Slack Beat', type: 'text' },
+      { key: 'minorFloat', label: 'Float', type: 'text' },
+      { key: 'singleWPBkg', label: 'Single WP BKG', type: 'text' },
+      { key: 'minorWeftBkg', label: 'Weft BKG', type: 'text' },
+      { key: 'minorBlack', label: 'Black/OIL Spot', type: 'text' },
+      { key: 'hardBeat', label: 'Hard Beat', type: 'text' },
+      { key: 'oof', label: 'OOf', type: 'text' },
+      { key: 'minorOther', label: 'Others', type: 'text' },
+
     ],
     calculate: (formData, rows) => {
       const widths = rows.map(r => Number(r.observedWidthInch) || 0).filter(v => v > 0);
@@ -1288,22 +1400,45 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Checks post-calender cloth width, feel, moisture regain, and roller marks.',
     sourceStandardText: 'Calendered Width: Nominal ± 0.25". %MR: 14%–16%. Finish: Uniform, free of roller cuts.',
     fields: [
-      { key: 'machineNo', label: 'Calender Machine No.', type: 'text', defaultValue: 'Calender-1' },
-      { key: 'standardWidthInch', label: 'Nominal Width (in)', type: 'number', defaultValue: 40.0 },
-      { key: 'targetMR', label: 'Target %MR', type: 'number', defaultValue: 15.0 },
+      { key: 'zone', label: 'Zone', type: 'select', options: ['Calendar', 'Cutting', 'Before Rolling(Unrepaired)', 'After Rolling(Repaired)', 'After Rolling(Unrepaired)'] },
+      { key: 'standardLengthfabric', label: 'Standard Length of Fabric', type: 'number', defaultValue: '' },
+      { key: 'standardMajorFault', label: 'Standard Major Fault/100 (M)', type: 'number', defaultValue: '' },
     ],
     columns: [
-      { key: 'rollNo', label: 'Roll / Cut No.', type: 'text', width: '100px' },
-      { key: 'measuredWidth', label: 'Width (in)', type: 'number', precision: 2 },
-      { key: 'measuredMR', label: '%MR', type: 'number', precision: 1 },
-      { key: 'finishDefects', label: 'Defects / Marks', type: 'text' },
+      { key: 'loomNo', label: 'Loom No.', type: 'text', width: '100px' },
+      { key: 'shiftTime', label: 'ShiftTime', type: 'select', options: ['A','B','C'] },
+      { key: 'majorGaw', label: 'Major Gaw ', type: 'number' },
+      { key: 'multipilewpBkg', label: 'Multiple WP BKG', type: 'text' },
+      { key: 'majorFloat', label: 'Float', type: 'text' },
+      { key: 'snarl', label: 'Snarl', type: 'text' },
+      { key: 'majorWftBkg', label: 'Weft BKG', type: 'text' },
+      { key: 'defecteiveSelves', label: 'Defective Selves', type: 'text' },
+      { key: 'majorBlack', label: 'Black/OIL Spot', type: 'text' },
+      { key: 'majorOther', label: 'Other', type: 'text' },
+      { key: 'minorGaw', label: 'Minor Gaw ', type: 'number' },
+      { key: 'pickGap', label: 'Pick Gap', type: 'text' },
+      { key: 'slackBeat', label: 'Slack Beat', type: 'text' },
+      { key: 'minorFloat', label: 'Float', type: 'text' },
+      { key: 'singleWPBkg', label: 'Single WP BKG', type: 'text' },
+      { key: 'minorWeftBkg', label: 'Weft BKG', type: 'text' },
+      { key: 'minorBlack', label: 'Black/OIL Spot', type: 'text' },
+      { key: 'hardBeat', label: 'Hard Beat', type: 'text' },
+      { key: 'oof', label: 'OOf', type: 'text' },
+      { key: 'minorOther', label: 'Others', type: 'text' },
+
     ],
     calculate: (formData, rows) => {
       const widths = rows.map(r => Number(r.measuredWidth) || 0).filter(v => v > 0);
-      const mrs = rows.map(r => Number(r.measuredMR) || 0).filter(v => v > 0);
+      const mrs = rows.map(r => Number(r.majorFloat) || 0).filter(v => v > 0);
       const avgW = calcMean(widths);
       const avgMR = calcMean(mrs);
       const stdW = Number(formData.standardWidthInch) || 40.0;
+      const totalMajorFault = rows.reduce((sum, r) => sum + (Number(r.majorFloat) || 0), 0);
+      const totalMinorFault = rows.reduce((sum, r) => sum + (Number(r.minorFloat) || 0), 0 );
+      const standardLength = Number(formData.standardLengthfabric) || 0;
+      const major100 = mrs.length> 0 ? ((totalMajorFault * 100)/(Number(mrs.length)*standardLength)) : 0;
+      const minor100 = mrs.length> 0? ((totalMinorFault * 100)/(Number(mrs.length)*standardLength)) : 0;
+      
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (widths.length === 0) result = 'WARNING';
@@ -1312,9 +1447,10 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          rollsInspected: widths.length,
-          avgWidthInch: Number(avgW.toFixed(2)),
-          avgMoistureRegain: Number(avgMR.toFixed(1)),
+          totalMajorFault: Number(totalMajorFault),
+          totalMinorFault: Number(totalMinorFault),
+          majorfault100M: major100.toFixed(2),
+          minorfault100M: minor100.toFixed(2),
         },
         result,
       };
@@ -1333,17 +1469,32 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Finished cloth comprehensive inspection for Cut Length, Finished Width, Picks, Ends, and Hundred Yards Weight (HY/LT).',
     sourceStandardText: 'Standard: Width +0.5"/-0.0". Ends & Picks: As per spec. HY/LT: Nominal ± 3.0%.',
     fields: [
-      { key: 'qualitySpecification', label: 'Specification Name', type: 'text', defaultValue: '40"-10oz/40" Hessian' },
-      { key: 'nominalHYLT', label: 'Nominal HY/LT (lbs/100 yds)', type: 'number', defaultValue: 25.0, unit: 'lbs' },
-      { key: 'nominalWidthInch', label: 'Nominal Width (inch)', type: 'number', defaultValue: 40.0, unit: 'in' },
+      { key: 'standardWdith', label: 'Standard Width', type: 'text', defaultValue: '', unit:'CM' },
+      { key: 'standardLength', label: 'Standard Length', type: 'number', defaultValue: '', unit: 'CM' },
+      { key: 'standardEnds', label: 'Standard', type: 'number', defaultValue: '', unit: 'Ends/DM' },
+      { key: 'standardPicks', label: 'Standard', type: 'number', defaultValue: '', unit: 'Picks/DM' },
+      { key: 'standardGsm', label: 'Standard GSM', type: 'number', defaultValue: '' },
+      { key: 'standardMoisture', label: 'Standard Moisture', type: 'number', defaultValue: '' },
     ],
     columns: [
-      { key: 'pieceNo', label: 'Piece No.', type: 'text', width: '90px' },
-      { key: 'lengthYds', label: 'Length (yds)', type: 'number', precision: 1 },
-      { key: 'widthInch', label: 'Width (in)', type: 'number', precision: 2 },
-      { key: 'ends', label: 'Total Ends', type: 'number' },
-      { key: 'picksDm', label: 'Picks/dm', type: 'number' },
-      { key: 'actualHYLT', label: 'HY/LT (lbs)', type: 'number', precision: 2 },
+      { key: 'observedLength', label: 'Observed Length', type: 'number', width: '90px', unit: 'M' },
+      { key: 'observedMois1', label: 'Observed Moisture 1', type: 'number', precision: 1 },
+      { key: 'observedMois2', label: 'Observed Moisture 2', type: 'number', precision: 1 },
+      { key: 'observedMois3', label: 'Observed Moisture 3', type: 'number', precision: 1 },
+      { key: 'observedMois4', label: 'Observed Moisture 4', type: 'number', precision: 1 },
+      { key: 'avgMois', label: 'AVG Moisture', type: 'text', precision: 2 },
+      { key: 'observedCutWeight', label: 'Observed Cut Weight', type: 'number' },
+      { key: 'observedGsm', label: 'Observed GSM', type: 'text'},
+      { key: 'convertedGsm', label: 'Converted GSM', type: 'number', precision: 2 },
+      { key: 'observedHYlt', label: 'Observed H/Y lt', type: 'text', precision: 2 },
+      { key: 'convertedHYlt', label: 'Converted H/Y lt', type: 'text', precision: 2 },
+      { key: 'width1', label: 'Width 1', type: 'number', precision: 2, unit: 'CM'},
+      { key: 'width2', label: 'Width 2', type: 'number', precision: 2, unit: 'CM'},
+      { key: 'width3', label: 'Width 3', type: 'number', precision: 2, unit: 'CM'},
+      { key: 'width4', label: 'Width 4', type: 'number', precision: 2, unit: 'CM'},
+      { key: 'endsDm', label: 'Ends/DM', type: 'number', precision: 2 },
+      { key: 'picksDm1', label: 'Picks/DM 1', type: 'number', precision: 2 },
+      { key: 'picksDm2', label: 'Picks/DM 2', type: 'number', precision: 2 },
     ],
     calculate: (formData, rows) => {
       const hylts = rows.map(r => Number(r.actualHYLT) || 0).filter(v => v > 0);
@@ -1353,6 +1504,36 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const nomHY = Number(formData.nominalHYLT) || 25.0;
       const devHY = nomHY > 0 ? ((avgHY - nomHY) / nomHY) * 100 : 0;
 
+      rows.forEach(r => {
+        const values = [
+          r.observedMois1,
+          r.observedMois2,
+          r.observedMois3,
+          r.observedMois4,
+        ]
+        .filter(v => v !== '' && v !== null && v !== undefined)
+        .map(Number)
+        .filter(v => Number.isFinite(v));
+
+        r.avgMois = values.length > 0 ? Number((values.reduce((sum, v) => sum + v, 0) / values.length).toFixed(2)) : '';
+        r.observedGsm = r.observedCutWeight> 0 && r.observedLength > 0 && formData.standardWdith> 0  ? ((Number(r.observedCutWeight)*1000)/(Number(r.observedLength)*((Number(formData.standardWdith)/100)))).toFixed(2) : '';
+        r.convertedGsm = r.observedGsm> 0 && r.avgMois > 0 ? ((r.observedGsm*(100+Number(formData.standardMoisture)))/(100+Number(r.avgMois))).toFixed(2) : '';
+        r.observedHYlt = r.observedGsm> 0 && formData.standardGsm > 0 ? (((Number(r.observedGsm)-Number(formData.standardGsm))*100)/Number(r.observedGsm)).toFixed(2): '';
+        r.convertedHYlt = r.convertedGsm> 0 && formData.standardGsm > 0 ? (((Number(r.convertedGsm) - Number(formData.standardGsm))*100)/Number(r.convertedGsm)).toFixed(2): '';
+      });
+
+      const avgcnvg = rows.map(r => Number(r.convertedGsm) || 0).filter(v => v > 0);
+      const totalcnvg = rows.reduce((sum, r) => sum + (Number(r.convertedGsm) || 0), 0);
+      const avgCovertedGsm = avgcnvg.length> 0 ? totalcnvg/avgcnvg.length : 0;
+
+      const avgobshy = rows.map(r => Number(r.observedHYlt) || 0).filter(v => v > 0);
+      const totalobshy = rows.reduce((sum, r) => sum + (Number(r.observedHYlt) || 0), 0);
+      const avgobservedHYlt = avgobshy.length > 0 ? totalobshy/avgobshy.length : 0;
+
+      const avgcnvhy = rows.map(r => Number(r.convertedHYlt) || 0).filter(v => v > 0);
+      const totalcnvhy = rows.reduce((sum, r) => sum + (Number(r.convertedHYlt) || 0), 0);
+      const avgconvertedHYlt = avgcnvhy.length > 0 ? totalcnvhy/avgcnvhy.length : 0;
+      
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (hylts.length === 0) result = 'WARNING';
       else if (Math.abs(devHY) > 4.5) result = 'FAIL';
@@ -1360,10 +1541,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          piecesChecked: hylts.length,
-          avgHYLT: Number(avgHY.toFixed(2)),
-          hyltDeviationPct: Number(devHY.toFixed(2)),
-          avgWidthInch: Number(avgW.toFixed(2)),
+          avgconvertedGsm: Number(avgCovertedGsm.toFixed(2)),
+          avgobservedHYlt: Number(avgobservedHYlt.toFixed(2)),
+          avgconvertedHYlt: Number(avgconvertedHYlt.toFixed(2)),
         },
         result,
       };
@@ -1436,9 +1616,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     const maxMR = allMrs.length ? Math.max(...allMrs) : 0;
     const minMR = allMrs.length ? Math.min(...allMrs) : 0;
 
-      const mrs = rows
-      .map(r => Number(r.rowmoistureAVG) || 0)
-      .filter(v => v > 0);
+    const mrs = rows
+    .map(r => Number(r.rowmoistureAVG) || 0)
+    .filter(v => v > 0);
 
     const avg = mrs.length
       ? mrs.reduce((sum, v) => sum + v, 0) / mrs.length
@@ -1511,7 +1691,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     },
   },
 
-  'FORM-21': {
+ /*  'FORM-21': {
     code: 'FORM-21',
     number: 21,
     title: 'Godown – Cutting Length Checking at Different Godown',
@@ -1551,33 +1731,64 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         result,
       };
     },
-  },
+  }, */
 
   'FORM-22': {
     code: 'FORM-22',
     number: 22,
-    title: 'Godown – Bag Length & Defects Checking',
+    title: 'Bag Dimension & Defects Checking',
     department: 'Godown',
     departmentCode: 'GDN',
     section: 'Godown Bag Inspection',
     sampleUnit: 'cm / Defect %',
-    defaultRowCount: 10,
+    defaultRowCount: 5,
     description: 'Source rule: Bag length must be Specified Length +4 cm / -0 cm. Total defects must remain within 4%. Includes stitching and weaving defects.',
     sourceStandardText: 'Source Standard: Length = Specified +4 cm / -0 cm. Max allowable defects: 4.0%.',
     fields: [
-      { key: 'specifiedBagLengthCm', label: 'Specified Length (cm)', type: 'number', defaultValue: 94.0, unit: 'cm', required: true },
-      { key: 'specifiedBagWidthCm', label: 'Specified Width (cm)', type: 'number', defaultValue: 57.0, unit: 'cm' },
+      { key: 'zone', label: 'Zone', type: 'select', options: ['Main mill', 'Godwin 15', 'Godwin 10', 'Godwin 1A', 'Godwin 3', 'Out Source'] },
+      { key: 'supplyFrom', label: 'Supply From', type: 'text', defaultValue: '', unit: '' },
+      { key: 'standardLength', label: 'Standard Length', type: 'number', defaultValue: '', unit: '' },
+      { key: 'standardWidth', label: 'Standard Width', type: 'number', defaultValue: '', unit: '' },
+      { key: 'noofBagChecked', label: 'Number of bag Checked', type: 'number', defaultValue: '', unit: '' },
+      { key: 'totalStandardVdefect', label: 'Total Standard Visual Defect', type: 'number', defaultValue: '', unit: '' },
+      { key: 'stnAcceptanceLdm', label: 'Standard Acceptance no of Less Dimension', type: 'number', defaultValue: '', unit: '' },
+      { key: 'stnAcceptanceBmd', label: 'Standard Acceptance no of Below Minimum Dimension', type: 'number', defaultValue: '', unit: '' },
     ],
     columns: [
-      { key: 'bagNo', label: 'Bag No.', type: 'readonly', width: '80px' },
-      { key: 'measuredLengthCm', label: 'Length (cm)', type: 'number', precision: 1, required: true },
-      { key: 'stitchingDefect', label: 'Stitching Defect', type: 'select', options: ['None', 'Open Seam', 'Loose Stitch', 'Irregular Stitch', 'Skipped Stitch'] },
-      { key: 'weavingDefect', label: 'Weaving Defect', type: 'select', options: ['None', 'Major Hole', 'Oil Stain', 'Broken Warp', 'Gaw'] },
+      { key: 'totalBagcheck', label: 'Total no of bag check', type: 'number', width: '80px' },
+      { key: 'totalBagLessLngth', label: 'Total no of Bag Less Length', type: 'number', precision: 1 },
+      { key: 'totalBagLessWidth', label: 'Total no of Bag Less Width', type: 'number', precision: 1 },
+      { key: 'totalLessDimension', label: 'Total no of Less Dimension', type: 'number', precision: 1 },
+      { key: 'totalLessSwitch', label: 'Total no of Less', type: 'number', unit:'Stitch/DM' },
+      { key: 'totalStichDefect', label: 'Total no of Stitching Defect', type: 'number', unit:'' },
+      { key: 'totalWevingDefect', label: 'Total no of Weaving Defect', type: 'number', unit:'' },
+      { key: 'totalVisulDefect', label: 'Total no of Visual Defect', type: 'number', unit:'' },
+      { key: 'remarks', label: 'Remarks', type: 'text', unit:'' },
     ],
     calculate: (formData, rows) => {
       const specL = Number(formData.specifiedBagLengthCm) || 94.0;
       const lens = rows.map(r => Number(r.measuredLengthCm) || 0).filter(v => v > 0);
       const avgL = calcMean(lens);
+
+      rows.forEach(r => {
+        const lessWidth = Number(r.totalBagLessLngth)+Number(r.totalBagLessWidth);
+        r.totalLessDimension = lessWidth;
+      });
+      const getColumnAverage = (rows, key) => {
+        const values = rows
+          .map(r => Number(r[key]))
+          .filter(v => Number.isFinite(v) && v > 0);
+
+        return values.length > 0 ? values.reduce((sum, v) => sum + v, 0) : 0;
+      };
+      const totalBagchecked = getColumnAverage(rows, 'totalBagcheck');
+      const totalBagLessLength = getColumnAverage(rows, 'totalBagLessLngth');
+      const totalBagLessWidth = getColumnAverage(rows, 'totalBagLessWidth');
+      const totalLessDimension = getColumnAverage(rows, 'totalLessDimension');
+      const totalLessSwitchDM = getColumnAverage(rows, 'totalLessSwitch');
+      const totalStitchingDefect = getColumnAverage(rows, 'totalStichDefect');
+      const totalWeavingDefect = getColumnAverage(rows, 'totalWevingDefect');
+      const totalVisualDefect = getColumnAverage(rows, 'totalVisulDefect');
 
       let defectCount = 0;
       rows.forEach(r => {
@@ -1596,11 +1807,14 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          specifiedLengthCm: specL,
-          avgLengthCm: Number(avgL.toFixed(1)),
-          lengthDifferenceCm: Number(lenDiff.toFixed(1)),
-          defectiveBags: defectCount,
-          defectPercentage: Number(defectPct.toFixed(1)),
+          totalBagchecked:  Number(totalBagchecked.toFixed(2)),
+          totalBagLessLength: Number(totalBagLessLength.toFixed(2)),
+          totalBagLessWidth: Number(totalBagLessWidth.toFixed(2)),
+          totalLessDimension: Number(totalLessDimension.toFixed(2)),
+          totalLessSwitchDM: Number(totalLessSwitchDM.toFixed(2)),
+          totalStitchingDefect: Number(totalStitchingDefect.toFixed(2)),
+          totalWeavingDefect: Number(totalWeavingDefect.toFixed(2)),
+          totalVisualDefect: Number(totalVisualDefect.toFixed(2)),
         },
         result,
       };

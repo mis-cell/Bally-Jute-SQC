@@ -222,3 +222,26 @@ table td {
 ::-webkit-scrollbar-thumb:hover {
   background: #EA5551;
 }
+/* SQC Table Horizontal Scrollbar */
+.overflow-x-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #F5A5A5 #FFF1EE;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: #FFF1EE;
+  border-radius: 10px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #F5A5A5;
+  border-radius: 10px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: #EA5551;
+}
