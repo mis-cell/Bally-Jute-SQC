@@ -197,6 +197,21 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const vals = rows.map(r => Number(r.morrahWeight) || 0).filter(v => v > 0);
       const avg = calcMean(vals);
       const { min, max, range } = calcRange(vals);
+
+      //cv percent
+      const convertedWeights = rows.map(r => Number(r.morrahWeight)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgConvertedWeightYds = convertedWeights.length > 0 ? convertedWeights.reduce((sum, v) => sum + v, 0) / convertedWeights.length : 0;
+      // Calculate squared deviations
+      const squaredDeviations = convertedWeights.map( v => Math.pow(avgConvertedWeightYds - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviation = squaredDeviations.length > 0 ? squaredDeviations.reduce((sum, v) => sum + v, 0) / squaredDeviations.length : 0;
+      // Standard Deviation
+      const sd = Math.sqrt(avgSquaredDeviation);
+      // CV Percentage
+      const cvPercent = avgConvertedWeightYds > 0 ? (sd / avgConvertedWeightYds) * 100 : 0;
+      //cv percent
+
       const cv = calcCV(vals);
       const target = Number(formData.nominalWeightKg) || 1.80;
       const maxCv = Number(formData.maxCvPct) || 8.0;
@@ -295,7 +310,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
-      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
+      { key: 'temprature', label: 'Temperature', type: 'text', defaultValue:'', unit: 'C' },
+      { key: 'rHumidity', label: 'Room Humidity', type: 'text', defaultValue:'', unit: '%' },
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
@@ -526,7 +543,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
-      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
+      { key: 'temprature', label: 'Temperature', type: 'text', defaultValue:'', unit: 'C' },
+      { key: 'rHumidity', label: 'Room Humidity', type: 'text', defaultValue:'', unit: '%' },
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
@@ -605,7 +624,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
-      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
+      { key: 'temprature', label: 'Temperature', type: 'text', defaultValue:'', unit: 'C' },
+      { key: 'rHumidity', label: 'Room Humidity', type: 'text', defaultValue:'', unit: '%' },
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
@@ -684,7 +705,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
-      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
+      { key: 'temprature', label: 'Temperature', type: 'text', defaultValue:'', unit: 'C' },
+      { key: 'rHumidity', label: 'Room Humidity', type: 'text', defaultValue:'', unit: '%' },
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
@@ -812,7 +835,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
-      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' }
+      { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
+      { key: 'temprature', label: 'Temperature', type: 'text', defaultValue:'', unit: 'C' },
+      { key: 'rHumidity', label: 'Room Humidity', type: 'text', defaultValue:'', unit: '%' },
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
@@ -970,6 +995,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     fields: [
       { key: 'frameNo', label: 'Frame No.', type: 'text', required: true },
       { key: 'frameType', label: 'Frame Type', type: 'select', options: ['Ring', 'AD', 'SD'], defaultValue: 'Ring' },
+      { key: 'DP', label: 'DP', type: 'number', defaultValue: '', unit: '' },
+      { key: 'TP', label: 'TP', type: 'number', defaultValue: '', unit: '' },
       { key: 'nominalCountLbs', label: 'Nominal Yarn Count (lbs/spyndle)', type: 'number', defaultValue: 8.0, unit: 'lbs', required: true },
       { key: 'quality', label: 'Quality', type: 'select', options: ['S4_WP', 'S4_WT', 'TBAG_WP', 'TBAG_WT', 'SKG_WP', 'SKG_WT', 'VL_WP', 'VL_WT'], defaultValue: 'S4_WP' },
       { key: 'standardTestLength', label: 'Standard Test Length', type: 'select', options: ['75', '150', '225', '300', '375', '450', '525', '600','675','750'], defaultValue: '75' },
@@ -977,9 +1004,6 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'roomHumidity', label: 'Room Humidity ', type: 'number', defaultValue: '', unit: '%' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
-      { key: 'DP', label: 'DP', type: 'number', defaultValue: '', unit: '' },
-      { key: 'TP', label: 'TP', type: 'number', defaultValue: '', unit: '' },
-
     ],
     columns: [
       { key: 'observedWt', label: 'Observed WT',  unit: 'gm', type: 'number', precision: 2, required: true },
@@ -1282,7 +1306,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'WVG',
     section: 'Loom Shed',
     sampleUnit: 'inch / picks per dm',
-    defaultRowCount: 10,
+    defaultRowCount: 5,
     description: 'On-loom checking of reed space, fabric on-loom width, and picks per decimetre.',
     sourceStandardText: 'Width standard: Nominal +0.5" / -0.0". Picks standard: Nominal ± 1 pick/dm.',
     fields: [
@@ -1297,27 +1321,18 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'stnadardMin', label: 'Standard Min ', type: 'number', defaultValue: '', unit:'Ends/ DM' },
     ],
     columns: [
-      { key: 'loomNo', label: 'Loom No.', type: 'text', width: '100px' },
-      { key: 'shiftTime', label: 'ShiftTime', type: 'select', options: ['A','B','C'] },
-      { key: 'majorGaw', label: 'Major Gaw ', type: 'number' },
-      { key: 'multipilewpBkg', label: 'Multiple WP BKG', type: 'text' },
-      { key: 'majorFloat', label: 'Float', type: 'text' },
-      { key: 'snarl', label: 'Snarl', type: 'text' },
-      { key: 'majorWftBkg', label: 'Weft BKG', type: 'text' },
-      { key: 'defecteiveSelves', label: 'Defective Selves', type: 'text' },
-      { key: 'majorBlack', label: 'Black/OIL Spot', type: 'text' },
-      { key: 'majorOther', label: 'Other', type: 'text' },
-      { key: 'minorGaw', label: 'Minor Gaw ', type: 'number' },
-      { key: 'pickGap', label: 'Pick Gap', type: 'text' },
-      { key: 'slackBeat', label: 'Slack Beat', type: 'text' },
-      { key: 'minorFloat', label: 'Float', type: 'text' },
-      { key: 'singleWPBkg', label: 'Single WP BKG', type: 'text' },
-      { key: 'minorWeftBkg', label: 'Weft BKG', type: 'text' },
-      { key: 'minorBlack', label: 'Black/OIL Spot', type: 'text' },
-      { key: 'hardBeat', label: 'Hard Beat', type: 'text' },
-      { key: 'oof', label: 'OOf', type: 'text' },
-      { key: 'minorOther', label: 'Others', type: 'text' },
-
+      { key: 'loomShortWidth', label: 'No of Loom Short Width', type: 'text', width: '100px' },
+      { key: 'shortWidthPer', label: 'Short Width %', type: 'text' },
+      { key: 'shortLoomNos', label: 'Short Width Looms Nos ', type: 'text' },
+      { key: 'loomAboveWidth', label: 'No of Loom Above Width', type: 'text' },
+      { key: 'aboveWidthPer', label: 'Above width %', type: 'text' },
+      { key: 'aboveLoomNos', label: 'Above Width Loom Nos', type: 'text' },
+      { key: 'loomLessPicks', label: 'No of Loom Less Picks', type: 'text' },
+      { key: 'lessPicksPer', label: 'Less Picks %', type: 'text' },
+      { key: 'lessPicksNos', label: 'Less Picks Loom Nos', type: 'text' },
+      { key: 'loomAbovePicks', label: 'No of loom Above Picks', type: 'text' },
+      { key: 'abovePicksPer', label: 'Above Picks %', type: 'text' },
+      { key: 'abovePicksNos', label: 'Above Picks Above Nos', type: 'text' },
     ],
     calculate: (formData, rows) => {
       const widths = rows.map(r => Number(r.observedWidthInch) || 0).filter(v => v > 0);
@@ -1328,6 +1343,14 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const avgW = calcMean(widths);
       const avgP = calcMean(picks);
 
+
+      rows.forEach(r => {
+        r.shortWidthPer = r.loomShortWidth > 0 ? ((Number(r.loomShortWidth)*100)/(formData.noofLoomChecked)) : '';
+        r.aboveWidthPer = r.loomAboveWidth > 0 ? ((Number(r.loomAboveWidth)*100)/(formData.noofLoomChecked)) : '';
+        r.lessPicksPer = r.loomLessPicks > 0 ? ((Number(r.loomLessPicks)*100)/(formData.noofLoomChecked)) : '';
+        r.abovePicksPer = r.loomAbovePicks > 0 ? ((Number(r.loomAbovePicks)*100)/(formData.noofLoomChecked)) : '';
+      });
+
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (widths.length === 0) result = 'WARNING';
       else if (avgW < stdW || Math.abs(avgP - stdP) > 2.0) result = 'FAIL';
@@ -1335,11 +1358,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          checkedLooms: widths.length,
+          /* checkedLooms: widths.length,
           avgWidthInch: Number(avgW.toFixed(2)),
-          avgPicksPerDm: Number(avgP.toFixed(1)),
-          stdWidth: stdW,
-          stdPicks: stdP,
+          avgPicksPerDm: Number(avgP.toFixed(1)), */
         },
         result,
       };
@@ -1391,7 +1412,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-17': {
     code: 'FORM-17',
     number: 17,
-    title: 'Calender – Cloth Checking Report',
+    title: 'Fabric Fault Checking Report at Differnt Zone',
     department: 'Calender',
     departmentCode: 'CAL',
     section: 'Calender Section',
@@ -2104,7 +2125,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     }
   },
 
-  'FORM-27': {
+  /* 'FORM-27': {
     code: 'FORM-27',
     number: 27,
     title: 'Broad Loom Rolling – Roll Inspection After Rolling',
@@ -2198,7 +2219,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         result,
       };
     },
-  },
+  }, */
 
   'FORM-29': {
     code: 'FORM-29',
