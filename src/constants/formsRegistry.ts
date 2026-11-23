@@ -1375,17 +1375,21 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'WVG',
     section: 'Loom Shed Inspection',
     sampleUnit: 'Loom Defect %',
-    defaultRowCount: 10,
+    defaultRowCount: 5,
     description: 'Calculates Grand Total Defective Looms and % Defective Looms = Total Defective Looms ÷ No. of Looms Running × 100.',
     sourceStandardText: 'Formula: % Defective Looms = (Total Defective Looms ÷ No. of Looms Running) × 100. Standard: ≤ 3.0%.',
     fields: [
-      { key: 'totalLoomsRunning', label: 'No. of Looms Running in Shift', type: 'number', defaultValue: 120, required: true },
-      { key: 'maxDefectivePct', label: 'Max Permissible Defective %', type: 'number', defaultValue: 3.0, unit: '%' },
+      { key: 'stage', label: 'Stage', type: 'select', options: ['Victor', 'S4', 'Convectional Hessian', 'Conventional Seeking'] },
+      { key: 'loomno', label: 'Loom No', type: 'number', defaultValue: '', unit: '' },
     ],
     columns: [
-      { key: 'loomNo', label: 'Loom No.', type: 'text', width: '90px', required: true },
-      { key: 'faultType', label: 'Observed Fault', type: 'select', options: ['None', 'Reed Mark', 'Broken Warp', 'Wrong Draw', 'Temple Mark', 'Slack Selvedge', 'Bad Beat-up', 'Smash'] },
-      { key: 'actionTaken', label: 'Action Taken', type: 'text' },
+      { key: 'missingEnd', label: 'Missing Ends', type: 'text', width: '90px' },
+      { key: 'readDentMark', label: 'Reed / Dent mark', type: 'text' },
+      { key: 'loopySelvedge', label: 'Loopy Selvedge', type: 'text' },
+      { key: 'defectiveSelvedge', label: 'Defective Selvedge', type: 'text' },
+      { key: 'pertialWeftMissing', label: 'Partial Weft Missing', type: 'text' },
+      { key: 'wrongDenting', label: 'Wrong Denting', type: 'text' },
+      { key: 'weftMissing', label: 'Weft Missing', type: 'text' },
     ],
     calculate: (formData, rows) => {
       const running = Number(formData.totalLoomsRunning) || 120;
@@ -1393,16 +1397,31 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const pctDefective = running > 0 ? (defectiveLooms / running) * 100 : 0;
       const maxPct = Number(formData.maxDefectivePct) || 3.0;
 
+      //const allmissingEnd = rows.map(r => Number(r.missingEnd)).filter(v => Number.isFinite(v) && v > 0);
+      const allmissingEnd = rows.reduce((sum, r) => {
+        const value = Number(r.missingEnd) || 0;
+        return sum + (value > 0 ? value : 0);
+      }, 0);
+      const allreadDentMark = rows.map(r => Number(r.readDentMark)).filter(v => Number.isFinite(v) && v > 0);
+      const allloopySelvedge = rows.map(r => Number(r.loopySelvedge)).filter(v => Number.isFinite(v) && v > 0);
+      const alldefectiveSelvedge = rows.map(r => Number(r.defectiveSelvedge)).filter(v => Number.isFinite(v) && v > 0);
+      const allpertialWeftMissing = rows.map(r => Number(r.pertialWeftMissing)).filter(v => Number.isFinite(v) && v > 0);
+      const allwrongDenting = rows.map(r => Number(r.wrongDenting)).filter(v => Number.isFinite(v) && v > 0);
+      const allweftMissing = rows.map(r => Number(r.weftMissing)).filter(v => Number.isFinite(v) && v > 0);
+
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (pctDefective > maxPct * 1.5) result = 'FAIL';
       else if (pctDefective > maxPct) result = 'WARNING';
 
       return {
         metrics: {
-          runningLooms: running,
-          grandTotalDefectiveLooms: defectiveLooms,
-          percentDefectiveLooms: Number(pctDefective.toFixed(2)),
-          standardMaxPercent: maxPct,
+          missingEndPercent: allmissingEnd > 0 && formData.loomno > 0  ?(Number(allmissingEnd)/Number(formData.loomno)).toFixed(2):0,
+          readDentMarkPercent: allreadDentMark > 0 && formData.loomno > 0 ?(Number(allreadDentMark)/Number(formData.loomno)).toFixed(2):0,
+          loopyselvedgePercent: allloopySelvedge > 0 && formData.loomno > 0 ?(Number(allloopySelvedge)/Number(formData.loomno)).toFixed(2):0,
+          defectiveSelvedgePercent: alldefectiveSelvedge > 0 && formData.loomno > 0 ?(Number(alldefectiveSelvedge)/Number(formData.loomno)).toFixed(2):0,
+          pertialWeftMissingPercent:allpertialWeftMissing > 0 && formData.loomno > 0 ?(Number(allpertialWeftMissing)/Number(formData.loomno)).toFixed(2):0,
+          wrongDentingPercent:allwrongDenting > 0 && formData.loomno > 0 ?(Number(allwrongDenting)/Number(formData.loomno)).toFixed(2):0,
+          weftMissingPercent:allweftMissing > 0 && formData.loomno > 0 ?(Number(allweftMissing)/Number(formData.loomno)).toFixed(2):0,
         },
         result,
       };
@@ -2294,22 +2313,65 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'LAB',
     section: 'Physical Testing Laboratory',
     sampleUnit: 'kgf / lbs',
-    defaultRowCount: 8,
+    defaultRowCount: 5,
     description: 'Supports Strip and Grab test methods. Maintains Warp, Weft, and Seam strength standards dynamically.',
     sourceStandardText: 'Standard Tensile Strength: As per Quality Master (Strip/Grab). Standard Seam Strength: Min 80 kgf for B.Twill.',
     fields: [
-      { key: 'testMethod', label: 'Test Method', type: 'select', options: ['Strip Test (IS 1969)', 'Grab Test (ASTM D5034)'], defaultValue: 'Strip Test (IS 1969)' },
-      { key: 'standardWarpStr', label: 'Standard Warp Strength (kgf)', type: 'number', defaultValue: 150, unit: 'kgf' },
-      { key: 'standardWeftStr', label: 'Standard Weft Strength (kgf)', type: 'number', defaultValue: 140, unit: 'kgf' },
-      { key: 'standardSeamStr', label: 'Standard Seam Strength (kgf)', type: 'number', defaultValue: 80, unit: 'kgf' },
+      { key: 'testMethod', label: 'Test Method', type: 'text'},
+      { key: 'standardtestLength', label: 'Standard Test Length', type: 'number', unit: 'kgf' },
+      { key: 'standardTraversSpeed', label: 'Standard Travers Speed', type: 'number', unit: '' },
+      { key: 'standardWarpStrength', label: 'Standard avg Warp Strength', type: 'number', unit: 'kgf' },
+      { key: 'belowMinWarpStrength', label: 'Below min Warp Strength', type: 'number', unit: 'kgf' },
+      { key: 'standardWeftStrength', label: 'Standard Avg Weft Strength', type: 'number', unit: 'kgf' },
+      { key: 'belowMinWeftStrength', label: 'Below min Weft Strength', type: 'number', unit: 'kgf' },
+      { key: 'standardSideSeamStrength', label: 'Standard Avg Side Seam Strength', type: 'number', unit: 'kgf' },
+      { key: 'belowMinSideSeamStrength', label: 'Below min Side Seam Strength', type: 'number', unit: 'kgf' },
+      { key: 'standardBottomSeamStrangth', label: 'Standard Avg Bottom Seam Strength', type: 'number', unit: 'kgf' },
+      { key: 'belowMinBottomSeamStrength', label: 'Below min Bottom Seam Strength', type: 'number', unit: 'kgf' },
     ],
     columns: [
-      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '80px' },
-      { key: 'testType', label: 'Test Direction', type: 'select', options: ['Warp Direction', 'Weft Direction', 'Side Seam', 'Bottom Seam'] },
-      { key: 'breakingLoadKgf', label: 'Breaking Load (kgf)', type: 'number', precision: 1, required: true },
-      { key: 'elongationPct', label: 'Elongation (%)', type: 'number', precision: 1 },
+      { key: 'warpStrength', label: 'Warp Strength', type: 'text', unit:'kfg'},
+      { key: 'weftStrength', label: 'Weft Strength', type: 'text', unit:'kfg' },
+      { key: 'sideSeamStrength', label: 'Side Seam Strength', type: 'number', precision: 1, unit:'kfg' },
+      { key: 'bottomSeamStrength', label: 'Bottom Seam Strength', type: 'number', precision: 1, unit:'kfg' },
     ],
     calculate: (formData, rows) => {
+      //Warp Strength
+      const belowMinWarpStrength = Number(formData.belowMinWarpStrength) > 0 ? Number(formData.belowMinWarpStrength) : 0;
+      const totalwarpStrength = rows.map(r => Number(r.warpStrength) || 0).filter(v => v > 0);
+      const avgwarpStrength = calcMean(totalwarpStrength);
+      const maxWrpStrength = totalwarpStrength.length > 0? Math.max(...totalwarpStrength): 0;
+      const minWrpStrength = totalwarpStrength.length > 0? Math.min(...totalwarpStrength): 0;
+      const belowStandardWarpStrength = totalwarpStrength.filter(v => v < belowMinWarpStrength);
+      const belowStandardWarpStrengthCount = belowStandardWarpStrength.length;
+      
+      //weft Strength
+      const belowMinWeftStrength = Number(formData.belowMinWeftStrength) > 0 ? Number(formData.belowMinWeftStrength) : 0;
+      const totalweftStrength = rows.map(r => Number(r.weftStrength) || 0).filter(v => v > 0);
+      const avgweftStrength = calcMean(totalweftStrength);
+      const maxWeftStrength = totalweftStrength.length > 0? Math.max(...totalweftStrength): 0;
+      const minWeftStrength = totalweftStrength.length > 0? Math.min(...totalweftStrength): 0;
+      const belowStandardWeftStrength = totalweftStrength.filter(v => v < belowMinWarpStrength);
+      const belowStandardWeftStrengthCount = belowStandardWeftStrength.length;
+
+      //side Seam Strength
+      const belowMinSideSeamStrength = Number(formData.belowMinSideSeamStrength) > 0 ? Number(formData.belowMinSideSeamStrength) : 0;
+      const totalsideSeamStrength = rows.map(r => Number(r.sideSeamStrength) || 0).filter(v => v > 0);
+      const avgsideSeamStrength = calcMean(totalsideSeamStrength);
+      const maxsideSeamStrength = totalsideSeamStrength.length > 0? Math.max(...totalsideSeamStrength): 0;
+      const minsideSeamStrength = totalsideSeamStrength.length > 0? Math.min(...totalsideSeamStrength): 0;
+      const belowsideSeamStrength = totalsideSeamStrength.filter(v => v < belowMinSideSeamStrength);
+      const belowsideSeamStrengthCount = belowsideSeamStrength.length;
+
+      //side Seam Strength
+      const belowMinBottomSeamStrength = Number(formData.belowMinBottomSeamStrength) > 0 ? Number(formData.belowMinBottomSeamStrength) : 0;
+      const totalbottomSeamStrength = rows.map(r => Number(r.bottomSeamStrength) || 0).filter(v => v > 0);
+      const avgbottomSeamStrength = calcMean(totalbottomSeamStrength);
+      const maxbottomSeamStrength = totalbottomSeamStrength.length > 0? Math.max(...totalbottomSeamStrength): 0;
+      const minbottomSeamStrength = totalbottomSeamStrength.length > 0? Math.min(...totalbottomSeamStrength): 0;
+      const belowbottomSeamStrength = totalbottomSeamStrength.filter(v => v < belowMinBottomSeamStrength);
+      const belowbottomSeamStrengthCount = belowbottomSeamStrength.length;
+
       const warp = rows.filter(r => r.testType === 'Warp Direction').map(r => Number(r.breakingLoadKgf) || 0).filter(v => v > 0);
       const weft = rows.filter(r => r.testType === 'Weft Direction').map(r => Number(r.breakingLoadKgf) || 0).filter(v => v > 0);
       const seam = rows.filter(r => r.testType?.includes('Seam')).map(r => Number(r.breakingLoadKgf) || 0).filter(v => v > 0);
@@ -2332,12 +2394,18 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          avgWarpStrengthKgf: Number(avgWarp.toFixed(1)),
-          avgWeftStrengthKgf: Number(avgWeft.toFixed(1)),
-          avgSeamStrengthKgf: Number(avgSeam.toFixed(1)),
-          standardWarpKgf: stdWarp,
-          standardWeftKgf: stdWeft,
-          standardSeamKgf: stdSeam,
+          avgWarpStrengthKgf: Number(avgwarpStrength.toFixed(1)),
+          warpStrengthRange: minWrpStrength+' - '+maxWrpStrength,
+          NoOfBellowMinWarpStrength: Number(belowStandardWarpStrengthCount),
+          avgWeftStrengthKgf: Number(avgweftStrength.toFixed(1)),
+          weftStrengthRange: minWeftStrength+' - '+maxWeftStrength,
+          NoOfBellowMinWeftStrength: Number(belowStandardWeftStrengthCount),
+          avgSideSeamStrengthKfg: Number(avgsideSeamStrength.toFixed(1)),
+          sideSeamStrengthRange: minsideSeamStrength+' - '+maxsideSeamStrength,
+          NoOfBellowMinSideSeamStrength: Number(belowsideSeamStrengthCount),
+          avgBottomSeamStrength: Number(avgbottomSeamStrength.toFixed(1)),
+          bottomSeamStrengthRange: minbottomSeamStrength+' - '+maxbottomSeamStrength,
+          NoOfBellowMinBottomSeamStrength: Number(belowbottomSeamStrengthCount),
         },
         result,
       };
@@ -2562,15 +2630,15 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Speeds: Breaker Cylinder: 185 RPM; Finisher Card: 195 RPM; Spinning Flyer: 3200–3800 RPM; Looms: 160–210 PPM. Permissible deviation: ± 3.0%.',
     fields: [
       { key: 'inspectionSection', label: 'Machine Section', type: 'select', options: ['Carding', 'Drawing', 'Spinning', 'Weaving (Looms)'], defaultValue: 'Carding' },
-      { key: 'tachometerNo', label: 'Stroboscope / Tachometer ID', type: 'text', defaultValue: 'TACHO-02' },
+      /* { key: 'tachometerNo', label: 'Stroboscope / Tachometer ID', type: 'text', defaultValue: 'TACHO-02' }, */
     ],
     columns: [
-      { key: 'machineType', label: 'Machine Type', type: 'text', required: true },
       { key: 'machineNo', label: 'Machine / Frame No.', type: 'text', required: true },
-      { key: 'speedUnit', label: 'Unit', type: 'select', options: ['RPM', 'PPM', 'MPM (m/min)'] },
-      { key: 'standardSpeed', label: 'Standard Speed', type: 'number', required: true },
-      { key: 'observedSpeed', label: 'Observed Speed', type: 'number', required: true },
+      { key: 'make', label: 'Make', type: 'text', required: true },
+      { key: 'noofdelivery', label: 'No of Delivery/Spindle', type: 'number', required: true },
+      { key: 'speedUnit', label: 'Unit', type: 'select', options: ['RPM', 'PPM', 'FPM (f/min)'] },
       { key: 'deviationPct', label: 'Deviation % (Auto)', type: 'number', precision: 2 },
+      { key: 'observedSpeed', label: 'Remarks', type: 'select', options: ['Action Taken', 'Rectification'] },
     ],
     calculate: (formData, rows) => {
       let failCount = 0;
@@ -2596,9 +2664,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          totalMachinesChecked: validCount,
+          /* totalMachinesChecked: validCount,
           failingMachines: failCount,
-          warningMachines: warnCount,
+          warningMachines: warnCount, */
         },
         result,
       };
