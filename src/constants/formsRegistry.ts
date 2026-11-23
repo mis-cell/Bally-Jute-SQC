@@ -1064,63 +1064,147 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Calculates Weight C.V.%, Strength C.V.%, Average %QR, Minimum %QR, and TPI C.V.% against quality standards.',
     sourceStandardText: 'Standard Quality Ratio (%QR): Min 90% (Hessian Warp), Min 85% (Weft). Weight CV: Max 6.0%. Strength CV: Max 12%. TPI CV: Max 8%.',
     fields: [
-      { key: 'yarnQuality', label: 'Yarn Quality / Count', type: 'text', defaultValue: '8.0 lbs Hessian Warp' },
-      { key: 'minQualityRatioPct', label: 'Standard Min %QR', type: 'number', defaultValue: 90, unit: '%' },
-      { key: 'targetTPI', label: 'Target TPI (Twist/Inch)', type: 'number', defaultValue: 4.5 },
-      { key: 'standardTestLength', label: 'Standard Test Length', type: 'number', defaultValue: '', unit: 'YDS' },
-      { key: 'dp', label: 'DP', type: 'number', defaultValue: '', unit: '' },
-      { key: 'tp', label: 'TP', type: 'number', defaultValue: '', unit: '' }
+      { key: 'frameNo', label: 'Frame No.', type: 'text', required: true },
+      { key: 'frameType', label: 'Frame Type', type: 'select', options: ['Ring', 'AD', 'SD'], defaultValue: 'Ring' },
+      { key: 'DP', label: 'DP', type: 'number', defaultValue: '', unit: '' },
+      { key: 'TP', label: 'TP', type: 'number', defaultValue: '', unit: '' },
+      { key: 'nominalCountLbs', label: 'Nominal Yarn Count (lbs/spyndle)', type: 'number', defaultValue: 8.0, unit: 'lbs', required: true },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['S4_WP', 'S4_WT', 'TBAG_WP', 'TBAG_WT', 'SKG_WP', 'SKG_WT', 'VL_WP', 'VL_WT'], defaultValue: 'S4_WP' },
+      { key: 'standardTestLength', label: 'Standard Test Length', type: 'select', options: ['75', '150', '225', '300', '375', '450', '525', '600','675','750'], defaultValue: '75' },
+      { key: 'temperature', label: 'Temperature ', type: 'number', defaultValue: '', unit: '°C' },
+      { key: 'roomHumidity', label: 'Room Humidity ', type: 'number', defaultValue: '', unit: '%' },
+      { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '80px' },
-      { key: 'weightLbs', label: 'Skein Wt (lbs/spy)', type: 'number', precision: 2, required: true },
+      { key: 'observedWt', label: 'Observed WT',  unit: 'gm', type: 'number', precision: 2, required: true },
+      { key: 'observedCountLbs', label: 'Observed Count', type: 'number', precision: 2, required: true },
+      { key: 'observedMoisture', label: 'Observed Moistutre', type: 'number', precision: 2, required: true },
+      {key: 'convertedWeightYds', label: 'Converted Weight in 14400 YDS', unit: 'LBS', type: 'number', precision: 2, required: true },
       { key: 'breakingStrengthLbs', label: 'Breaking Str (lbs)', type: 'number', precision: 2, required: true },
       { key: 'tpi', label: 'TPI (Twist/Inch)', type: 'number', precision: 1 },
     ],
     calculate: (formData, rows) => {
-      const weights: number[] = [];
-      const strengths: number[] = [];
-      const tpis: number[] = [];
-      const qrs: number[] = [];
+      const testLen = Number(formData.standardTestLength) || 75;
+      const stdMR = Number(formData.standardMR) || 30.0;
+      const obsMR = Number(formData.observedMR) || 29.5;
 
       rows.forEach(r => {
-        const w = Number(r.weightLbs) || 0;
-        const s = Number(r.breakingStrengthLbs) || 0;
-        const t = Number(r.tpi) || 0;
-        if (w > 0) weights.push(w);
-        if (s > 0) strengths.push(s);
-        if (t > 0) tpis.push(t);
-        if (w > 0 && s > 0) {
-          qrs.push((s / w) * 100); // % Quality Ratio = (Breaking Strength ÷ Count) * 100
+        const obsWt = Number(r.observedWt) || 0;
+        if (obsWt > 0 && testLen > 0) {
+          r.observedCountLbs = Number(((31.75 / testLen) * obsWt).toFixed(3));
+        }
+        const obsCount = Number(r.observedCountLbs) || 0;
+        if (obsCount > 0 && (100 + obsMR) > 0) {
+          r.convertedWeightYds = Number(((obsCount * (100 + stdMR)) / (100 + r.observedMoisture)).toFixed(3));
         }
       });
 
-      const avgWeight = calcMean(weights);
-      const wtCV = calcCV(weights);
-      const avgStr = calcMean(strengths);
-      const strCV = calcCV(strengths);
-      const avgTPI = calcMean(tpis);
-      const tpiCV = calcCV(tpis);
-      const avgQR = calcMean(qrs);
-      const minQR = qrs.length > 0 ? Math.min(...qrs) : 0;
-      const stdMinQR = Number(formData.minQualityRatioPct) || 90;
+      //observed Weight
+      const allobservedWt = rows.map(r => Number(r.observedWt)).filter(v => Number.isFinite(v) && v > 0);
+      // Average observed Weight
+      const avgObservedWt = allobservedWt.length > 0 ? allobservedWt.reduce((sum, v) => sum + v, 0) / allobservedWt.length : 0;
+
+      //observed Weight
+      const allobservedCountLbs = rows.map(r => Number(r.observedCountLbs)).filter(v => Number.isFinite(v) && v > 0);
+      // Average observed Weight
+      const avgobservedCountLbs = allobservedCountLbs.length > 0 ? allobservedCountLbs.reduce((sum, v) => sum + v, 0) / allobservedCountLbs.length : 0;
+
+      //observed Weight
+      const allobservedMoisture = rows.map(r => Number(r.observedMoisture)).filter(v => Number.isFinite(v) && v > 0);
+      // Average observed Weight
+      const avgobservedMoisture = allobservedMoisture.length > 0 ? allobservedMoisture.reduce((sum, v) => sum + v, 0) / allobservedMoisture.length : 0;
+      
+      
+      //cv percent Converted Weight
+      const convertedWeights = rows.map(r => Number(r.convertedWeightYds)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgConvertedWeightYds = convertedWeights.length > 0 ? convertedWeights.reduce((sum, v) => sum + v, 0) / convertedWeights.length : 0;
+      // Calculate squared deviations
+      const squaredDeviations = convertedWeights.map( v => Math.pow(avgConvertedWeightYds - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviation = squaredDeviations.length > 0 ? squaredDeviations.reduce((sum, v) => sum + v, 0) / squaredDeviations.length : 0;
+      // Standard Deviation
+      const sd = Math.sqrt(avgSquaredDeviation);
+      // CV Percentage
+      const cvPercentConvertedWeight = avgConvertedWeightYds > 0 ? (sd / avgConvertedWeightYds) * 100 : 0;
+      const maxConvertedWt = convertedWeights.length > 0 ? Math.max(...convertedWeights) : 0;
+      const minConvertedWt = convertedWeights.length > 0 ? Math.min(...convertedWeights) : 0;
+      //cv percent Converted Weight
+
+      //cv percent breaking Strength
+      const breakingStrengthLbs = rows.map(r => Number(r.breakingStrengthLbs)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgBreakingStrengthLbs = breakingStrengthLbs.length > 0 ? breakingStrengthLbs.reduce((sum, v) => sum + v, 0) / breakingStrengthLbs.length : 0;
+      // Calculate squared deviations
+      const squaredDeviationsbr = breakingStrengthLbs.map( v => Math.pow(avgBreakingStrengthLbs - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviationbr = squaredDeviationsbr.length > 0 ? squaredDeviationsbr.reduce((sum, v) => sum + v, 0) / squaredDeviationsbr.length : 0;
+      // Standard Deviation
+      const sdbr = Math.sqrt(avgSquaredDeviationbr);
+      // CV Percentage
+      const cvPercentBreakingStrength = avgBreakingStrengthLbs > 0 ? (sdbr / avgBreakingStrengthLbs) * 100 : 0;
+      const maxbreakingSt = breakingStrengthLbs.length > 0 ? Math.max(...breakingStrengthLbs) : 0;
+      const minbreakingSt = breakingStrengthLbs.length > 0 ? Math.min(...breakingStrengthLbs) : 0;
+
+      const lowestThreeBreakingStrength = [...breakingStrengthLbs].sort((a, b) => a - b).slice(0, 3);
+    // Average of lowest 3 values
+      const avgLowestBreakingStrengthLbs = lowestThreeBreakingStrength.length > 0
+      ? lowestThreeBreakingStrength.reduce((sum, v) => sum + v, 0) / lowestThreeBreakingStrength.length
+      : 0;
+      //cv percent Converted Weight
+
+      //cv percent Tpi
+      const tpitotal = rows.map(r => Number(r.tpi)).filter(v => Number.isFinite(v) && v > 0);
+      // Average Converted Weight
+      const avgTpi = tpitotal.length > 0 ? tpitotal.reduce((sum, v) => sum + v, 0) / tpitotal.length : 0;
+      // Calculate squared deviations
+      const squaredDeviationsTpi = tpitotal.map( v => Math.pow(avgTpi - v, 2));
+      // Average of squared deviations
+      const avgSquaredDeviationTpi = squaredDeviationsTpi.length > 0 ? squaredDeviationsTpi.reduce((sum, v) => sum + v, 0) / squaredDeviationsTpi.length : 0;
+      // Standard Deviation
+      const sdTpi = Math.sqrt(avgSquaredDeviationTpi);
+      // CV Percentage
+      const cvPercentTpi = avgSquaredDeviationTpi > 0 ? (sdTpi / avgSquaredDeviationTpi) * 100 : 0;
+      const maxTpi = tpitotal.length > 0 ? Math.max(...tpitotal) : 0;
+      const minTpi = tpitotal.length > 0 ? Math.min(...tpitotal) : 0;
+      //cv percent Tpi
+
+      const avgqualityRatio =   ((Number(avgBreakingStrengthLbs)/Number(avgobservedCountLbs))*100).toFixed(2);
+      const maxqualityRatio = ((Number(maxbreakingSt)/Number(avgobservedCountLbs))*100).toFixed(2);
+      const minqualityRatio = ((Number(avgLowestBreakingStrengthLbs)/Number(avgobservedCountLbs))*100).toFixed(2);
+
+      
+      const nominal = Number(formData.nominalCountLbs) || 8.0;
+      const counts = rows.map(r => Number(r.observedCountLbs) || 0).filter(v => v > 0);
+      const avg = calcMean(counts);
+      const cv = calcCV(counts);
+      const pctDev = nominal > 0 ? ((avg - nominal) / nominal) * 100 : 0;
+
+      const allf10converted = rows.map(r => Number(r.convertedWt)).filter(v => Number.isFinite(v) && v > 0);
+      const avgf10Converted = calcMean(allf10converted);
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-      if (weights.length === 0) result = 'WARNING';
-      else if (avgQR < stdMinQR || minQR < stdMinQR * 0.8 || wtCV > 8.0) result = 'FAIL';
-      else if (avgQR < stdMinQR + 3 || wtCV > 6.0 || strCV > 14.0) result = 'WARNING';
+      if (counts.length === 0) result = 'WARNING';
+      else if (Math.abs(pctDev) > 5.0) result = 'FAIL';
+      else if (Math.abs(pctDev) > 3.0 || cv > 7.0) result = 'WARNING';
 
       return {
         metrics: {
-          samples: weights.length,
-          avgWeight: Number(avgWeight.toFixed(2)),
-          weightCV: Number(wtCV.toFixed(2)),
-          avgStrength: Number(avgStr.toFixed(2)),
-          strengthCV: Number(strCV.toFixed(2)),
-          avgQR: Number(avgQR.toFixed(1)),
-          minQR: Number(minQR.toFixed(1)),
-          avgTPI: Number(avgTPI.toFixed(2)),
-          tpiCV: Number(tpiCV.toFixed(2)),
+          avgObsWt: avgObservedWt,
+          avgMR: avgobservedMoisture,
+          avgConvertedWt: Number(avgConvertedWeightYds.toFixed(2)),
+          convertedWtRange: minConvertedWt +' - '+maxConvertedWt,
+          convertedWtCvPercent: cvPercentConvertedWeight.toFixed(2),
+          avgBreakingStrengthLbs:avgBreakingStrengthLbs.toFixed(2),
+          breakingStrengthRange: minbreakingSt +' - '+maxbreakingSt,
+          breakingStrengthCvPercent: cvPercentBreakingStrength,
+          avgQualityRatio: avgqualityRatio > 0 ? avgqualityRatio : 0,
+          minimumQualityRatioPercent:minqualityRatio > 0 ? minqualityRatio:0,
+          maxmumQualityRatioPercent:maxqualityRatio > 0 ? maxqualityRatio:0,
+          avgTpi:avgTpi.toFixed(2),
+          tpiRange: minTpi +' - '+maxTpi,
+          tpiCvPercent: cvPercentTpi,
         },
         result,
       };
