@@ -72,6 +72,108 @@ export const InspectionFormPage: React.FC = () => {
     [selectedFormCode]
   );
 
+  const weavingCriteria = [
+    'WARP BREAKAGE SINGLE',
+    'WARP BREAKAGE MULTIPLE',
+    'WAITING FOR WARP BREAKAGE',
+    'WP. BKG. AT IDENTIFICATION MARK',
+    'WEFT BREAKAGE',
+    'TRANSFER FAILURE',
+    'SHUTTLE CHANGE',
+    'WEFT SPOOL FEEDING',
+    'WEFT SPOOL CARRING',
+    'WAITING FOR WEFT BREAKAGE',
+    'MECHANICAL',
+    'ELECTRICAL JOB',
+    'OILING',
+    'AIR CLEANING',
+    'ENTG. OF YARN',
+    'PICK BACK',
+    'MISSING ENDS REPAIR',
+    'SARDAR / HELPER JOB',
+    'DOFFING',
+    'BEAM END',
+    'BEAM TYING',
+    'WAIT FOR BEAM FEEDING',
+    'TIFFIN',
+    'OPERATOR AWAY',
+    'OPERATOR ATTENDING OTHER M/C',
+    'MISCELLANEOUS',
+    'SHIFT CHANGE'
+  ];
+  const spinningCriteria = [
+    'ENDS BREAKAGE',
+    'MECHANICAL',
+    'ELECTRICAL',
+    'MORRAH MARA',
+    'SLIVER SHORTAGE',
+    'WAITING FOR FEEDING',
+    'CARRIAGE JAM',
+    'DOFFING',
+    'JAMMING',
+    'BOBBIN SHORTAGE',
+    'TIFFIN',
+    'OPERATOR AWAY',
+    'OPERATOR NEGLIGENCE',
+    'MISCELLANEOUS',
+    'SHIFT CHANGE'
+  ];
+  const drawingCriteria = [
+    'MECHANICAL',
+    'ELECTRICAL',
+    'PIN SHEARING',
+    'PICKING',
+    'CLEANING',
+    'JAM REMOVING',
+    'ATTENDING OTHER M/C',
+    'INPUT MATERIAL FEEDING',
+    'INPUT MATERIAL SHORTAGE',
+    'TIFFIN',
+    'AWAY',
+    'NEG.',
+    'DELIVERY IDLE',
+    'DOFFING',
+    'CAN SHORTAGE',
+    'MISCELLANEOUS',
+    'SARDAR JOB',
+    'PROCESS JAM',
+    'SHIFT CHANGE'
+  ];
+  const drawHeadFinisherBRCriteria = [
+    'MECHANICAL',
+    'PICKING',
+    'PIN SHEARING',
+    'PICKING JAM',
+    'ROLL SHORTAGE',
+    'ROLLER JAM',
+    'DUST CLEANING',
+    'SIDE JAM',
+    'ELECTRICAL',
+    'INPUT ROLL FEEDING',
+    'AIR CLEANING',
+    'MISCELLANEOUS',
+    'ATTN. OTHER M/C.',
+    'INPUT MATRL. COLLECT',
+    'TIFFIN',
+    'AWAY',
+    'PROCESS JAM',
+    'DROPPAGE',
+    'FLUTED ROLLER JAM (TOP)',
+    'FLUTED ROLLER JAM (BOTTOM)',
+    'UPTAKE ROLLER JAM',
+    'DRAWING ROLLER JAM',
+    'DRAWING PRESSING ROLLER JAM',
+    'DELIVERY ROLLER JAM(DH)',
+    'DELIVERY ROLLER JAM',
+    'SARDAR JOB',
+    'ROLL FORMA PIN SHEARING',
+    'ROLL FORMA JAMING',
+    'ROLL FORMA PIN PROBLEME',
+    'M/C. STOP DUE TO ROOT CUTTING',
+    'CAN SHORTAGE',
+    'SHIFT CHANGE'
+  ]; 
+
   const allInspections = useRealtimeData(() => dataService.getInspections());
   const [activeViewTab, setActiveViewTab] = useState<'form' | 'log'>('form');
   const [logSearch, setLogSearch] = useState<string>('');
@@ -1199,15 +1301,18 @@ export const InspectionFormPage: React.FC = () => {
 
                       {formMeta.columns.map(col => (
                         <td key={col.key} className="py-1.5 px-2">
+
                           {col.type === 'readonly' ? (
                             <span className="font-mono text-[#EA5551] font-semibold px-2 py-1 block">
                               {row[col.key] !== undefined && row[col.key] !== ''
                                 ? row[col.key]
                                 : col.key === 'sampleNo' || col.key === 'rollNo' || col.key === 'bagNo' || col.key === 'pieceNo' || col.key === 'bagSampleNo'
-                                ? idx + 1
-                                : '-'}
+                                  ? idx + 1
+                                  : '-'}
                             </span>
+
                           ) : col.type === 'select' ? (
+
                             <select
                               disabled={isReadOnly}
                               value={row[col.key] ?? col.options?.[0] ?? ''}
@@ -1215,13 +1320,38 @@ export const InspectionFormPage: React.FC = () => {
                               aria-label={`${col.label} Row ${idx + 1}`}
                               className="w-full bg-white border border-[#F5D0CB] rounded px-2 py-1 text-xs text-[#393334] font-medium focus:border-[#EA5551] focus:ring-1 focus:ring-[#F5D0CB] outline-none"
                             >
-                              {col.options?.map(opt => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
+
+                              {/* FORM-36: Dynamic Criteria Options */}
+                              {formMeta.code === 'FORM-36' && col.key === 'criteria' ? (
+
+                                (formData.studyZone === 'Weaving'
+                                  ? weavingCriteria
+                                  : formData.studyZone === 'Spinning'
+                                    ? spinningCriteria
+                                    : formData.studyZone === 'Drawing'
+                                      ? drawingCriteria
+                                      : drawHeadFinisherBRCriteria
+                                ).map(opt => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))
+
+                              ) : (
+
+                                /* ALL OTHER FORMS: Existing Options */
+                                col.options?.map(opt => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))
+
+                              )}
+
                             </select>
+
                           ) : (
+
                             <input
                               type={col.type === 'number' ? 'number' : 'text'}
                               step="any"
@@ -1232,6 +1362,7 @@ export const InspectionFormPage: React.FC = () => {
                                 if (col.type === 'number') {
                                   const raw = e.target.value;
                                   const parsed = raw === '' ? '' : parseFloat(raw);
+
                                   handleRowChange(
                                     idx,
                                     col.key,
@@ -1243,10 +1374,11 @@ export const InspectionFormPage: React.FC = () => {
                               }}
                               className="w-full bg-white border border-[#F5D0CB] rounded px-2 py-1 text-xs text-[#393334] font-medium font-mono focus:border-[#EA5551] focus:bg-[#FFF1EE] focus:ring-1 focus:ring-[#F5D0CB] outline-none"
                             />
+
                           )}
+
                         </td>
                       ))}
-
                       {!isReadOnly && (
                         <td className="py-1.5 px-2 text-center">
                           <button

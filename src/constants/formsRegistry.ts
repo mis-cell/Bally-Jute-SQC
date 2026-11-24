@@ -169,7 +169,37 @@ export function moistureCorrect(observedWeight: number, observedMR: number, stan
   if (100 + observedMR <= 0) return observedWeight;
   return (observedWeight * (100 + standardMR)) / (100 + observedMR);
 }
-
+let form36dropdown = 'Weaving';
+const weavingCriteria = [
+  'WARP BREAKAGE SINGLE',
+  'WARP BREAKAGE MULTIPLE',
+  'WAITING FOR WARP BREAKAGE',
+  'WP. BKG. AT IDENTIFICATION MARK',
+  'WEFT BREAKAGE',
+  'TRANSFER FAILURE',
+  'SHUTTLE CHANGE',
+  'WEFT SPOOL FEEDING',
+  'WEFT SPOOL CARRING',
+  'WAITING FOR WEFT BREAKAGE',
+  'MECHANICAL',
+  'ELECTRICAL JOB',
+  'OILING',
+  'AIR CLEANING',
+  'ENTG. OF YARN',
+  'PICK BACK',
+  'MISSING ENDS REPAIR',
+  'SARDAR / HELPER JOB',
+  'DOFFING',
+  'BEAM END',
+  'BEAM TYING',
+  'WAIT FOR BEAM FEEDING',
+  'TIFFIN',
+  'OPERATOR AWAY',
+  'OPERATOR ATTENDING OTHER M/C',
+  'MISCELLANEOUS',
+  'SHIFT CHANGE'
+];
+  
 export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-01': {
     code: 'FORM-01',
@@ -2002,14 +2032,34 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Final inspection of finished sewn bags before baling press: Dimensions, Weight, Stitching, Branding/Marking.',
     sourceStandardText: 'Standard Bag Weight: Nominal ± 3.5%. Stitching: Intact. Print: Clear, correct ink.',
     fields: [
-      { key: 'bagType', label: 'Bag Type (A.Twill / B.Twill / D.W. Flour / Coffee etc.)', type: 'text', defaultValue: 'B.Twill 2¼ lbs' },
-      { key: 'nominalBagWeightGms', label: 'Nominal Weight (grams)', type: 'number', defaultValue: 1020, unit: 'g' },
+      { key: 'quality', label: 'Quality', type: 'text', defaultValue: '' },
+      { key: 'standardminLength', label: 'Standard min Length', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardmaxLength', label: 'Standard max Length', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardbelowminLength', label: 'Standard Below min Length', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardminWidth', label: 'Standard min Width', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardmaxWidth', label: 'Standard max Width', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardbelowminWidth', label: 'Standard Below min Width', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardEndsDm', label: 'Standard Ends/DM', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardPicksDm', label: 'Standard Picks/DM', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardHerakle', label: 'Standard Herakle', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardHemmin', label: 'Standard Hemmin', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardSafety', label: 'Standard Safety', type: 'number', defaultValue: '', unit: 'cm' },
+      { key: 'standardMoisture', label: 'Standard Moisture', type: 'number', defaultValue: '', unit: '' },
+      { key: 'standardminCorrectedBagWt', label: 'Standard min Corrected Bag Wt', type: 'number', defaultValue: '', unit: 'gm' },
+      { key: 'standardmaxCorrectedBagWt', label: 'Standard max Corrected Bag Wt', type: 'number', defaultValue: '', unit: 'gm' },
+      { key: 'standardBelowminCorrectedBagWt', label: 'Standard Below min Corrected Bag Wt', type: 'number', defaultValue: '', unit: 'gm' },
     ],
     columns: [
-      { key: 'bagNo', label: 'Bag No.', type: 'readonly', width: '80px' },
-      { key: 'actualWeightGms', label: 'Weight (g)', type: 'number', required: true },
-      { key: 'hemDefect', label: 'Hemming Defect', type: 'select', options: ['None', 'Poor Hem', 'Open Hem'] },
-      { key: 'printQuality', label: 'Branding / Print', type: 'select', options: ['Clear', 'Smudged', 'Misaligned', 'Faint'] },
+      { key: 'observedLength', label: 'Observed Length', type: 'text', width: '80px', unit:'cm' },
+      { key: 'observedWidth', label: 'Observed Width', type: 'text', unit:'cm' },
+      { key: 'observedEnds', label: 'Observed Ends/DM', type: 'text' },
+      { key: 'observedPicks', label: 'Observed Picks/DM', type: 'text' },
+      { key: 'observedHerakle', label: 'Observed Herakle', type: 'text' },
+      { key: 'observedHemmin', label: 'Observed Hemmin', type: 'text' },
+      { key: 'observedSafety', label: 'Observed Safety', type: 'text' },
+      { key: 'observedMoisture', label: 'Observed Moisture', type: 'text' },
+      { key: 'observedBagWt', label: 'Observed Bag Wt', type: 'text', unit: 'gm' },
+      { key: 'observedCorrectedBagWt', label: 'Observed Corrected Bag Wt', type: 'text', unit: 'gm' },
     ],
     calculate: (formData, rows) => {
       const nom = Number(formData.nominalBagWeightGms) || 1020;
@@ -2023,12 +2073,52 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       else if (Math.abs(dev) > 4.5 || defectCount > 2) result = 'FAIL';
       else if (Math.abs(dev) > 3.0 || defectCount > 0) result = 'WARNING';
 
+      rows.forEach(r => {
+        r.observedCorrectedBagWt = r.observedBagWt > 0 ? ((Number(r.observedBagWt)*(100+Number(formData.standardMoisture)))/(100+Number(formData.standardMoisture))).toFixed(2) : '';
+      });
+      const totaldatarow = rows.map(r => Number(r.observedLength) || 0).filter(v => v > 0);
+    
+      const countobservedLength = rows.map(r => Number(r.observedLength) || 0).filter(v => v > 0);
+      const totalobservedLength = rows.reduce((sum, r) => sum + (Number(r.observedLength) || 0), 0);
+      const avgCovertedGsm = countobservedLength.length> 0 ? totalobservedLength/countobservedLength.length : 0;
+      const columnKeys = [
+        'observedLength',
+        'observedWidth',
+        'observedEnds',
+        'observedPicks',
+        'observedHerakle',
+        'observedHemmin',
+        'observedSafety',
+        'observedMoisture',
+        'observedBagWt',
+        'observedCorrectedBagWt'
+      ];
+
+      const columnAverages = {};
+
+      columnKeys.forEach(key => {
+        const values = rows
+          .map(r => Number(r[key]))
+          .filter(v => Number.isFinite(v) && v > 0);
+
+        columnAverages[key] = values.length > 0
+          ? values.reduce((sum, v) => sum + v, 0) / values.length
+          : 0;
+      });
+
       return {
         metrics: {
-          totalBagsInspected: weights.length,
-          avgWeightGms: Number(avg.toFixed(1)),
-          weightDeviationPct: Number(dev.toFixed(2)),
-          defectiveBagsCount: defectCount,
+          totalNoOfBagCheck: totaldatarow.length,
+          avgObservedLength: Number(columnAverages.observedLength.toFixed(2)),
+          avgObservedWidth: Number(columnAverages.observedWidth.toFixed(2)),
+          avgObservedEnds: Number(columnAverages.observedEnds.toFixed(2)),
+          avgObservedPicks: Number(columnAverages.observedPicks.toFixed(2)),
+          avgObservedHerakle: Number(columnAverages.observedHerakle.toFixed(2)),
+          avgObservedHemmin: Number(columnAverages.observedHemmin.toFixed(2)),
+          avgObservedSafety: Number(columnAverages.observedSafety.toFixed(2)),
+          avgObservedMoisture: Number(columnAverages.observedMoisture.toFixed(2)),
+          avgObservedBagWt: Number(columnAverages.observedBagWt.toFixed(2)),
+          avgObservedCorrectedBagWt: Number(columnAverages.observedCorrectedBagWt.toFixed(2)),
         },
         result,
       };
@@ -2508,19 +2598,33 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'JBO (Jute Batching Oil) tanker inspection: Challan details, compartments, dip readings, capacities, top/bottom sampling, density, temperature, gross weight, tare weight, net weight, differences and remarks.',
     sourceStandardText: 'JBO Standards: Specific Gravity @ 29.5°C: 0.850 to 0.880. Flash point: Min 66°C. Kinematic Viscosity: 18 to 28 cSt.',
     fields: [
-      { key: 'tankerNo', label: 'Tanker Registration No.', type: 'text', required: true },
-      { key: 'challanNo', label: 'Challan / Invoice No.', type: 'text', required: true },
-      { key: 'supplierName', label: 'Supplier (IOCL / BPCL / HPCL etc.)', type: 'text', defaultValue: 'Indian Oil Corporation Ltd' },
-      { key: 'challanQuantityLitres', label: 'Challan Qty (Litres)', type: 'number', defaultValue: 20000 },
-      { key: 'grossWeightKg', label: 'Weighbridge Gross (kg)', type: 'number', defaultValue: 32500 },
-      { key: 'tareWeightKg', label: 'Weighbridge Tare (kg)', type: 'number', defaultValue: 14200 },
+      { key: 'tankerNo', label: 'Tanker No', type: 'text', required: true },
+      { key: 'noofcompartment', label: 'Total no of Compartment', type: 'text', required: true },
+      { key: 'typeOfMaterial', label: 'Type of Material', type: 'text', defaultValue: '' },
+      { key: 'challanNo', label: 'Challan No', type: 'text', defaultValue: '' },
+      { key: 'challanDate', label: 'Challan Date', type: 'text', defaultValue: '' },
+      { key: 'challanWt', label: 'Challan Wt', type: 'number', defaultValue: '' },
+      { key: 'observedGrosswt', label: 'Observed Gross Wt', type: 'text', defaultValue: '' },
+      { key: 'observedTearwt', label: 'Observed Tear Wt', type: 'text', defaultValue: '' },
+      { key: 'observedNetwt', label: 'Observed Net Wt', type: 'number', defaultValue: '' },
+      { key: 'differenceChallanWt', label: 'Difference from Challan Wt', type: 'text', defaultValue: '' },
+      { key: 'standardSpecificGravity', label: 'Standard Specific Gravity', type: 'text', defaultValue: '' },
+      { key: 'standardPourPoint', label: 'Standard Pour Point', type: 'text', defaultValue: '' },
+      { key: 'standardFlashPoint', label: 'Standard Flash Point', type: 'text', defaultValue: '' },
+      { key: 'standardViscosity', label: 'Standard Viscosity', type: 'text', defaultValue: '' },
     ],
     columns: [
-      { key: 'compartmentNo', label: 'Compartment', type: 'text', width: '120px' },
-      { key: 'dipReadingCm', label: 'Dip (cm)', type: 'number', precision: 1 },
-      { key: 'temperatureC', label: 'Temp (°C)', type: 'number', precision: 1 },
-      { key: 'specificGravity', label: 'Sp. Gravity @ 29.5°C', type: 'number', precision: 4, required: true },
-      { key: 'waterPresence', label: 'Bottom Water Cut', type: 'select', options: ['Nil', 'Trace (<0.1%)', 'Excess Water Found'] },
+      { key: 'decelearDipChart', label: 'Decelear in Dip Chart', type: 'text', width: '120px' },
+      { key: 'observedDipChart', label: 'Observed in Dip Chart', type: 'text', precision: 1 },
+      { key: 'observedSpecificGravity', label: 'Top Observed Specific Gravity', type: 'text', precision: 1 },
+      { key: 'topTemperature', label: 'Top Temperature', type: 'text', precision: 4, unit:'c'},
+      { key: 'topConvertedSpecificGravity15', label: 'Top Converted Specific Gravity @ 15 c', type: 'text' },
+      { key: 'bottomObservedSpecificGravity', label: 'Bottom Observed Specific Gravity', type: 'text' },
+      { key: 'bottomTemperature', label: 'Bottom Temperature', type: 'text', precision: 4, unit:'c'},
+      { key: 'bottomConvertedSpecificGravity15', label: 'Bottom Converted Specific Gravity @ 15 c', type: 'text' },
+      { key: 'pourPoint', label: 'Pour Point', type: 'text', precision: 4},
+      { key: 'flashPoint', label: 'Flash Point', type: 'text', precision: 4},
+      { key: 'observedViscosity', label: 'Observed Viscosity', type: 'text', precision: 4},
     ],
     calculate: (formData, rows) => {
       const gross = Number(formData.grossWeightKg) || 0;
@@ -2530,6 +2634,11 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const avgGrav = calcMean(gravities);
       const hasWater = rows.some(r => r.waterPresence === 'Excess Water Found');
 
+      const observedNetwt = Number(formData.observedGrosswt)-Number(formData.observedTearwt);
+      formData.observedNetwt = observedNetwt;
+      const diffNetwt = Number(formData.challanWt)-Number(observedNetwt);
+      formData.differenceChallanWt = diffNetwt;
+      
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (gravities.length === 0) result = 'WARNING';
       else if (avgGrav < 0.850 || avgGrav > 0.885 || hasWater) result = 'FAIL';
@@ -2537,9 +2646,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          netOilWeightKg: net,
+          /* netOilWeightKg: net,
           avgSpecificGravity: Number(avgGrav.toFixed(4)),
-          hasExcessWater: hasWater,
+          hasExcessWater: hasWater, */
         },
         result,
       };
@@ -2760,30 +2869,29 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-36': {
     code: 'FORM-36',
     number: 36,
-    title: 'Productivity-Oriented Study in Different Zones',
+    title: 'Time and Motion Study',
+    //title: 'Productivity-Oriented Study in Different Zones',
     department: 'Productivity Study',
     departmentCode: 'PRD',
     section: 'Productivity & Work Study',
     sampleUnit: 'Loss Minutes & % Efficiency',
-    defaultRowCount: 6,
+    defaultRowCount: 10,
     description: 'Productivity Study for Breaker/Finisher Card, Drawing, Spinning, and Loom. Supports relevant loss factors from source document and calculates Total Loss and Utilisation/Efficiency.',
     sourceStandardText: 'Target Utilisation: Cards: ≥ 85%; Drawing: ≥ 82%; Spinning: ≥ 88%; Looms: ≥ 78%. Total Loss = Sum of Doffing, Breakdown, Material Shortage, Idle Time.',
     fields: [
-      { key: 'studyZone', label: 'Study Zone', type: 'select', options: ['Breaker / Finisher Card', 'Drawing Passage', 'Spinning Frames', 'Loom Shed'], defaultValue: 'Spinning Frames' },
-      { key: 'totalShiftDurationMin', label: 'Shift Duration (Minutes)', type: 'number', defaultValue: 480, required: true },
-      { key: 'targetEfficiencyPct', label: 'Target Efficiency (%)', type: 'number', defaultValue: 85.0 },
+      { key: 'studyZone', label: 'Study Zone', type: 'select', options: ['Weaving', 'Spinning', 'Drawing', 'Draw Head & Finisher Card & BR Card '], defaultValue: 'Weaving' },
+      { key: 'totalMachineObserved', label: 'Total no of Machine Observed', type: 'number', defaultValue: '', required: true },
+      { key: 'totalNoRound', label: 'Total no Round', type: 'number', defaultValue: '' },
+      { key: 'durationOfStudy', label: 'Duration of Study', type: 'number', defaultValue: '' },
     ],
     columns: [
-      { key: 'machineNo', label: 'Machine / Loom No.', type: 'text', width: '120px', required: true },
-      { key: 'breakdownLossMin', label: 'Mech/Elec Breakdown (min)', type: 'number' },
-      { key: 'doffingLossMin', label: 'Doffing Loss (min)', type: 'number' },
-      { key: 'materialLossMin', label: 'Sliver/Yarn Shortage (min)', type: 'number' },
-      { key: 'operatorAbsentMin', label: 'Idle / Absent Loss (min)', type: 'number' },
+      {key: 'criteria',label: 'Criteria',type: 'select', options:weavingCriteria, width: '150px'},
+      {key: 'loss', label: 'Loss %', type: 'text', width: '120px' },
     ],
     calculate: (formData, rows) => {
       const shiftMin = Number(formData.totalShiftDurationMin) || 480;
       const targetEff = Number(formData.targetEfficiencyPct) || 85.0;
-
+      form36dropdown = formData.studyZone
       const effList: number[] = [];
       let totalLossSum = 0;
 
@@ -2799,6 +2907,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         const eff = (runMin / shiftMin) * 100;
         effList.push(eff);
       });
+       const totalloss = rows.reduce((sum, r) => sum + (Number(r.loss) || 0), 0);
+      
 
       const avgEff = calcMean(effList);
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
@@ -2808,10 +2918,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          machinesStudied: effList.length,
-          totalCumulativeLossMinutes: totalLossSum,
-          averageEfficiencyPercent: Number(avgEff.toFixed(2)),
-          targetEfficiencyPercent: targetEff,
+          totalLossPercent: Number(totalloss.toFixed(2)),
+          totalUtilisationPercent: (100-Number(totalloss.toFixed(2))),
         },
         result,
       };
