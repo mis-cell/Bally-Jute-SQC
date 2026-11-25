@@ -311,9 +311,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     <span>All Inspection Records</span>
                   </NavLink>
 
-                  <div className="pt-2 pb-1 text-[11px] font-black text-[#EA5551] uppercase tracking-wider px-2">
+                  {/* <div className="pt-2 pb-1 text-[11px] font-black text-[#EA5551] uppercase tracking-wider px-2">
                     Permitted Forms
-                  </div>
+                  </div> */}
 
                   {visibleFormGroups.length === 0 ? (
                     <div className="p-3 text-center text-xs text-[#806B68]">
@@ -354,7 +354,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                               >
                                 {meta.code.replace('FORM-', 'F')}
                               </span>
-                              <span className="truncate">
+                              <span className="whitespace-normal break-words leading-4 min-w-0 flex-1">
                                 {meta.title.split('–')[1]?.trim() || meta.title}
                               </span>
                             </Link>

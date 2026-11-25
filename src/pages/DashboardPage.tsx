@@ -82,7 +82,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {canCreateEntry && (
+          {/* {canCreateEntry && (
             <button
               id="dash-new-inspection-btn"
               onClick={() => navigate(`/new-inspection?form=${encodeURIComponent(permittedForms[0])}`)}
@@ -91,7 +91,7 @@ export const DashboardPage: React.FC = () => {
               <PlusCircle size={15} />
               <span>New Inspection Entry</span>
             </button>
-          )}
+          )} */}
           {canAccessModule('REPORTS') && (
             <button
               id="dash-view-all-reports-btn"
@@ -366,7 +366,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* Department Breakdown */}
-          <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] p-4 shadow-xs">
+          {/* <div className="bg-[#FFFFFF] rounded-xl border border-[#F5D0CB] p-4 shadow-xs">
             <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <Building size={14} className="text-[#EA5551]" />
               <span>Department Inspection Volume</span>
@@ -397,7 +397,7 @@ export const DashboardPage: React.FC = () => {
                 })
               )}
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

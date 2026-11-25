@@ -327,7 +327,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-03': {
     code: 'FORM-03',
     number: 3,
-    title: 'Jute Spreader – Sliver Weight Checking',
+    title: 'Jute Spreader – Sliver Weight Checking Spreader',
     department: 'Jute Spreader / Softener',
     departmentCode: 'JSP',
     section: 'Spreader Delivery',
@@ -560,7 +560,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-06': {
     code: 'FORM-06',
     number: 6,
-    title: 'Breaker Card – Sliver Weight Checking',
+    title: 'Breaker Card – Sliver Weight Checking Breaker Card',
     department: 'Carding',
     departmentCode: 'CRD',
     section: 'Breaker Card',
@@ -641,7 +641,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-07': {
     code: 'FORM-07',
     number: 7,
-    title: 'Inter Card – Sliver Weight Checking',
+    title: 'Inter Card – Sliver Weight Checking Inter Card',
     department: 'Carding',
     departmentCode: 'CRD',
     section: 'Inter Card',
@@ -722,7 +722,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-08': {
     code: 'FORM-08',
     number: 8,
-    title: 'Finisher Card – Sliver Weight Checking',
+    title: 'Finisher Card – Sliver Weight Checking Finisher Card',
     department: 'Carding',
     departmentCode: 'CRD',
     section: 'Finisher Card',
@@ -851,7 +851,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-09': {
     code: 'FORM-09 A',
     number: 9,
-    title: 'Inter Card – Sliver Weight Checking',
+    title: 'Inter Card – Sliver Weight Checking Drawing(1, 2, Inter, Draw Head)',
     department: 'Carding',
     departmentCode: 'CRD',
     section: 'Inter Card',
@@ -932,7 +932,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   'FORM-37': {
     code: 'FORM-09 B',
     number: 37,
-    title: 'Finisher Card – Sliver Weight Checking',
+    title: 'Finisher Card – Sliver Weight Checking Finisher Drawing',
     department: 'Carding',
     departmentCode: 'CRD',
     section: 'Finisher Card',
