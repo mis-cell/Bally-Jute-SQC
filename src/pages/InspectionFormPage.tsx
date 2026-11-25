@@ -1565,7 +1565,7 @@ export const InspectionFormPage: React.FC = () => {
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
              {/*  Submit <strong className="font-mono text-[#EA5551]">{generalInfo.inspectionNo}</strong>{' '} */}
-              {/* (<strong>{formMeta.code}</strong>) a */}are you want to save this data?
+              {/* (<strong>{formMeta.code}</strong>) a */}Are you want to save this inspection data?
             </p>
             <div className="flex justify-end gap-2 pt-1">
               <button
