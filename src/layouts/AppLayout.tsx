@@ -103,7 +103,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
           {/* Quick Search */}
           <div className="hidden md:flex items-center max-w-md w-full mx-6">
-            <form onSubmit={handleSearchSubmit} className="relative w-full">
+            {/* <form onSubmit={handleSearchSubmit} className="relative w-full">
               <input
                 id="header-global-search-input"
                 type="text"
@@ -113,7 +113,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 className="w-full bg-white/20 text-white placeholder-white/80 text-xs rounded-lg pl-9 pr-4 py-1.5 border border-white/30 focus:outline-none focus:ring-1 focus:ring-white"
               />
               <Search className="absolute left-2.5 top-2 text-white/80" size={14} />
-            </form>
+            </form> */}
           </div>
 
           {/* User Account & Actions Menu */}

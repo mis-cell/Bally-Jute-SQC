@@ -384,8 +384,10 @@ export const InspectionFormPage: React.FC = () => {
     inspectionTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     shiftId: 'Shift-A',
     shiftName: 'Shift A (06:00 - 14:00)',
-    qualityId: qualities[0]?.id || 'q-1',
-    qualityName: qualities[0]?.name || 'Standard Quality',
+    qualityId: qualities.find(q => q.code === '15')?.id || 'q-15',
+    qualityName: qualities.find(q => q.code === '15')?.name || 'NA',
+    /* qualityId: qualities[0]?.id || 'q-1',
+    qualityName: qualities[0]?.name || 'Standard Quality', */
     departmentId: formMeta.departmentCode,
     departmentName: formMeta.department,
     machineNo: '',
@@ -417,8 +419,10 @@ export const InspectionFormPage: React.FC = () => {
         inspectionTime: rec.inspectionTime || '',
         shiftId: rec.shiftId || 'Shift-A',
         shiftName: rec.shiftName || 'Shift A (06:00 - 14:00)',
-        qualityId: rec.qualityId || qualities[0]?.id || 'q-1',
-        qualityName: rec.qualityName || qualities[0]?.name || 'Standard Quality',
+        qualityId: rec.qualityId || qualities.find(q => q.code === '15')?.id || 'q-15',
+        qualityName: rec.qualityName || qualities.find(q => q.code === '15')?.name || 'NA',
+        /* qualityId: rec.qualityId || qualities[0]?.id || 'q-1',
+        qualityName: rec.qualityName || qualities[0]?.name || 'Standard Quality', */
         departmentId: rec.departmentId || resolveFormByCode(normalizedKey).departmentCode,
         departmentName: rec.departmentName || resolveFormByCode(normalizedKey).department,
         machineNo: rec.machineNo || '',
@@ -914,7 +918,7 @@ export const InspectionFormPage: React.FC = () => {
                     : 'text-[#EA5551] hover:bg-[#FFF1EE]'
                 }`}
               >
-                Entry Sheet
+                New Inspection
               </button>
               <button
                 id="tab-individual-log"
@@ -926,7 +930,7 @@ export const InspectionFormPage: React.FC = () => {
                     : 'text-[#EA5551] hover:bg-[#FFF1EE]'
                 }`}
               >
-                Log ({formLogs.length})
+                 Inspection Records ({formLogs.length})
               </button>
             </div>
 
@@ -958,7 +962,7 @@ export const InspectionFormPage: React.FC = () => {
 
           {/* Right: Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            {!isReadOnly && (
+            {!isReadOnly && activeViewTab != 'log' && (
               <>
                 {/* <button
                   id="save-draft-btn"
@@ -979,7 +983,7 @@ export const InspectionFormPage: React.FC = () => {
                   className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#EA5551] to-[#D46764] text-white hover:from-[#EA5551] hover:to-[#EA5551] text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
                 >
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  <span>{isSaving ? 'Saving to PostgreSQL...' : 'Submit to HOD'}</span>
+                  <span>{isSaving ? 'Saving Inspection...' : 'Save Inspection'}</span>
                 </button>
               </>
             )}
