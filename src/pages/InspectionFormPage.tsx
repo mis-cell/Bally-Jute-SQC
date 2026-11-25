@@ -693,7 +693,10 @@ export const InspectionFormPage: React.FC = () => {
         navigate(`/inspection/${finalRecord.id}`, {
           replace: true,
           state: { saveFeedback: feedback },
+          
         });
+        setActiveViewTab('log');
+        setExistingRecord(finalRecord);
       }
     } catch (err: any) {
       setSaveFeedback({
@@ -706,10 +709,82 @@ export const InspectionFormPage: React.FC = () => {
     }
   };
 
+  const handleStartNewInspection = () => {
+    const meta = formMeta;
+
+    // Reset existing record
+    setExistingRecord(null);
+
+    // Reset form header fields
+    const initFields: Record<string, any> = {};
+    meta.fields.forEach(field => {
+      if (field.defaultValue !== undefined) {
+        initFields[field.key] = field.defaultValue;
+      }
+    });
+    setFormData(initFields);
+
+    // Initialize fresh reading rows
+    const initRows: Record<string, any>[] = [];
+
+    for (let i = 1; i <= meta.defaultRowCount; i++) {
+      const row: Record<string, any> = { sampleNo: i };
+
+      meta.columns.forEach(col => {
+        if (col.type === 'select' && col.options?.length) {
+          row[col.key] = col.options[0];
+        } else if (col.type === 'readonly') {
+          row[col.key] = i;
+        } else if (
+          col.type === 'text' &&
+          ['rollNo', 'bagNo', 'pieceNo'].includes(col.key)
+        ) {
+          row[col.key] = String(i);
+        } else {
+          row[col.key] = '';
+        }
+      });
+
+      initRows.push(row);
+    }
+
+    setReadingRows(initRows);
+    setRemarks('');
+
+    // Reset common inspection information
+    const now = new Date();
+    const defaultQuality = qualities.find(q => q.code === '15');
+
+    setGeneralInfo({
+      inspectionNo: dataService.generateInspectionNumber(meta.code),
+      inspectionDate: now.toISOString().split('T')[0],
+      inspectionTime: now.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      shiftId: 'Shift-A',
+      shiftName: 'Shift A (06:00 - 14:00)',
+      qualityId: defaultQuality?.id || 'q-15',
+      qualityName: defaultQuality?.name || 'NA',
+      departmentId: meta.departmentCode,
+      departmentName: meta.department,
+      machineNo: '',
+      loomNo: '',
+    });
+
+    setSaveFeedback(null);
+    setShowSubmitConfirmModal(false);
+    setActiveViewTab('form');
+
+    // Remove previous record ID from the URL
+    navigate(`/new-inspection?form=${encodeURIComponent(meta.code)}`, {
+      replace: true,
+    });
+  };
+
   const handleSaveDraft = () => {
     void buildAndSyncRecord('Draft');
   };
-
   const handleSubmitInspectionClick = () => {
     const validationErr = validateForSubmit();
     if (validationErr) {
@@ -911,7 +986,7 @@ export const InspectionFormPage: React.FC = () => {
               <button
                 id="tab-entry-sheet"
                 type="button"
-                onClick={() => setActiveViewTab('form')}
+                onClick={handleStartNewInspection}
                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   activeViewTab === 'form'
                     ? 'bg-[#EA5551] text-white shadow-2xs'
@@ -979,6 +1054,7 @@ export const InspectionFormPage: React.FC = () => {
                   id="submit-inspection-btn"
                   type="button"
                   disabled={isSaving}
+                  
                   onClick={handleSubmitInspectionClick}
                   className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#EA5551] to-[#D46764] text-white hover:from-[#EA5551] hover:to-[#EA5551] text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
                 >
