@@ -169,6 +169,9 @@ export function moistureCorrect(observedWeight: number, observedMR: number, stan
   if (100 + observedMR <= 0) return observedWeight;
   return (observedWeight * (100 + standardMR)) / (100 + observedMR);
 }
+const sliverQuality1 = ['RUSIAN', 'UNCUT', 'JUNGLI', 'CUT', 'VICTOR', 'CANVAS', 'REJECTION', 'SN', 'N', 'GRP', 'S-TWINE', 'Gangarampur', 'Gajol','Raigang'];
+const sliverQuality = ['V/L','T BAG', '12 LBS', '16 LBS', 'SKG WEFT', '10 LBS', 'CUTTING', 'TOW', 'S-TWINE'];
+
 let form36dropdown = 'Weaving';
 const weavingCriteria = [
   'WARP BREAKAGE SINGLE',
@@ -215,7 +218,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     fields: [
       { key: 'batchNo', label: 'Batch No.', type: 'text', required: true },
       { key: 'selectorName', label: 'Selector Name', type: 'text', required: true },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT', 'JUNGLI', 'CUT', 'VICTOR', 'CANVAS', 'REJECTION', 'SN', 'N', 'GRP', 'S-TWINE', 'Gangarampur', 'Gajol']},
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality1 },
       { key: 'nominalWeightKg', label: 'Target Morrah Weight', type: 'number', defaultValue: 1.80, unit: 'gm' },
       { key: 'maxCvPct', label: 'Max Permissible C.V', type: 'number', defaultValue: 8.0, unit: '%' },
       { key: 'grade', label: 'Grade', type: 'text', defaultValue: '', unit: '%' },
@@ -255,12 +258,12 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       return {
         metrics: {
           sampleCount: vals.length,
-          avgWeightKg: Number(avg.toFixed(3)),
-          minWeightKg: Number(min.toFixed(3)),
-          maxWeightKg: Number(max.toFixed(3)),
-          rangeKg: Number(range.toFixed(3)),
+          avgWeightGm: Number(avg.toFixed(3)),
+          minWeightGm: Number(min.toFixed(3)),
+          maxWeightGm: Number(max.toFixed(3)),
+          rangeGm: Number(range.toFixed(3)),
           cvPercent: Number(cv.toFixed(2)),
-          targetWeightKg: target,
+          targetWeightGm: target,
         },
         result,
       };
@@ -339,8 +342,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Spreader Sliver Weight: Nominal ± 3%. Standard Moisture Regain: 28% to 32%. Max C.V.%: 4.5%.',
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality1 },
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight ', type: 'number', defaultValue: 34.0, unit: 'lbs/100 yds' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
       { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
@@ -350,7 +353,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
       { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
-      { key: 'convertedWeightYds', label: 'Converted Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+      { key: 'convertedWeightYds', label: 'Converted Weight in ', type: 'number', unit: 'LBS/100 YDS', precision: 2, required: true }
     ],
     calculate: (formData, rows) => {
       const stdMR = Number(formData.standardMR) || 30.0;
@@ -400,7 +403,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         metrics: {
           sampleCount: obsWeights.length,
           avgobservedWeightLbs: Number(avgObs.toFixed(3)),
-          avgConvertedLbs: Number(avgConverted.toFixed(3)),
+          avgConvertedLbsPer100Yds: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
           cvPercent:cvPercent.toFixed(2)
@@ -423,8 +426,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Morrah Feeding Rate: 36–42 Morrahs/min. Doffing Loss Time: ≤ 25 seconds.',
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
-      { key: 'targetFeedPerMin', label: 'Standard Feeding Rate (Morrah/min)', type: 'number', defaultValue: 38, unit: 'm/min' },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
+      { key: 'targetFeedPerMin', label: 'Standard Feeding Rate ', type: 'number', defaultValue: 38, unit: 'Morrah/min' },
       { key: 'maxDoffingSec', label: 'Max Doffing Time', type: 'number', defaultValue: 25, unit: 'sec' },
       { key: 'feederName', label: 'Feeder Name', type: 'text', defaultValue: '', unit: '' },
       { key: 'receiverName', label: 'Receiver Name', type: 'text', defaultValue: '', unit: '' }
@@ -494,7 +497,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Emulsion Application: 22% to 26% on fiber. Oil content in emulsion: 18% to 22%.',
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
       { key: 'standardEmulsionPct', label: 'Standard Emulsion Application ', type: 'number', defaultValue: 24.0, unit: '%' },
       /* { key: 'standardOilPctInEmulsion', label: 'Standard Oil in Emulsion ', type: 'number', defaultValue: 20.0, unit: '%' }, */
       { key: 'temperature', label: 'Temperature ', type: 'number', defaultValue: '', unit: '°C' },
@@ -578,8 +581,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Spreader Sliver Weight: Nominal ± 3%. Standard Moisture Regain: 28% to 32%. Max C.V.%: 4.5%.',
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight ', type: 'number', defaultValue: 34.0, unit: 'lbs/100 yds' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
       { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
@@ -589,7 +592,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
       { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
-      { key: 'convertedWeightYds', label: 'Converted Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+      { key: 'convertedWeightYds', label: 'Converted Weight in ', type: 'number', unit: 'lbs/100 yds', precision: 2, required: true }
     ],
     calculate: (formData, rows) => {
       const stdMR = Number(formData.standardMR) || 30.0;
@@ -638,7 +641,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         metrics: {
           sampleCount: obsWeights.length,
           avgobservedWeightLbs: Number(avgObs.toFixed(3)),
-          avgConvertedLbs: Number(avgConverted.toFixed(3)),
+          avgConvertedLbsPer100Yds: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
           cvPercent:cvPercent.toFixed(2)
@@ -661,8 +664,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Inter Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight', type: 'number', defaultValue: 34.0, unit: 'lbs/100 yds' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
       { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
@@ -721,7 +724,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         metrics: {
           sampleCount: obsWeights.length,
           avgobservedWeightLbs: Number(avgObs.toFixed(3)),
-          avgConvertedLbs: Number(avgConverted.toFixed(3)),
+          avgConvertedLbsPer100Yds: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
           cvPercent:cvPercent.toFixed(2)
@@ -744,8 +747,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Finisher Card Sliver Wt: Nominal ± 3.0%. Standard MR: 24%. Max C.V.%: 4.0%.',
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight', type: 'number', defaultValue: 34.0, unit: 'lbs/100 yds' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
       { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
@@ -755,7 +758,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
       { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
-      { key: 'convertedWeightYds', label: 'Converted Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+      { key: 'convertedWeightYds', label: 'Converted Weight in ', type: 'number', unit: 'lbs/100 yds', precision: 2, required: true }
     ],
     calculate: (formData, rows) => {
       const stdMR = Number(formData.standardMR) || 30.0;
@@ -803,7 +806,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         metrics: {
           sampleCount: obsWeights.length,
           avgobservedWeightLbs: Number(avgObs.toFixed(3)),
-          avgConvertedLbs: Number(avgConverted.toFixed(3)),
+          avgConvertedLbsPer100Yds: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
           cvPercent:cvPercent.toFixed(2)
@@ -812,55 +815,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       };
     },
   },
-  /* 'FORM-09': {
-    code: 'FORM-09',
-    number: 9,
-    title: 'Finisher Drawing – Sliver Weight Checking',
-    department: 'Drawing',
-    departmentCode: 'DRW',
-    section: 'Finisher Drawing',
-    sampleUnit: 'lbs / 100 yds',
-    defaultRowCount: 10,
-    hasMoistureCorrection: true,
-    description: 'Finisher drawing sliver weight checking before spinning frames.',
-    sourceStandardText: 'Standard Finisher Drawing Sliver Wt: Nominal ± 2.5%. Standard MR: 22%. Max C.V.%: 3.5%.',
-    fields: [
-      { key: 'drawingPass', label: 'Drawing Passage (1st / 2nd / 3rd)', type: 'select', options: ['1st Drawing', '2nd Drawing', '3rd / Finisher Drawing'], defaultValue: '3rd / Finisher Drawing' },
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 3.5, unit: 'lbs' },
-      { key: 'standardMR', label: 'Standard %MR', type: 'number', defaultValue: 22.0, unit: '%' },
-      { key: 'observedMR', label: 'Observed %MR', type: 'number', defaultValue: 21.8, unit: '%' },
-    ],
-    columns: [
-      { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
-      { key: 'observedWeightLbs', label: 'Observed Weight (lbs)', type: 'number', precision: 3, required: true },
-    ],
-    calculate: (formData, rows) => {
-      const stdMR = Number(formData.standardMR) || 22.0;
-      const obsMR = Number(formData.observedMR) || 22.0;
-      const stdWt = Number(formData.standardSliverWeight) || 3.5;
-      const weights = rows.map(r => Number(r.observedWeightLbs) || 0).filter(v => v > 0);
-      const converted = weights.map(w => moistureCorrect(w, obsMR, stdMR));
-      const avgConverted = calcMean(converted);
-      const cv = calcCV(converted);
-      const dev = stdWt > 0 ? ((avgConverted - stdWt) / stdWt) * 100 : 0;
-
-      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
-      if (weights.length === 0) result = 'WARNING';
-      else if (Math.abs(dev) > 4.0 || cv > 4.5) result = 'FAIL';
-      else if (Math.abs(dev) > 2.5 || cv > 3.5) result = 'WARNING';
-
-      return {
-        metrics: {
-          avgObserved: Number(calcMean(weights).toFixed(3)),
-          avgConverted: Number(avgConverted.toFixed(3)),
-          deviationPct: Number(dev.toFixed(2)),
-          cvPercent: Number(cv.toFixed(2)),
-          standardSliverWeight: stdWt,
-        },
-        result,
-      };
-    },
-  }, */
+  
   'FORM-09': {
     code: 'FORM-09 A',
     number: 9,
@@ -875,9 +830,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Inter Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
       { key: 'drawingPassage', label: 'Drawing Passage', type: 'select', options: ['Drawing_1', 'Drawing_2', 'Inter Drawing', 'Draw Head'], defaultValue: 'Drawing_1' },
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight', type: 'number', defaultValue: 34.0, unit: 'lbs/100 yds' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
       { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
@@ -887,7 +842,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
       { key: 'observedWeightLbs', label: 'Observed Weight ', type: 'number', unit: 'GM', precision: 2, required: true },
-      { key: 'convertedWeightYds', label: 'Converted Weight in 100', type: 'number', unit: 'YDS', precision: 2, required: true }
+      { key: 'convertedWeightYds', label: 'Converted Weight in 100', type: 'number', unit: 'lbs/100 yds', precision: 2, required: true }
     ],
     calculate: (formData, rows) => {
       const stdMR = Number(formData.standardMR) || 30.0;
@@ -935,7 +890,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         metrics: {
           sampleCount: obsWeights.length,
           avgobservedWeightLbs: Number(avgObs.toFixed(3)),
-          avgConvertedLbs: Number(avgConverted.toFixed(3)),
+          avgConvertedLbsPer100Yds: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
           cvPercent: cvPercent.toFixed(2)
@@ -958,9 +913,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Finisher Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
       { key: 'drawingPassage', label: 'Drawing Passage', type: 'select', options: ['Finisher_Drawing'], defaultValue: 'Drawing_1' },
-      { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/1440 yds)', type: 'number', defaultValue: 34.0, unit: 'LBS' },
+      { key: 'standardSliverWeight', label: 'Standard Sliver Weight', type: 'number', defaultValue: 34.0, unit: 'lbs/100 yds' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
       { key: 'standardTestLength', label: 'Standard Test length', type: 'number', defaultValue:'', unit: 'YDS' },
@@ -1018,7 +973,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         metrics: {
           sampleCount: obsWeights.length,
           avgobservedWeightLbs: Number(avgObs.toFixed(3)),
-          avgConvertedLbs: Number(avgConverted.toFixed(3)),
+          avgConvertedLbsPer100Yds: Number(avgConverted.toFixed(3)),
           ConvertedWeightRange:minMRc +' - '+maxMRc,
           standardSliverWeight: stdWt,
           cvPercent: cvPercent.toFixed(2)
@@ -2337,9 +2292,11 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     fields: [
       { key: 'Gsm', label: 'GSM', type: 'number', defaultValue: '0', unit: 'g/m²' },
       { key: 'width', label: 'Width', type: 'number', defaultValue: 0, unit: 'cm' },
-      { key: 'rollLength', label: 'Roll length', type: 'number', defaultValue: 0, unit: 'Metre' },
+      { key: 'standardRollLength', label: 'Standard Roll length', type: 'number', defaultValue: 0, unit: 'Metre' },
+      { key: 'observedRollLength', label: 'Observed Roll length', type: 'number', defaultValue: 0, unit: 'Metre' },
       { key: 'standardRollWt', label: 'Standard Roll WT', type: 'number', defaultValue: 0, unit: 'kg' },
-      { key: 'standardMoisture', label: 'Standard Moisture', type: 'number', defaultValue: 0, unit: '%' }
+      { key: 'standardMoisture', label: 'Standard Moisture', type: 'number', defaultValue: 0, unit: '%' },
+      { key: 'quality', label: 'Quality', type: 'text', unit: '' }
     ],
 
     columns: [
@@ -2357,8 +2314,10 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const gsm = Number(formData.Gsm) || 0;
       const width = Number(formData.width) || 0;
       const rollLength = Number(formData.rollLength) || 0;
+      const observedRollLength = Number(formData.observedRollLength) || 0;
       const computedStdWt = (gsm * width * rollLength) / 100000;
-      const standardRollWt = Number(formData.standardRollWt) || computedStdWt;
+      formData.standardRollWt =Number((Number(formData.Gsm)*Number(formData.width)*Number(observedRollLength))/100000).toFixed(2) 
+      const standardRollWt = Number(formData.standardRollWt) ;
       const standardMoisture = Number(formData.standardMoisture) || 0;
 
       const netWts: number[] = [];
@@ -2528,6 +2487,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     fields: [
       { key: 'productCategory', label: 'Sample Tested', type: 'select', options: ['Raw Jute', 'Spd Sliver', 'B/C Sliver', 'F/C Sliver', 'Drg Sliver', 'Spg Yarn', 'WDG Yarn', 'Fabric', 'SEWING Yarn'], defaultValue: 'Raw Jute' },
       { key: 'testParameter', label: 'Test Parameter', type: 'select', options: ['Oil Content %', 'PPM Content'], defaultValue: 'Oil Content %' },
+      { key: 'quality', label: 'Quality', type: 'text' },
+      { key: 'standardValue', label: 'Standard Value', type: 'text' },
     ],
     columns: [
       { key: 'maxRequirment', label: 'Max Requirement', type: 'text', width: '120px' },
@@ -2592,8 +2553,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Tensile Strength: As per Quality Master (Strip/Grab). Standard Seam Strength: Min 80 kgf for B.Twill.',
     fields: [
       { key: 'testMethod', label: 'Test Method', type: 'text'},
-      { key: 'standardtestLength', label: 'Standard Test Length', type: 'number', unit: 'kgf' },
-      { key: 'standardTraversSpeed', label: 'Standard Travers Speed', type: 'number', unit: '' },
+      { key: 'standardtestLength', label: 'Standard Test Length', type: 'number', unit: 'cm' },
+      { key: 'standardTraversSpeed', label: 'Standard Travers Speed', type: 'number', unit: 'Inch/Min' },
       { key: 'standardWarpStrength', label: 'Standard avg Warp Strength', type: 'number', unit: 'kgf' },
       { key: 'belowMinWarpStrength', label: 'Below min Warp Strength', type: 'number', unit: 'kgf' },
       { key: 'standardWeftStrength', label: 'Standard Avg Weft Strength', type: 'number', unit: 'kgf' },
@@ -2736,7 +2697,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       const observedNetwt = Number(formData.observedGrosswt)-Number(formData.observedTearwt);
       formData.observedNetwt = observedNetwt;
-      const diffNetwt = Number(formData.challanWt)-Number(observedNetwt);
+      const diffNetwt = Number(observedNetwt)-Number(formData.challanWt);
       formData.differenceChallanWt = diffNetwt;
       
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
@@ -2929,8 +2890,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'machineNo', label: 'Machine / Frame No.', type: 'text', required: true },
       { key: 'make', label: 'Make', type: 'text', required: true },
       { key: 'noofdelivery', label: 'No of Delivery/Spindle', type: 'number', required: true },
-      { key: 'speedUnit', label: 'Unit', type: 'select', options: ['RPM', 'PPM', 'FPM (f/min)'] },
-      { key: 'deviationPct', label: 'Deviation % (Auto)', type: 'number', precision: 2 },
+      { key: 'speedUnit', label: 'Unit', type: 'select', options: ['RPM', 'PPM', 'FPM (f/min)','MPM(m/min)'] },
+      { key: 'standardSpeed', label: 'Standard Speed', type: 'number', precision: 2 },
+      { key: 'observedSpeed', label: 'Observed Speed', type: 'number', precision: 2 },
       { key: 'observedSpeed', label: 'Remarks', type: 'select', options: ['Action Taken', 'Rectification'] },
     ],
     calculate: (formData, rows) => {
