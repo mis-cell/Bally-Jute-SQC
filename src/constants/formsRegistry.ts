@@ -215,9 +215,10 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     fields: [
       { key: 'batchNo', label: 'Batch No.', type: 'text', required: true },
       { key: 'selectorName', label: 'Selector Name', type: 'text', required: true },
-      { key: 'lotNo', label: 'Lot / Mark No.', type: 'text' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT', 'JUNGLI', 'CUT', 'VICTOR', 'CANVAS', 'REJECTION', 'SN', 'N', 'GRP', 'S-TWINE', 'Gangarampur', 'Gajol']},
       { key: 'nominalWeightKg', label: 'Target Morrah Weight', type: 'number', defaultValue: 1.80, unit: 'gm' },
       { key: 'maxCvPct', label: 'Max Permissible C.V', type: 'number', defaultValue: 8.0, unit: '%' },
+      { key: 'grade', label: 'Grade', type: 'text', defaultValue: '', unit: '%' },
     ],
     columns: [
       { key: 'sampleNo', label: 'Sample No.', type: 'readonly', width: '90px' },
@@ -337,6 +338,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Sliver weight checking per 100 yds with moisture regain correction (Converted Weight = Observed Wt × (100 + Std MR)/(100 + Obs MR)).',
     sourceStandardText: 'Standard Spreader Sliver Weight: Nominal ± 3%. Standard Moisture Regain: 28% to 32%. Max C.V.%: 4.5%.',
     fields: [
+      { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
@@ -415,10 +418,12 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     departmentCode: 'JSP',
     section: 'Spreader Operation',
     sampleUnit: 'morrah/min',
-    defaultRowCount: 5,
+    defaultRowCount: 1,
     description: 'Calculates: Morrah Feed / Min = Total No. of Morrah Feed ÷ Roll Building Time (minutes). Checks Doffing Loss Time against standard.',
     sourceStandardText: 'Standard Morrah Feeding Rate: 36–42 Morrahs/min. Doffing Loss Time: ≤ 25 seconds.',
     fields: [
+      { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
       { key: 'targetFeedPerMin', label: 'Standard Feeding Rate (Morrah/min)', type: 'number', defaultValue: 38, unit: 'm/min' },
       { key: 'maxDoffingSec', label: 'Max Doffing Time', type: 'number', defaultValue: 25, unit: 'sec' },
       { key: 'feederName', label: 'Feeder Name', type: 'text', defaultValue: '', unit: '' },
@@ -488,6 +493,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Checks Oil-in-Water emulsion strength, specific gravity, flow rate, and application percentage.',
     sourceStandardText: 'Standard Emulsion Application: 22% to 26% on fiber. Oil content in emulsion: 18% to 22%.',
     fields: [
+      { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
       { key: 'standardEmulsionPct', label: 'Standard Emulsion Application ', type: 'number', defaultValue: 24.0, unit: '%' },
       /* { key: 'standardOilPctInEmulsion', label: 'Standard Oil in Emulsion ', type: 'number', defaultValue: 20.0, unit: '%' }, */
       { key: 'temperature', label: 'Temperature ', type: 'number', defaultValue: '', unit: '°C' },
@@ -570,6 +577,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Sliver weight checking per 100 yds with moisture regain correction (Converted Weight = Observed Wt × (100 + Std MR)/(100 + Obs MR)).',
     sourceStandardText: 'Standard Spreader Sliver Weight: Nominal ± 3%. Standard Moisture Regain: 28% to 32%. Max C.V.%: 4.5%.',
     fields: [
+      { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
@@ -651,6 +660,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Inter card sliver weight checking with moisture regain conversion and C.V.%.',
     sourceStandardText: 'Standard Inter Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
     fields: [
+      { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
@@ -732,6 +743,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Finisher card sliver weight checking with moisture regain conversion and C.V.%.',
     sourceStandardText: 'Standard Finisher Card Sliver Wt: Nominal ± 3.0%. Standard MR: 24%. Max C.V.%: 4.0%.',
     fields: [
+      { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
       { key: 'observedMR', label: 'Observed MR at Delivery', type: 'number', defaultValue: 29.5, unit: '%' },
@@ -861,6 +874,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Inter card sliver weight checking with moisture regain conversion and C.V.%.',
     sourceStandardText: 'Standard Inter Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
     fields: [
+      { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
       { key: 'drawingPassage', label: 'Drawing Passage', type: 'select', options: ['Drawing_1', 'Drawing_2', 'Inter Drawing', 'Draw Head'], defaultValue: 'Drawing_1' },
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/100 yds)', type: 'number', defaultValue: 34.0, unit: 'lbs' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
@@ -942,6 +957,8 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Finisher card sliver weight checking with moisture regain conversion and C.V.%.',
     sourceStandardText: 'Standard Finisher Card Sliver Wt: Nominal ± 3.0%. Standard MR: 25%. Max C.V.%: 4.5%.', 
     fields: [
+      { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
+      { key: 'quality', label: 'Quality', type: 'select', options: ['RUSIAN', 'UNCUT6', 'JUNGLI', 'CUT6', 'VICTOR', 'CANVAS', 'REJECTION-8', 'SN6', 'GRP', 'S-TWINE'] },
       { key: 'drawingPassage', label: 'Drawing Passage', type: 'select', options: ['Finisher_Drawing'], defaultValue: 'Drawing_1' },
       { key: 'standardSliverWeight', label: 'Standard Sliver Weight (lbs/1440 yds)', type: 'number', defaultValue: 34.0, unit: 'LBS' },
       { key: 'standardMR', label: 'Standard MR', type: 'number', defaultValue: 30.0, unit: '%' },
@@ -1504,6 +1521,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       { key: 'pertialWeftMissing', label: 'Partial Weft Missing', type: 'text' },
       { key: 'wrongDenting', label: 'Wrong Denting', type: 'text' },
       { key: 'weftMissing', label: 'Weft Missing', type: 'text' },
+      { key: 'shiftTime', label: 'ShiftTime', type: 'select', options: ['A','B','C'] },
     ],
     calculate: (formData, rows) => {
       const running = Number(formData.totalLoomsRunning) || 120;
@@ -1555,43 +1573,86 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Calendered Width: Nominal ± 0.25". %MR: 14%–16%. Finish: Uniform, free of roller cuts.',
     fields: [
       { key: 'zone', label: 'Zone', type: 'select', options: ['Calendar', 'Cutting', 'Before Rolling(Unrepaired)', 'After Rolling(Repaired)', 'After Rolling(Unrepaired)'] },
-      { key: 'standardLengthfabric', label: 'Standard Length of Fabric', type: 'number', defaultValue: '' },
+      { key: 'standardLengthfabric', label: 'Standard Length of Fabric', type: 'number', defaultValue: '', unit:'m'},
       { key: 'standardMajorFault', label: 'Standard Major Fault/100 (M)', type: 'number', defaultValue: '' },
+      { key: 'standardMinorFault', label: 'Standard Minor Fault/100 (M)', type: 'number', defaultValue: '' },
     ],
     columns: [
-      { key: 'loomNo', label: 'Loom No.', type: 'text', width: '100px' },
-      { key: 'shiftTime', label: 'ShiftTime', type: 'select', options: ['A','B','C'] },
-      { key: 'majorGaw', label: 'Major Gaw ', type: 'number' },
-      { key: 'multipilewpBkg', label: 'Multiple WP BKG', type: 'text' },
-      { key: 'majorFloat', label: 'Float', type: 'text' },
-      { key: 'snarl', label: 'Snarl', type: 'text' },
-      { key: 'majorWftBkg', label: 'Weft BKG', type: 'text' },
-      { key: 'defecteiveSelves', label: 'Defective Selves', type: 'text' },
-      { key: 'majorBlack', label: 'Black/OIL Spot', type: 'text' },
-      { key: 'majorOther', label: 'Other', type: 'text' },
-      { key: 'minorGaw', label: 'Minor Gaw ', type: 'number' },
-      { key: 'pickGap', label: 'Pick Gap', type: 'text' },
-      { key: 'slackBeat', label: 'Slack Beat', type: 'text' },
-      { key: 'minorFloat', label: 'Float', type: 'text' },
-      { key: 'singleWPBkg', label: 'Single WP BKG', type: 'text' },
-      { key: 'minorWeftBkg', label: 'Weft BKG', type: 'text' },
-      { key: 'minorBlack', label: 'Black/OIL Spot', type: 'text' },
-      { key: 'hardBeat', label: 'Hard Beat', type: 'text' },
-      { key: 'oof', label: 'OOf', type: 'text' },
-      { key: 'minorOther', label: 'Others', type: 'text' },
-
+      { key: 'loomNo', label: 'Loom No.', type: 'text', width: '120px' },
+      { key: 'shiftTime', label: 'ShiftTime', type: 'select', options: ['A','B','C'], width: '100px' },
+      { key: 'majorGaw', label: 'Major Gaw', type: 'number', width: '120px' },
+      { key: 'multipilewpBkg', label: 'Multiple WP BKG', type: 'text', width: '160px' },
+      { key: 'majorFloat', label: 'Float', type: 'text', width: '120px' },
+      { key: 'snarl', label: 'Snarl', type: 'text', width: '120px' },
+      { key: 'majorWftBkg', label: 'Weft BKG', type: 'text', width: '120px' },
+      { key: 'defecteiveSelves', label: 'Defective Selves', type: 'text', width: '150px' },
+      { key: 'majorBlack', label: 'Black/OIL Spot', type: 'text', width: '140px' },
+      { key: 'majorOther', label: 'Other', type: 'text', width: '120px' },
+      { key: 'minorGaw', label: 'Minor Gaw', type: 'number', width: '120px' },
+      { key: 'pickGap', label: 'Pick Gap', type: 'text', width: '120px' },
+      { key: 'slackBeat', label: 'Slack Beat', type: 'text', width: '120px' },
+      { key: 'minorFloat', label: 'Float', type: 'text', width: '120px' },
+      { key: 'singleWPBkg', label: 'Single WP BKG', type: 'text', width: '150px' },
+      { key: 'minorWeftBkg', label: 'Weft BKG', type: 'text', width: '140px' },
+      { key: 'minorBlack', label: 'Black/OIL Spot', type: 'text', width: '150px' },
+      { key: 'hardBeat', label: 'Hard Beat', type: 'text', width: '120px' },
+      { key: 'loop', label: 'Loop', type: 'text', width: '100px' },
+      { key: 'minorOther', label: 'Others', type: 'text', width: '100px' },
     ],
     calculate: (formData, rows) => {
       const widths = rows.map(r => Number(r.measuredWidth) || 0).filter(v => v > 0);
-      const mrs = rows.map(r => Number(r.majorFloat) || 0).filter(v => v > 0);
+      const mrs = rows.map(r => Number(r.loomNo) || 0).filter(v => v > 0);
       const avgW = calcMean(widths);
       const avgMR = calcMean(mrs);
       const stdW = Number(formData.standardWidthInch) || 40.0;
-      const totalMajorFault = rows.reduce((sum, r) => sum + (Number(r.majorFloat) || 0), 0);
-      const totalMinorFault = rows.reduce((sum, r) => sum + (Number(r.minorFloat) || 0), 0 );
+      const validRows = rows.filter(
+        r => String(r.loomNo || '').trim() !== ''
+      );
+
+      const majorFields = [
+        'majorGaw',
+        'multipilewpBkg',
+        'majorFloat',
+        'snarl',
+        'majorWftBkg',
+        'defecteiveSelves',
+        'majorBlack',
+        'majorOther',
+      ];
+
+      const minorFields = [
+        'minorGaw',
+        'pickGap',
+        'slackBeat',
+        'minorFloat',
+        'singleWPBkg',
+        'minorWeftBkg',
+        'minorBlack',
+        'hardBeat',
+        'loop',
+        'minorOther',
+      ];
+
+      const totalMajorFault = validRows.reduce(
+        (sum, row) =>
+          sum + majorFields.reduce(
+            (rowSum, field) => rowSum + (Number(row[field]) || 0),
+            0
+          ),
+        0
+      );
+
+      const totalMinorFault = validRows.reduce(
+        (sum, row) =>
+          sum + minorFields.reduce(
+            (rowSum, field) => rowSum + (Number(row[field]) || 0),
+            0
+          ),
+        0
+      );
       const standardLength = Number(formData.standardLengthfabric) || 0;
-      const major100 = mrs.length> 0 ? ((totalMajorFault * 100)/(Number(mrs.length)*standardLength)) : 0;
-      const minor100 = mrs.length> 0? ((totalMinorFault * 100)/(Number(mrs.length)*standardLength)) : 0;
+      const major100 = validRows.length> 0 ? ((totalMajorFault * 100)/(Number(validRows.length)*standardLength)) : 0;
+      const minor100 = validRows.length> 0? ((totalMinorFault * 100)/(Number(validRows.length)*standardLength)) : 0;
       
 
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
@@ -1603,8 +1664,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         metrics: {
           totalMajorFault: Number(totalMajorFault),
           totalMinorFault: Number(totalMinorFault),
-          majorfault100M: major100.toFixed(2),
-          minorfault100M: minor100.toFixed(2),
+          totalFault100M: (Number(totalMajorFault)+Number(totalMinorFault)).toFixed(2),
         },
         result,
       };
@@ -1652,9 +1712,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     ],
     calculate: (formData, rows) => {
       const hylts = rows.map(r => Number(r.actualHYLT) || 0).filter(v => v > 0);
-      const widths = rows.map(r => Number(r.widthInch) || 0).filter(v => v > 0);
+      //const widths = rows.map(r => Number(r.widthInch) || 0).filter(v => v > 0);
       const avgHY = calcMean(hylts);
-      const avgW = calcMean(widths);
+      //const avgW = calcMean(widths);
       const nomHY = Number(formData.nominalHYLT) || 25.0;
       const devHY = nomHY > 0 ? ((avgHY - nomHY) / nomHY) * 100 : 0;
 
@@ -1676,6 +1736,10 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
         r.convertedHYlt = r.convertedGsm> 0 && formData.standardGsm > 0 ? (((Number(r.convertedGsm) - Number(formData.standardGsm))*100)/Number(r.convertedGsm)).toFixed(2): '';
       });
 
+      const avgoblenth = rows.map(r => Number(r.observedLength) || 0).filter(v => v > 0);
+      const totalobservedlt = rows.reduce((sum, r) => sum + (Number(r.observedLength) || 0), 0);
+      const avgObservedLength = avgoblenth.length> 0 ? totalobservedlt/avgoblenth.length : 0;
+
       const avgcnvg = rows.map(r => Number(r.convertedGsm) || 0).filter(v => v > 0);
       const totalcnvg = rows.reduce((sum, r) => sum + (Number(r.convertedGsm) || 0), 0);
       const avgCovertedGsm = avgcnvg.length> 0 ? totalcnvg/avgcnvg.length : 0;
@@ -1687,6 +1751,32 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const avgcnvhy = rows.map(r => Number(r.convertedHYlt) || 0).filter(v => v > 0);
       const totalcnvhy = rows.reduce((sum, r) => sum + (Number(r.convertedHYlt) || 0), 0);
       const avgconvertedHYlt = avgcnvhy.length > 0 ? totalcnvhy/avgcnvhy.length : 0;
+
+      const widths = rows.flatMap(r => [
+        r.width1,
+        r.width2,
+        r.width3,
+        r.width4
+      ])
+      .map(Number)
+      .filter(v => Number.isFinite(v) && v > 0);
+      const avgWidth = widths.length ? Number((widths.reduce((sum, v) => sum + v, 0) / widths.length).toFixed(2)): '';
+      const widthRangedata = widths.length ? `${Math.min(...widths)} - ${Math.max(...widths)}`: '';
+
+      const avgendm = rows.map(r => Number(r.endsDm) || 0).filter(v => v > 0);
+      const totalendm = avgendm.reduce((sum, v) => sum + v, 0);
+      const avgendsDm = avgendm.length > 0 ? Number((totalendm / avgendm.length).toFixed(2)): '';
+      const endRangedata = avgendm.length > 0 ? `${Math.min(...avgendm)} - ${Math.max(...avgendm)}`: '';
+
+      const pickss = rows.flatMap(r => [
+        r.picksDm1,
+        r.picksDm2
+      ])
+      .map(Number)
+      .filter(v => Number.isFinite(v) && v > 0);
+      const avgPick = pickss.length ? Number((pickss.reduce((sum, v) => sum + v, 0) / pickss.length).toFixed(2)): '';
+      const pickRangedata = pickss.length ? `${Math.min(...pickss)} - ${Math.max(...pickss)}`: '';
+
       
       let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
       if (hylts.length === 0) result = 'WARNING';
@@ -1695,9 +1785,17 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
 
       return {
         metrics: {
-          avgconvertedGsm: Number(avgCovertedGsm.toFixed(2)),
-          avgobservedHYlt: Number(avgobservedHYlt.toFixed(2)),
-          avgconvertedHYlt: Number(avgconvertedHYlt.toFixed(2)),
+          avgObservedLength: Number(avgObservedLength.toFixed(2)),
+          avgConvertedGsm: Number(avgCovertedGsm.toFixed(2)),
+          avgObservedHYlt: Number(avgobservedHYlt.toFixed(2)),
+          avgConvertedHYlt: Number(avgconvertedHYlt.toFixed(2)),
+          avgWidth: Number(avgWidth),
+          widthRange: widthRangedata,
+          avgEndsDm: Number(avgendsDm) > 0 ? avgendsDm : 0,
+          endsDmRange:endRangedata,
+          avgPicksDm:Number(avgPick),
+          picksDmRange:pickRangedata,
+
         },
         result,
       };
@@ -1987,7 +2085,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Validates Herackle stitch count against the source standard of 9 to 11 stitches/DM.',
     sourceStandardText: 'Source Standard: 9 to 11 stitches / DM. Uniform tension, no dropped stitches.',
     fields: [
-      { key: 'machineNo', label: 'Herackle Machine No.', type: 'text', defaultValue: 'Herackle-04' },
+      { key: 'zone', label: 'Zone', type: 'select', options: ['Main mill', 'Godwin 15', 'Godwin 10', 'Godwin 1A', 'Godwin 3', 'Out Source'] },
+       { key: 'operator', label: 'Operator', type: 'text', defaultValue: '' },
+      { key: 'machineNo', label: 'Herackle Machine No.', type: 'text', defaultValue: '' },
       { key: 'standardMinStitches', label: 'Min Stitches/DM', type: 'number', defaultValue: 9 },
       { key: 'standardMaxStitches', label: 'Max Stitches/DM', type: 'number', defaultValue: 11 },
     ],

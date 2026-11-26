@@ -72,6 +72,133 @@ export const InspectionFormPage: React.FC = () => {
     [selectedFormCode]
   );
 
+const handleEnterAsTabUpDown = (
+  e: React.KeyboardEvent<
+    HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+  >
+) => {
+  if (e.key !== 'Enter') return;
+
+  e.preventDefault();
+
+  const current = e.currentTarget;
+
+  // Find the current table cell and row
+  const currentCell = current.closest('td');
+  const currentRow = current.closest('tr');
+
+  if (currentCell && currentRow) {
+    const columnIndex = Array.from(currentRow.children).indexOf(currentCell);
+
+    // Get all rows in the same table
+    const table = current.closest('table');
+    const rows = Array.from(table?.querySelectorAll('tbody tr') || []);
+
+    const currentRowIndex = rows.indexOf(currentRow);
+
+    // Move down to the next row, same column
+    for (let i = currentRowIndex + 1; i < rows.length; i++) {
+      const nextCell = rows[i].children[columnIndex];
+
+      const nextField = nextCell?.querySelector<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >(
+        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
+      );
+
+      if (nextField && !nextField.readOnly && nextField.offsetParent !== null) {
+        nextField.focus();
+
+        if (
+          nextField instanceof HTMLInputElement &&
+          nextField.type !== 'date' &&
+          nextField.type !== 'time'
+        ) {
+          nextField.select();
+        }
+
+        return;
+      }
+    }
+
+    return;
+  }
+
+  // Outside table: move to the next visible field
+  const container = document.getElementById('inspection-entry-page');
+  if (!container) return;
+
+  const fields = Array.from(
+    container.querySelectorAll<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
+    )
+  ).filter(
+    field =>
+      field.tabIndex !== -1 &&
+      !field.readOnly &&
+      field.offsetParent !== null
+  );
+
+  const currentIndex = fields.indexOf(current);
+  const nextField = fields[currentIndex + 1];
+
+  if (nextField) {
+    nextField.focus();
+
+    if (
+      nextField instanceof HTMLInputElement &&
+      nextField.type !== 'date' &&
+      nextField.type !== 'time'
+    ) {
+      nextField.select();
+    }
+  }
+};
+
+  
+const handleEnterAsTab = (
+  e: React.KeyboardEvent<
+    HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+  >
+) => {
+  if (e.key !== 'Enter') return;
+
+  e.preventDefault();
+
+  const container = document.getElementById('inspection-entry-page');
+  if (!container) return;
+
+  const fields = Array.from(
+    container.querySelectorAll<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
+    )
+  ).filter(
+    field =>
+      field.tabIndex !== -1 &&
+      !field.readOnly &&
+      field.offsetParent !== null
+  );
+
+  const currentIndex = fields.indexOf(e.currentTarget);
+
+  if (currentIndex === -1) return;
+
+  const nextField = fields[currentIndex + 1];
+
+  if (nextField) {
+    nextField.focus();
+    
+    if (nextField instanceof HTMLInputElement && nextField.type !== 'date' && nextField.type !== 'time') {
+      nextField.select();
+    }
+  }
+};
+
+
   const weavingCriteria = [
     'WARP BREAKAGE SINGLE',
     'WARP BREAKAGE MULTIPLE',
@@ -904,7 +1031,7 @@ export const InspectionFormPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-5">
+    <div id="inspection-entry-page" className="space-y-5">
       {/* Save / PostgreSQL Sync Status Banner */}
       {saveFeedback && (
         <div
@@ -1260,7 +1387,7 @@ export const InspectionFormPage: React.FC = () => {
           </div>
 
           {/* Form Specific Header Parameters */}
-          {formMeta.fields.length > 0 && (
+          {/* {formMeta.fields.length > 0 && (
             <div className="bg-white rounded-xl p-4 border border-[#FDE8E4] shadow-sm">
               <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider mb-3 border-b border-[#FDE8E4] pb-2">
                 2. {formMeta.title} – Header Parameters
@@ -1328,6 +1455,77 @@ export const InspectionFormPage: React.FC = () => {
                 ))}
               </div>
             </div>
+          )} */}
+          {formMeta.fields.length > 0 && (
+            <div className="bg-white rounded-xl p-4 border border-[#FDE8E4] shadow-sm">
+              <h3 className="text-xs font-bold text-[#EA5551] uppercase tracking-wider mb-3 border-b border-[#FDE8E4] pb-2">
+                2. {formMeta.title} – Header Parameters
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                {formMeta.fields.map(field => (
+                  <div key={field.key}>
+                    <label className="block text-[11px] font-semibold text-[#EA5551] mb-1">
+                      {field.label}{' '}
+                      {field.unit && <span className="text-[#EA5551]">({field.unit})</span>}
+                      {field.required && <span className="text-[#BE123C] ml-0.5">*</span>}
+                    </label>
+
+                    {field.type === 'select' ? (
+                      <select
+                        disabled={isReadOnly}
+                        value={formData[field.key] ?? field.defaultValue ?? ''}
+                        onChange={e => handleFieldChange(field.key, e.target.value)}
+                        onKeyDown={handleEnterAsTab}
+                        aria-label={field.label}
+                        className="w-full bg-white border border-[#F5D0CB] rounded-md px-2.5 py-1.5 text-xs text-[#EA5551] font-medium focus:outline-none focus:ring-1 focus:ring-[#EA5551] focus:border-[#D46764] disabled:bg-[#FFEAE6] disabled:text-[#EA5551]"
+                      >
+                        {field.options?.map(opt => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={
+                          field.type === 'number'
+                            ? 'number'
+                            : field.type === 'date'
+                            ? 'date'
+                            : field.type === 'time'
+                            ? 'time'
+                            : 'text'
+                        }
+                        step={field.type === 'number' ? 'any' : undefined}
+                        readOnly={field.type === 'readonly'}
+                        disabled={isReadOnly}
+                        value={formData[field.key] ?? field.defaultValue ?? ''}
+                        onChange={e => {
+                          if (field.type === 'number') {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              handleFieldChange(field.key, '');
+                            } else {
+                              const parsed = parseFloat(raw);
+                              handleFieldChange(field.key, Number.isNaN(parsed) ? '' : parsed);
+                            }
+                          } else {
+                            handleFieldChange(field.key, e.target.value);
+                          }
+                        }}
+                        onKeyDown={handleEnterAsTab}
+                        className="w-full bg-white border border-[#F5D0CB] rounded-md px-2.5 py-1.5 text-xs text-[#EA5551] font-medium placeholder:text-[#806B68] focus:outline-none focus:ring-1 focus:ring-[#EA5551] focus:border-[#D46764] disabled:bg-[#FFEAE6] disabled:text-[#EA5551]"
+                      />
+                    )}
+
+                    {field.helpText && (
+                      <p className="text-[10px] text-[#806B68] mt-0.5">{field.helpText}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Repeatable Readings Table */}
@@ -1356,7 +1554,12 @@ export const InspectionFormPage: React.FC = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table
+                className={`w-full table-fixed text-xs text-left ${
+                  formMeta.columns.length >= 15 ? 'min-w-[2200px]' : 'min-w-full'
+                }`}
+              >
+              {/* <table className="w-full text-xs text-left"> */}
                 <thead>
                   <tr className="bg-[#FFEAE6] border-b border-[#FDE8E4] text-[#EA5551] font-semibold">
                     <th className="py-2.5 px-3 w-12 text-center">#</th>
@@ -1370,7 +1573,7 @@ export const InspectionFormPage: React.FC = () => {
                         {col.unit && <span className="text-[#EA5551] font-normal">({col.unit})</span>}
                       </th>
                     ))}
-                    {!isReadOnly && <th className="py-2.5 px-3 w-12 text-center">Action</th>}
+                    {!isReadOnly && <th className="py-2.5 px-3 w-[100px] min-w-[100px] text-center">Action</th>}
                   </tr>
                 </thead>
 
@@ -1399,6 +1602,11 @@ export const InspectionFormPage: React.FC = () => {
                               onChange={e => handleRowChange(idx, col.key, e.target.value)}
                               aria-label={`${col.label} Row ${idx + 1}`}
                               className="w-full bg-white border border-[#F5D0CB] rounded px-2 py-1 text-xs text-[#393334] font-medium focus:border-[#EA5551] focus:ring-1 focus:ring-[#F5D0CB] outline-none"
+                              onKeyDown={
+                                formMeta.code === 'FORM-11'
+                                  ? handleEnterAsTabUpDown
+                                  : handleEnterAsTab
+                              }
                             >
 
                               {/* FORM-36: Dynamic Criteria Options */}
@@ -1438,6 +1646,11 @@ export const InspectionFormPage: React.FC = () => {
                               disabled={isReadOnly}
                               value={row[col.key] ?? ''}
                               placeholder={col.type === 'number' ? '0.00' : ''}
+                              onKeyDown={
+                                formMeta.code === 'FORM-11'
+                                  ? handleEnterAsTabUpDown
+                                  : handleEnterAsTab
+                              }
                               onChange={e => {
                                 if (col.type === 'number') {
                                   const raw = e.target.value;
