@@ -2979,7 +2979,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     description: 'Productivity Study for Breaker/Finisher Card, Drawing, Spinning, and Loom. Supports relevant loss factors from source document and calculates Total Loss and Utilisation/Efficiency.',
     sourceStandardText: 'Target Utilisation: Cards: ≥ 85%; Drawing: ≥ 82%; Spinning: ≥ 88%; Looms: ≥ 78%. Total Loss = Sum of Doffing, Breakdown, Material Shortage, Idle Time.',
     fields: [
-      { key: 'studyZone', label: 'Study Zone', type: 'select', options: ['Weaving', 'Spinning', 'Drawing', 'Draw Head & Finisher Card & BR Card '], defaultValue: 'Weaving' },
+      { key: 'studyZone', label: 'Study Zone', type: 'select', options: ['Weaving', 'Spinning', 'Drawing', 'Spreader', 'Draw Head & Finisher Card & BR Card '], defaultValue: 'Weaving' },
       { key: 'totalMachineObserved', label: 'Total no of Machine Observed', type: 'number', defaultValue: '', required: true },
       { key: 'totalNoRound', label: 'Total no Round', type: 'number', defaultValue: '' },
       { key: 'durationOfStudy', label: 'Duration of Study', type: 'number', defaultValue: '' },

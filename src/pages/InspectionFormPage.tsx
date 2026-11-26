@@ -71,6 +71,7 @@ export const InspectionFormPage: React.FC = () => {
     () => resolveFormByCode(selectedFormCode),
     [selectedFormCode]
   );
+  
 
 const handleEnterAsTabUpDown = (
   e: React.KeyboardEvent<
@@ -197,7 +198,33 @@ const handleEnterAsTab = (
     }
   }
 };
-
+  const spreaderCriteria = [
+    'MECHANICAL',
+    'PIN SHEARING',
+    'FEED ROLLER JAM',
+    'ROLL FORMER JAM',
+    'LANTERN ROLLER JAM',
+    'DRAWING ROLLER JAM',
+    'DRAWING PRESSING ROLLER JAM',
+    'DELEVERY ROLLER JAM',
+    'DELEVERY PRESSING ROLLER JAM',
+    'BAR JAM',
+    'DOFFING',
+    'DUST CLEANING',
+    'DUST SUCTION REP.',
+    'LEADER ROLL FEEDING',
+    'ELECTRICAL PROBLEM',
+    'QUALITY CHANGE',
+    'COILER SYSTEM PROB. (YARN BKG.)',
+    'FAST SECTION SLIVER JAM',
+    'FLUTED DEL. ROLLER JAM',
+    'INTER SPD. ROLL FEED',
+    'MORRAH TROLLY ARRIANG',
+    'ROLL CENTER(TARE)JAM ON ROLL',
+    'ROLL FORMA ROD JAM',
+    'R/WISE LOSS %',
+    'R/W UTILISATION %'
+  ]
 
   const weavingCriteria = [
     'WARP BREAKAGE SINGLE',
@@ -1615,10 +1642,12 @@ const handleEnterAsTab = (
                                 (formData.studyZone === 'Weaving'
                                   ? weavingCriteria
                                   : formData.studyZone === 'Spinning'
-                                    ? spinningCriteria
-                                    : formData.studyZone === 'Drawing'
-                                      ? drawingCriteria
-                                      : drawHeadFinisherBRCriteria
+                                  ? spinningCriteria
+                                  : formData.studyZone === 'Drawing'
+                                  ? drawingCriteria
+                                  : formData.studyZone === 'Spreader'
+                                  ? spreaderCriteria
+                                  : drawHeadFinisherBRCriteria
                                 ).map(opt => (
                                   <option key={opt} value={opt}>
                                     {opt}
