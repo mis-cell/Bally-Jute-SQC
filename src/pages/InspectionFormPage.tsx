@@ -71,6 +71,41 @@ export const InspectionFormPage: React.FC = () => {
     () => resolveFormByCode(selectedFormCode),
     [selectedFormCode]
   );
+  // Form-wise Session Storage
+  const getFormSessionKey = (formCode: string) =>
+    `SQC_FORM_FIELDS_${normalizeFormKey(formCode)}`;
+
+  // Save form-specific header fields
+  const saveFormFieldsToSession = (
+    formCode: string,
+    fields: Record<string, any>
+  ) => {
+    try {
+      sessionStorage.setItem(
+        getFormSessionKey(formCode),
+        JSON.stringify(fields)
+      );
+    } catch (error) {
+      console.error('Session Storage Save Error:', error);
+    }
+  };
+
+  // Get previously saved form-specific header fields
+  const getFormFieldsFromSession = (
+    formCode: string
+  ): Record<string, any> => {
+    try {
+      const saved = sessionStorage.getItem(
+        getFormSessionKey(formCode)
+      );
+
+      return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+      console.error('Session Storage Read Error:', error);
+      return {};
+    }
+  };
+
   
 
 const handleEnterAsTabUpDown = (
@@ -630,11 +665,33 @@ const handleEnterAsTab = (
     if (id) return;
 
     const meta = resolveFormByCode(selectedFormCode);
+
+    // First initialize default values
+    const initFields: Record<string, any> = {};
+
+    meta.fields.forEach(f => {
+      if (f.defaultValue !== undefined) {
+        initFields[f.key] = f.defaultValue;
+      }
+    });
+
+    // Restore previously saved values for this particular form
+    const savedFields = getFormFieldsFromSession(meta.code);
+
+    const restoredFields = {
+      ...initFields,
+      ...savedFields
+    };
+
+    setFormData(restoredFields);
+    /* if (id) return;
+
+    const meta = resolveFormByCode(selectedFormCode);
     const initFields: Record<string, any> = {};
     meta.fields.forEach(f => {
       if (f.defaultValue !== undefined) initFields[f.key] = f.defaultValue;
     });
-    setFormData(initFields);
+    setFormData(initFields); */
 
     const initRows: Record<string, any>[] = [];
     for (let i = 1; i <= meta.defaultRowCount; i++) {
@@ -821,7 +878,17 @@ const handleEnterAsTab = (
 
       setExistingRecord(finalRecord);
 
+      // Save form-specific header fields to Session Storage
+      saveFormFieldsToSession(
+        formMeta.code,
+        finalRecord.formData || {}
+      );
+
       const pgRes = await postgresService.syncInspectionToPostgres(finalRecord);
+
+      /* setExistingRecord(finalRecord);
+
+      const pgRes = await postgresService.syncInspectionToPostgres(finalRecord); */
       const feedback: SaveFeedbackState = pgRes.success
         ? {
             type: 'success',
@@ -876,7 +943,21 @@ const handleEnterAsTab = (
         initFields[field.key] = field.defaultValue;
       }
     });
-    setFormData(initFields);
+
+    // Restore previous values for the selected form
+    const savedFields = getFormFieldsFromSession(meta.code);
+
+    setFormData({
+      ...initFields,
+      ...savedFields
+    });
+    /* const initFields: Record<string, any> = {};
+    meta.fields.forEach(field => {
+      if (field.defaultValue !== undefined) {
+        initFields[field.key] = field.defaultValue;
+      }
+    });
+    setFormData(initFields); */
 
     // Initialize fresh reading rows
     const initRows: Record<string, any>[] = [];
@@ -1575,7 +1656,7 @@ const handleEnterAsTab = (
                   className="px-2.5 py-1 bg-white border border-[#F5D0CB] hover:border-[#EA5551] hover:bg-[#FFFFFF] hover:text-[#EA5551] text-[#806B68] rounded text-xs font-semibold inline-flex items-center gap-1 shadow-sm transition-colors"
                 >
                   <Plus size={13} />
-                  <span>Add Sample Row</span>
+                  <span>Add Inspection Row</span>
                 </button>
               )}
             </div>
