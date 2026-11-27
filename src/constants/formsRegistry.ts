@@ -426,7 +426,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Morrah Feeding Rate: 36–42 Morrahs/min. Doffing Loss Time: ≤ 25 seconds.',
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality1 },
       { key: 'targetFeedPerMin', label: 'Standard Feeding Rate ', type: 'number', defaultValue: 38, unit: 'Morrah/min' },
       { key: 'maxDoffingSec', label: 'Max Doffing Time', type: 'number', defaultValue: 25, unit: 'sec' },
       { key: 'feederName', label: 'Feeder Name', type: 'text', defaultValue: '', unit: '' },
@@ -497,7 +497,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
     sourceStandardText: 'Standard Emulsion Application: 22% to 26% on fiber. Oil content in emulsion: 18% to 22%.',
     fields: [
       { key: 'machineNo', label: 'Machine No', type: 'text', defaultValue:'' },
-      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality },
+      { key: 'quality', label: 'Quality', type: 'select', options: sliverQuality1 },
       { key: 'standardEmulsionPct', label: 'Standard Emulsion Application ', type: 'number', defaultValue: 24.0, unit: '%' },
       /* { key: 'standardOilPctInEmulsion', label: 'Standard Oil in Emulsion ', type: 'number', defaultValue: 20.0, unit: '%' }, */
       { key: 'temperature', label: 'Temperature ', type: 'number', defaultValue: '', unit: '°C' },
