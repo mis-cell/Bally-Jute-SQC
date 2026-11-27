@@ -1156,18 +1156,18 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       : 0;
       //cv percent Converted Weight
 
-      //cv percent Tpi
+      // CV Percent TPI
       const tpitotal = rows.map(r => Number(r.tpi)).filter(v => Number.isFinite(v) && v > 0);
-      // Average Converted Weight
-      const avgTpi = tpitotal.length > 0 ? tpitotal.reduce((sum, v) => sum + v, 0) / tpitotal.length : 0;
-      // Calculate squared deviations
-      const squaredDeviationsTpi = tpitotal.map( v => Math.pow(avgTpi - v, 2));
-      // Average of squared deviations
-      const avgSquaredDeviationTpi = squaredDeviationsTpi.length > 0 ? squaredDeviationsTpi.reduce((sum, v) => sum + v, 0) / squaredDeviationsTpi.length : 0;
+      // Average TPI
+      const avgTpi = tpitotal.length? tpitotal.reduce((sum, v) => sum + v, 0) / tpitotal.length: 0;
+      // Squared Deviations
+      const squaredDeviationsTpi = tpitotal.map(v => Math.pow(avgTpi - v, 2));
+      // Average Squared Deviation (Population Variance)
+      const avgSquaredDeviationTpi = squaredDeviationsTpi.length? squaredDeviationsTpi.reduce((sum, v) => sum + v, 0) / squaredDeviationsTpi.length: 0;
       // Standard Deviation
       const sdTpi = Math.sqrt(avgSquaredDeviationTpi);
       // CV Percentage
-      const cvPercentTpi = avgSquaredDeviationTpi > 0 ? (sdTpi / avgSquaredDeviationTpi) * 100 : 0;
+      const cvPercentTpi = avgTpi > 0? (sdTpi / avgTpi) * 100: 0;
       const maxTpi = tpitotal.length > 0 ? Math.max(...tpitotal) : 0;
       const minTpi = tpitotal.length > 0 ? Math.min(...tpitotal) : 0;
       //cv percent Tpi
