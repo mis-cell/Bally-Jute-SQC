@@ -106,6 +106,41 @@ export const InspectionFormPage: React.FC = () => {
     }
   };
 
+  // Form-wise General Inspection Context Session Key
+const getGeneralInfoSessionKey = (formCode: string) =>
+  `SQC_GENERAL_INFO_${normalizeFormKey(formCode)}`;
+
+// Save General Inspection Context
+const saveGeneralInfoToSession = (
+  formCode: string,
+  info: Record<string, any>
+) => {
+  try {
+    sessionStorage.setItem(
+      getGeneralInfoSessionKey(formCode),
+      JSON.stringify(info)
+    );
+  } catch (error) {
+    console.error('General Info Session Save Error:', error);
+  }
+};
+
+// Restore General Inspection Context
+const getGeneralInfoFromSession = (
+  formCode: string
+): Record<string, any> => {
+  try {
+    const saved = sessionStorage.getItem(
+      getGeneralInfoSessionKey(formCode)
+    );
+
+    return saved ? JSON.parse(saved) : {};
+  } catch (error) {
+    console.error('General Info Session Read Error:', error);
+    return {};
+  }
+};
+
   
 
 const handleEnterAsTabUpDown = (
@@ -583,6 +618,13 @@ const handleEnterAsTab = (
     loomNo: '',
   });
 
+  useEffect(() => {
+    if (id || !selectedFormCode) return;
+
+    saveGeneralInfoToSession(selectedFormCode, generalInfo);
+
+  }, [generalInfo, selectedFormCode, id]);
+
   // Read any feedback passed through navigation state after creating a record
   useEffect(() => {
     const navState = location.state as { saveFeedback?: SaveFeedbackState } | null;
@@ -713,13 +755,27 @@ const handleEnterAsTab = (
     }
     setReadingRows(initRows);
 
-    setGeneralInfo(prev => ({
+    /* setGeneralInfo(prev => ({
       ...prev,
       inspectionNo: dataService.generateInspectionNumber(meta.code),
       departmentId: meta.departmentCode,
       departmentName: meta.department,
+    }));*/
+    const savedGeneralInfo = getGeneralInfoFromSession(meta.code);
+
+    setGeneralInfo(prev => ({
+      ...prev,
+      ...savedGeneralInfo,
+
+      // Always generate a fresh inspection number
+      inspectionNo: dataService.generateInspectionNumber(meta.code),
+
+      // Always respect current form metadata
+      departmentId: meta.departmentCode,
+      departmentName: meta.department,
     }));
-  }, [selectedFormCode, id]);
+  }, [selectedFormCode, id]); 
+  
 
   // Recalculate metrics and computed rows on each change
   const { calculationResult, computedRows } = useMemo(() => {
@@ -990,7 +1046,7 @@ const handleEnterAsTab = (
     const now = new Date();
     const defaultQuality = qualities.find(q => q.code === '15');
 
-    setGeneralInfo({
+    /* setGeneralInfo({
       inspectionNo: dataService.generateInspectionNumber(meta.code),
       inspectionDate: now.toISOString().split('T')[0],
       inspectionTime: now.toLocaleTimeString([], {
@@ -1005,6 +1061,35 @@ const handleEnterAsTab = (
       departmentName: meta.department,
       machineNo: '',
       loomNo: '',
+    }); */
+    // Restore previously saved General Inspection Context
+    const savedGeneralInfo = getGeneralInfoFromSession(meta.code);
+
+    setGeneralInfo({
+      inspectionNo: dataService.generateInspectionNumber(meta.code),
+
+      inspectionDate:
+        savedGeneralInfo.inspectionDate ||
+        now.toISOString().split('T')[0],
+
+      inspectionTime:
+        now.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+
+      shiftId: savedGeneralInfo.shiftId || 'Shift-A',
+      shiftName:
+        savedGeneralInfo.shiftName || 'Shift A (06:00 - 14:00)',
+
+      qualityId: savedGeneralInfo.qualityId || defaultQuality?.id || 'q-15',
+      qualityName: savedGeneralInfo.qualityName || defaultQuality?.name || 'NA',
+
+      departmentId: meta.departmentCode,
+      departmentName: meta.department,
+
+      machineNo: savedGeneralInfo.machineNo || '',
+      loomNo: savedGeneralInfo.loomNo || '',
     });
 
     setSaveFeedback(null);

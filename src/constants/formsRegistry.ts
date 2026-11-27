@@ -1614,12 +1614,18 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       if (widths.length === 0) result = 'WARNING';
       else if (Math.abs(avgW - stdW) > 0.5 || avgMR > 17.5 || avgMR < 13.0) result = 'FAIL';
       else if (Math.abs(avgW - stdW) > 0.25 || avgMR > 16.5 || avgMR < 14.0) result = 'WARNING';
-
+      
+      const totalFault100m = (((Number(totalMajorFault)+Number(totalMinorFault))/(Number(validRows.length)*standardLength))*100)
+      const totalmajorFault100m = ((Number(totalMajorFault)/(Number(validRows.length)*standardLength))*100)
+      const totalminorFault100m = ((Number(totalMinorFault)/(Number(validRows.length)*standardLength))*100)
       return {
         metrics: {
           totalMajorFault: Number(totalMajorFault),
+          totalMajorFault100m: totalmajorFault100m > 0 ?totalmajorFault100m.toFixed(2):0,
           totalMinorFault: Number(totalMinorFault),
-          totalFault100M: (Number(totalMajorFault)+Number(totalMinorFault)).toFixed(2),
+          totalMinorFault100m: totalminorFault100m > 0 ?totalminorFault100m.toFixed(2):0,
+          totalFault: (Number(totalMajorFault)+Number(totalMinorFault)).toFixed(2),
+          totalFault100m: totalFault100m > 0 ?totalFault100m.toFixed(2):0
         },
         result,
       };
@@ -1699,13 +1705,14 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       const totalcnvg = rows.reduce((sum, r) => sum + (Number(r.convertedGsm) || 0), 0);
       const avgCovertedGsm = avgcnvg.length> 0 ? totalcnvg/avgcnvg.length : 0;
 
-      const avgobshy = rows.map(r => Number(r.observedHYlt) || 0).filter(v => v > 0);
-      const totalobshy = rows.reduce((sum, r) => sum + (Number(r.observedHYlt) || 0), 0);
-      const avgobservedHYlt = avgobshy.length > 0 ? totalobshy/avgobshy.length : 0;
+      const avgobshy = rows.map(r => Number(r.observedGsm) || 0).filter(v => v > 0);
+      const totalobshy = rows.reduce((sum, r) => sum + (Number(r.observedGsm) || 0), 0);
+      const avgObservedGsm = avgobshy.length> 0 ? totalobshy/avgobshy.length : 0;
+      const avgobservedHYlt = avgObservedGsm > 0 ?((Number(avgObservedGsm)-Number(formData.standardGsm))/Number(formData.standardGsm))*100 : 0;
 
-      const avgcnvhy = rows.map(r => Number(r.convertedHYlt) || 0).filter(v => v > 0);
-      const totalcnvhy = rows.reduce((sum, r) => sum + (Number(r.convertedHYlt) || 0), 0);
-      const avgconvertedHYlt = avgcnvhy.length > 0 ? totalcnvhy/avgcnvhy.length : 0;
+     /*  const avgcnvhy = rows.map(r => Number(r.convertedHYlt) || 0).filter(v => v > 0);
+      const totalcnvhy = rows.reduce((sum, r) => sum + (Number(r.convertedHYlt) || 0), 0); */
+      const avgconvertedHYlt = avgCovertedGsm > 0 ?((Number(avgCovertedGsm)-Number(formData.standardGsm))/Number(formData.standardGsm))*100 : 0;
 
       const widths = rows.flatMap(r => [
         r.width1,
