@@ -71,6 +71,14 @@ export const InspectionFormPage: React.FC = () => {
     () => resolveFormByCode(selectedFormCode),
     [selectedFormCode]
   );
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'auto',
+    });
+  }, [location.pathname, location.search]);
   // Form-wise Session Storage
   const getFormSessionKey = (formCode: string) =>
     `SQC_FORM_FIELDS_${normalizeFormKey(formCode)}`;
