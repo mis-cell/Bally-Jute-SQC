@@ -93,7 +93,7 @@ export const UsersPage: React.FC = () => {
   const allFormCodes = Object.keys(FORM_REGISTRY);
 
   const formGroups = [
-    { title: 'Raw Fiber & Spreader', forms: ['FORM-01', 'FORM-02', 'FORM-03', 'FORM-04', 'FORM-05'] },
+    { title: 'Raw Fiber & Spreader', forms: ['FORM-01', 'FORM-02', 'FORM-03', 'FORM-04', 'FORM-05','FORM-38'] },
     { title: 'Carding & Drawing', forms: ['FORM-06', 'FORM-07', 'FORM-08', 'FORM-09', 'FORM-37'] },
     { title: 'Spinning & Winding', forms: ['FORM-10', 'FORM-11', 'FORM-12'] },
     { title: 'Beaming & Weaving', forms: ['FORM-13', 'FORM-14', 'FORM-15', 'FORM-16'] },

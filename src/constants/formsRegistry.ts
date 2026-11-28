@@ -485,9 +485,9 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
   },
 
   'FORM-05': {
-    code: 'FORM-05',
+    code: 'FORM-05 A',
     number: 5,
-    title: 'Jute Spreader / Softener – Emulsion Checking',
+    title: 'Jute Spreader / Softener – Emulsion Application Checking',
     department: 'Jute Spreader / Softener',
     departmentCode: 'JSP',
     section: 'Emulsion Plant',
@@ -561,6 +561,50 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
           avgApplicationEmulsionPct: Number(avgApp.toFixed(2)),
           avgApplicationChemicalPct: Number(avgChem.toFixed(2)),
           targetApplicationPct: stdApp,
+        },
+        result,
+      };
+    },
+  },
+  'FORM-38': {
+    code: 'FORM-05 B',
+    number:38,
+    title: 'Jute Spreader / Softener – Oil % In Emulsion Checking',
+    department: 'Jute Spreader / Softener',
+    departmentCode: 'JSP',
+    section: 'Emulsion Plant',
+    sampleUnit: '% Application',
+    defaultRowCount: 1,
+    description: 'Checks Oil-in-Water emulsion strength, specific gravity, flow rate, and application percentage.',
+    sourceStandardText: 'Standard Emulsion Application: 22% to 26% on fiber. Oil content in emulsion: 18% to 22%.',
+    fields: [
+    ],
+    columns: [
+      { key: 'sampleNo', label: 'Sample', type: 'readonly', width: '120px' },
+      { key: 'quality', label: 'Quality', type: 'text' },
+      { key: 'standardoilinEmulsion', label: 'Standard Oil % In Emulsion', type: 'number' },
+      { key: 'observedOilinEmulsion', label: 'Observed Oil % In Emulsion', type: 'number' },
+      { key: 'stability', label: 'Stability', type: 'text', unit: '', precision: 2 },
+      { key: 'remarks', label: 'Reamrks', type: 'text' }
+    ],
+    
+    calculate: (formData, rows) => {
+      const stdApp = Number(formData.standardEmulsionPct) || 24.0;
+      const apps: number[] = [];
+      const chemApps: number[] = [];
+      const prods: number[] = [];
+
+      const avgApp = calcMean(apps);
+      const avgChem = calcMean(chemApps);
+      const avgProd = calcMean(prods);
+
+      let result: 'PASS' | 'WARNING' | 'FAIL' = 'PASS';
+      if (apps.length === 0) result = 'WARNING';
+      else if (Math.abs(avgApp - stdApp) > 3.5) result = 'FAIL';
+      else if (Math.abs(avgApp - stdApp) > 2.0) result = 'WARNING';
+
+      return {
+        metrics: {
         },
         result,
       };
@@ -2136,7 +2180,7 @@ export const FORM_REGISTRY: Record<string, FormMetadata> = {
       else if (Math.abs(dev) > 3.0 || defectCount > 0) result = 'WARNING';
 
       rows.forEach(r => {
-        r.observedCorrectedBagWt = r.observedBagWt > 0 ? ((Number(r.observedBagWt)*(100+Number(formData.standardMoisture)))/(100+Number(formData.standardMoisture))).toFixed(2) : '';
+        r.observedCorrectedBagWt = r.observedBagWt > 0 ? ((Number(r.observedBagWt)*(100+Number(formData.standardMoisture)))/(100+Number(r.observedMoisture))).toFixed(2) : '';
       });
       const totaldatarow = rows.map(r => Number(r.observedLength) || 0).filter(v => v > 0);
     

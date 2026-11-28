@@ -69,7 +69,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({
   const formGroups = [
     {
       title: 'Raw Fiber & Spreader',
-      forms: ['FORM-01', 'FORM-02', 'FORM-03', 'FORM-04', 'FORM-05'],
+      forms: ['FORM-01', 'FORM-02', 'FORM-03', 'FORM-04', 'FORM-05','FORM-38'],
     },
     {
       title: 'Carding & Drawing',
